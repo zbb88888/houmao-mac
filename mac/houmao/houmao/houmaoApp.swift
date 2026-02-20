@@ -24,12 +24,34 @@ struct HoumaoApp: App {
             MainView()
                 .environmentObject(mainViewModel)
                 .environmentObject(historyViewModel)
+                .frame(minWidth: 520, minHeight: 360)
         }
-        .windowStyle(.titleBar)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 600, height: 400)
         .commands {
             CommandGroup(replacing: .newItem) { }
+            CommandMenu("Debug") {
+                Button("Double-Click Option Test...") {
+                    HoumaoApp.openDebugWindow()
+                }
+                .keyboardShortcut("d", modifiers: [.command, .shift])
+            }
         }
-        .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
+    }
+
+    static func openDebugWindow() {
+        DispatchQueue.main.async {
+            let debugWindow = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 500, height: 450),
+                styleMask: [.titled, .closable, .resizable],
+                backing: .buffered,
+                defer: false
+            )
+            debugWindow.title = "HotKey Debug"
+            debugWindow.contentView = NSHostingView(rootView: HotKeyDebugView())
+            debugWindow.center()
+            debugWindow.makeKeyAndOrderFront(nil)
+        }
     }
 }
 
@@ -37,14 +59,18 @@ struct HoumaoApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     static var sharedStore: HistoryStore?
     private var usageTracker: UsageTracker?
+    private var hotKeyManager: GlobalHotKeyManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // App 启动完成后，配置为窗口关闭后继续运行
         NSApp.setActivationPolicy(.regular)
 
+        // 初始化全局热键管理器
+        hotKeyManager = GlobalHotKeyManager.shared
+
         // 在应用启动完成后异步初始化 UsageTracker，避免阻塞主线程
         if let store = Self.sharedStore {
-            DispatchQueue.main.async {
+            DispatchQueue.global(qos: .background).async {
                 self.usageTracker = UsageTracker(store: store)
             }
         }
