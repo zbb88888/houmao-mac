@@ -3,6 +3,7 @@ import SwiftUI
 struct MainView: View {
     @EnvironmentObject var viewModel: MainViewModel
     @EnvironmentObject var historyViewModel: HistoryViewModel
+    @FocusState private var isInputFocused: Bool
 
     private let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -19,6 +20,7 @@ struct MainView: View {
                 })
             })
             .textFieldStyle(.roundedBorder)
+            .focused($isInputFocused)
 
             Divider()
 
@@ -40,6 +42,30 @@ struct MainView: View {
         .onExitCommand {
             // ESC 键隐藏窗口（不是关闭）
             NSApplication.shared.keyWindow?.orderOut(nil)
+        }
+        .onAppear {
+            // 窗口出现时自动聚焦输入框
+            isInputFocused = true
+
+            // 监听窗口显示事件
+            NotificationCenter.default.addObserver(
+                forName: NSWindow.didBecomeKeyNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                // 窗口变为 key window 时，聚焦输入框
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    isInputFocused = true
+                }
+            }
+        }
+        .onChange(of: viewModel.isShowingHistory) {
+            // 从 history 返回聊天时，自动聚焦输入框
+            if !viewModel.isShowingHistory {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isInputFocused = true
+                }
+            }
         }
     }
 
