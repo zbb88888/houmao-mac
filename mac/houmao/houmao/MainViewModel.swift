@@ -8,7 +8,7 @@ final class MainViewModel: ObservableObject {
     @Published var lastUserText: String?
     @Published var lastLLMReply: String?
     @Published var isLoading: Bool = false
-    @Published var isHistoryPresented: Bool = false
+    @Published var isShowingHistory: Bool = false
 
     private let llmClient: LLMClient
 
@@ -16,13 +16,13 @@ final class MainViewModel: ObservableObject {
         self.llmClient = llmClient
     }
 
-    /// 处理用户提交。historyHandler 在检测到 history 命令时被调用。
+    /// 处理用户提交。historyHandler 在检测到 b 命令时被调用。
     func submit(historyHandler: () -> Void) {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        // history 命令（忽略大小写）
-        if trimmed.lowercased() == "history" {
+        // b 命令：查看 before/back 使用记录（忽略大小写）
+        if trimmed.lowercased() == "b" {
             inputText = ""
             historyHandler()
             return
@@ -47,8 +47,8 @@ final class MainViewModel: ObservableObject {
         }
     }
 
-    func showHistoryWindow() {
-        isHistoryPresented = true
+    func toggleHistoryView() {
+        isShowingHistory.toggle()
     }
 }
 
