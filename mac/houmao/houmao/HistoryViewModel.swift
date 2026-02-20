@@ -1,4 +1,6 @@
 import Foundation
+import Combine
+import SwiftUI
 
 final class HistoryViewModel: ObservableObject {
     @Published var records: [UsageRecord] = []

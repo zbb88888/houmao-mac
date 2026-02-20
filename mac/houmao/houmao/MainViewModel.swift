@@ -1,4 +1,6 @@
 import Foundation
+import Combine
+import SwiftUI
 import AppKit
 
 final class MainViewModel: ObservableObject {

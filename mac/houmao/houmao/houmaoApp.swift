@@ -15,14 +15,6 @@ struct HoumaoApp: App {
         .commands {
             CommandGroup(replacing: .newItem) { }
         }
-
-        // History 独立窗口
-        Window("Usage History", id: "history-window") {
-            HistoryView()
-                .environmentObject(historyViewModel)
-        }
-        .defaultSize(width: 520, height: 400)
-        .handlesExternalEvents(preferring: ["history"], allowing: ["history"])
     }
 }
 
