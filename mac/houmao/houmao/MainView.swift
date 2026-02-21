@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import HoumaoCore
 
 // MARK: - Frosted glass (NSVisualEffectView)
 
@@ -23,6 +24,7 @@ struct VisualEffectBackground: NSViewRepresentable {
 struct MainView: View {
     @EnvironmentObject var viewModel: MainViewModel
     @EnvironmentObject var historyViewModel: HistoryViewModel
+    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isInputFocused: Bool
 
     private let cornerRadius: CGFloat = 12
@@ -33,12 +35,31 @@ struct MainView: View {
         return f
     }()
 
+    // Adaptive colors
+    private var borderColor: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.1)
+            : Color.black.opacity(0.1)
+    }
+
+    private var dividerColor: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.06)
+            : Color.black.opacity(0.06)
+    }
+
+    private var recordBackground: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.05)
+            : Color.black.opacity(0.04)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Search bar
             TextField("", text: $viewModel.inputText,
                       prompt: Text("Type something...")
-                        .foregroundColor(.white.opacity(0.35))
+                        .foregroundColor(.secondary)
                         .font(.system(size: 18, weight: .medium))
             )
             .onSubmit {
@@ -49,7 +70,7 @@ struct MainView: View {
             }
             .textFieldStyle(.plain)
             .font(.system(size: 18, weight: .medium))
-            .foregroundStyle(.white.opacity(0.9))
+            .foregroundStyle(.primary)
             .focused($isInputFocused)
             .padding(.leading, 24)
             .padding(.trailing, 16)
@@ -58,7 +79,7 @@ struct MainView: View {
             // Results - only after interaction
             if shouldShowResults {
                 Divider()
-                    .overlay(Color.white.opacity(0.06))
+                    .overlay(dividerColor)
                     .padding(.horizontal, 16)
 
                 ScrollView {
@@ -79,17 +100,14 @@ struct MainView: View {
         .fixedSize(horizontal: false, vertical: true)
         .frame(width: 680)
         .background(
-            ZStack {
-                VisualEffectBackground(material: .hudWindow, blendingMode: .behindWindow)
-                Color(red: 28/255, green: 28/255, blue: 28/255).opacity(0.75)
-            }
+            VisualEffectBackground(material: .popover, blendingMode: .behindWindow)
         )
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
+                .strokeBorder(borderColor, lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.5), radius: 40, y: 12)
+        .shadow(color: .black.opacity(0.3), radius: 40, y: 12)
         .padding(40)
         .onExitCommand {
             NSApplication.shared.keyWindow?.orderOut(nil)
@@ -130,7 +148,7 @@ struct MainView: View {
         window.isMovableByWindowBackground = true
         window.styleMask.insert(.fullSizeContentView)
         window.styleMask.remove([.closable, .miniaturizable, .resizable])
-        window.appearance = NSAppearance(named: .darkAqua)
+        // No forced appearance — follow system light/dark
     }
 
     // MARK: - Should show results
@@ -176,7 +194,7 @@ struct MainView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
-                    .background(Color.white.opacity(0.05))
+                    .background(recordBackground)
                     .cornerRadius(6)
                 }
             }

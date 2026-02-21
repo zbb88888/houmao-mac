@@ -1,9 +1,15 @@
 import Foundation
-import Combine
 import SwiftUI
+import Combine
+import HoumaoCore
 
+@MainActor
 final class HistoryViewModel: ObservableObject {
-    @Published var records: [UsageRecord] = []
+    nonisolated let objectWillChange = ObservableObjectPublisher()
+
+    var records: [UsageRecord] = [] {
+        didSet { objectWillChange.send() }
+    }
 
     private let store: HistoryStore
 
@@ -12,17 +18,16 @@ final class HistoryViewModel: ObservableObject {
     }
 
     func load() {
-        let loaded = store.loadAll().sorted { $0.timestamp > $1.timestamp }
-        DispatchQueue.main.async {
+        Task {
+            let loaded = await store.loadAll().sorted { $0.timestamp > $1.timestamp }
             self.records = loaded
         }
     }
 
     func clearAll() {
-        store.clearAll()
-        DispatchQueue.main.async {
+        Task {
+            await store.clearAll()
             self.records = []
         }
     }
 }
-

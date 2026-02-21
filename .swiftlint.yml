@@ -1,0 +1,43 @@
+# SwiftLint Configuration for Houmao
+
+excluded:
+  - mac/houmao/houmaoTests
+  - mac/houmao/houmaoUITests
+  - .build
+
+disabled_rules:
+  - trailing_whitespace
+  - todo
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - force_unwrapping
+  - implicit_return
+  - modifier_order
+  - overridden_super_call
+  - private_action
+  - private_outlet
+  - vertical_whitespace_closing_braces
+
+line_length:
+  warning: 120
+  error: 200
+
+type_body_length:
+  warning: 300
+  error: 500
+
+file_length:
+  warning: 400
+  error: 600
+
+function_body_length:
+  warning: 50
+  error: 100
+
+identifier_name:
+  min_length: 2
+  excluded:
+    - id
+    - f

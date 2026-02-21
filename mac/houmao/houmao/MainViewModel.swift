@@ -1,27 +1,39 @@
 import Foundation
-import Combine
 import SwiftUI
-import AppKit
+import Combine
+import HoumaoCore
 
+@MainActor
 final class MainViewModel: ObservableObject {
-    @Published var inputText: String = ""
-    @Published var lastUserText: String?
-    @Published var lastLLMReply: String?
-    @Published var isLoading: Bool = false
-    @Published var isShowingHistory: Bool = false
+    nonisolated let objectWillChange = ObservableObjectPublisher()
+
+    var inputText: String = "" {
+        didSet { objectWillChange.send() }
+    }
+    var lastUserText: String? {
+        didSet { objectWillChange.send() }
+    }
+    var lastLLMReply: String? {
+        didSet { objectWillChange.send() }
+    }
+    var isLoading: Bool = false {
+        didSet { objectWillChange.send() }
+    }
+    var isShowingHistory: Bool = false {
+        didSet { objectWillChange.send() }
+    }
 
     private let llmClient: LLMClient
+    private var currentTask: Task<Void, Never>?
 
     init(llmClient: LLMClient) {
         self.llmClient = llmClient
     }
 
-    /// 处理用户提交。historyHandler 在检测到 b 命令时被调用。
     func submit(historyHandler: () -> Void) {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        // b 命令：查看 before/back 使用记录（忽略大小写）
         if trimmed.lowercased() == "b" {
             inputText = ""
             historyHandler()
@@ -33,22 +45,30 @@ final class MainViewModel: ObservableObject {
         inputText = ""
         isLoading = true
 
-        llmClient.ask(question: trimmed) { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.isLoading = false
-                switch result {
-                case .success(let reply):
-                    self.lastLLMReply = reply
-                case .failure(let error):
-                    self.lastLLMReply = "Error: \(error.localizedDescription)"
-                }
+        currentTask?.cancel()
+        currentTask = Task {
+            do {
+                let reply = try await llmClient.ask(question: trimmed)
+                guard !Task.isCancelled else { return }
+                self.lastLLMReply = reply
+            } catch is CancellationError {
+                // Cancelled, do nothing
+            } catch {
+                self.lastLLMReply = "Error: \(error.localizedDescription)"
             }
+            self.isLoading = false
         }
+    }
+
+    func clearConversation() {
+        currentTask?.cancel()
+        lastUserText = nil
+        lastLLMReply = nil
+        isLoading = false
+        inputText = ""
     }
 
     func toggleHistoryView() {
         isShowingHistory.toggle()
     }
 }
-
