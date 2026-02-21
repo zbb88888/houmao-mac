@@ -26,6 +26,7 @@ struct MainView: View {
     @EnvironmentObject var historyViewModel: HistoryViewModel
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isInputFocused: Bool
+    @ObservedObject private var settings = AppSettings.shared
 
     private let cornerRadius: CGFloat = 12
 
@@ -194,9 +195,11 @@ struct MainView: View {
                 ForEach(historyViewModel.records) { record in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Text(dateFormatter.string(from: record.timestamp))
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
+                            if settings.showTimestamp {
+                                Text(dateFormatter.string(from: record.timestamp))
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
                             Text(record.appName)
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.secondary.opacity(0.7))

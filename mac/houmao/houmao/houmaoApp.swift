@@ -64,12 +64,25 @@ struct HoumaoApp: App {
                 .keyboardShortcut("w", modifiers: .command)
             }
 
+            // Cmd+,: settings
+            CommandGroup(after: .appSettings) {
+                Button("Settings...") {
+                    HoumaoApp.openSettingsWindow()
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+
             CommandMenu("Debug") {
                 Button("Double-Click Option Test...") {
                     HoumaoApp.openDebugWindow()
                 }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
             }
+        }
+
+        // Settings window
+        Settings {
+            SettingsView()
         }
     }
 
@@ -85,6 +98,21 @@ struct HoumaoApp: App {
             debugWindow.contentView = NSHostingView(rootView: HotKeyDebugView())
             debugWindow.center()
             debugWindow.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    static func openSettingsWindow() {
+        DispatchQueue.main.async {
+            let settingsWindow = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 400, height: 250),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            settingsWindow.title = "Settings"
+            settingsWindow.contentView = NSHostingView(rootView: SettingsView())
+            settingsWindow.center()
+            settingsWindow.makeKeyAndOrderFront(nil)
         }
     }
 }
