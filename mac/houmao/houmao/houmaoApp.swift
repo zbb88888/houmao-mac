@@ -24,10 +24,9 @@ struct HoumaoApp: App {
             MainView()
                 .environmentObject(mainViewModel)
                 .environmentObject(historyViewModel)
-                .frame(minWidth: 520, minHeight: 360)
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 600, height: 400)
+        .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .newItem) { }
             CommandMenu("Debug") {
