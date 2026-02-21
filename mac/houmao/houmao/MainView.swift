@@ -63,9 +63,8 @@ struct MainView: View {
                         .font(.system(size: 18, weight: .medium))
             )
             .onSubmit {
-                viewModel.submit(historyHandler: {
+                viewModel.submit(onShowHistory: {
                     historyViewModel.load()
-                    viewModel.toggleHistoryView()
                 })
             }
             .textFieldStyle(.plain)
@@ -84,10 +83,15 @@ struct MainView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 8) {
-                        if viewModel.isShowingHistory {
+                        switch viewModel.panel {
+                        case .help:
+                            helpContent
+                        case .history:
                             historyContent
-                        } else {
+                        case .chat:
                             chatContent
+                        case .none:
+                            EmptyView()
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -122,13 +126,16 @@ struct MainView: View {
                 queue: .main
             ) { _ in
                 configureWindow()
+                Task { @MainActor in
+                    viewModel.clearConversation()
+                }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                     isInputFocused = true
                 }
             }
         }
-        .onChange(of: viewModel.isShowingHistory) {
-            if !viewModel.isShowingHistory {
+        .onChange(of: viewModel.panel) {
+            if viewModel.panel == .none {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     isInputFocused = true
                 }
@@ -139,7 +146,9 @@ struct MainView: View {
     // MARK: - Window config
 
     private func configureWindow() {
-        guard let window = NSApplication.shared.keyWindow else { return }
+        let window = NSApplication.shared.keyWindow
+            ?? NSApp.windows.first { $0.title != "HotKey Debug" }
+        guard let window else { return }
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
@@ -148,16 +157,15 @@ struct MainView: View {
         window.isMovableByWindowBackground = true
         window.styleMask.insert(.fullSizeContentView)
         window.styleMask.remove([.closable, .miniaturizable, .resizable])
-        // No forced appearance — follow system light/dark
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
     }
 
     // MARK: - Should show results
 
     private var shouldShowResults: Bool {
-        viewModel.isShowingHistory ||
-        viewModel.isLoading ||
-        (viewModel.lastUserText != nil && !viewModel.lastUserText!.isEmpty) ||
-        (viewModel.lastLLMReply != nil && !viewModel.lastLLMReply!.isEmpty)
+        viewModel.panel != .none
     }
 
     // MARK: - History content
@@ -168,7 +176,7 @@ struct MainView: View {
             Text("Usage History")
                 .font(.system(size: 14, weight: .semibold))
             Spacer()
-            Button(action: { viewModel.toggleHistoryView() }) {
+            Button(action: { viewModel.panel = .none }) {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundColor(.secondary)
             }
@@ -185,9 +193,14 @@ struct MainView: View {
             LazyVStack(alignment: .leading, spacing: 6) {
                 ForEach(historyViewModel.records) { record in
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(dateFormatter.string(from: record.timestamp))
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                        HStack {
+                            Text(dateFormatter.string(from: record.timestamp))
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            Text(record.appName)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary.opacity(0.7))
+                        }
                         Text(record.text)
                             .font(.system(size: 12))
                             .lineLimit(2)
@@ -206,6 +219,60 @@ struct MainView: View {
             .font(.system(size: 12))
             .foregroundColor(.red.opacity(0.8))
             .padding(.top, 4)
+        }
+    }
+
+    // MARK: - Help content
+
+    @ViewBuilder
+    private var helpContent: some View {
+        HStack {
+            Text("Help")
+                .font(.system(size: 14, weight: .semibold))
+            Spacer()
+            Button(action: { viewModel.panel = .none }) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Shortcuts")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.secondary)
+
+            helpRow(key: "Double Option", description: "Show / Hide window")
+            helpRow(key: "Esc", description: "Hide window")
+            helpRow(key: "Cmd + K", description: "Clear conversation")
+            helpRow(key: "Cmd + B", description: "Toggle usage history")
+            helpRow(key: "Cmd + L", description: "Clear all history")
+            helpRow(key: "Cmd + W", description: "Hide window")
+            helpRow(key: "Cmd + Shift + D", description: "Open debug window")
+
+            Divider().overlay(dividerColor).padding(.vertical, 4)
+
+            Text("Commands")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.secondary)
+
+            helpRow(key: "h", description: "Show this help")
+            helpRow(key: "b", description: "Toggle usage history")
+        }
+        .padding(.vertical, 8)
+    }
+
+    private func helpRow(key: String, description: String) -> some View {
+        HStack(spacing: 8) {
+            Text(key)
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(recordBackground)
+                .cornerRadius(4)
+            Text(description)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
         }
     }
 

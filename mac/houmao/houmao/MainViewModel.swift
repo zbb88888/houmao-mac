@@ -3,6 +3,13 @@ import SwiftUI
 import Combine
 import HoumaoCore
 
+enum Panel: Equatable {
+    case none
+    case chat
+    case history
+    case help
+}
+
 @MainActor
 final class MainViewModel: ObservableObject {
     nonisolated let objectWillChange = ObservableObjectPublisher()
@@ -19,31 +26,45 @@ final class MainViewModel: ObservableObject {
     var isLoading: Bool = false {
         didSet { objectWillChange.send() }
     }
-    var isShowingHistory: Bool = false {
+    var panel: Panel = .none {
         didSet { objectWillChange.send() }
     }
 
     private let llmClient: LLMClient
     private var currentTask: Task<Void, Never>?
+    var usageTracker: UsageTracker?
+
+    /// Commands: single-letter input → panel toggle.
+    /// Add new entries here for future special commands.
+    private let commands: [String: Panel] = [
+        "b": .history,
+        "h": .help,
+    ]
 
     init(llmClient: LLMClient) {
         self.llmClient = llmClient
     }
 
-    func submit(historyHandler: () -> Void) {
+    func submit(onShowHistory: () -> Void) {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        if trimmed.lowercased() == "b" {
+        // Check commands
+        if let target = commands[trimmed.lowercased()] {
             inputText = ""
-            historyHandler()
+            if target == .history { onShowHistory() }
+            panel = (panel == target) ? .none : target
             return
         }
 
+        // Normal LLM query
         lastUserText = trimmed
         lastLLMReply = nil
         inputText = ""
         isLoading = true
+        panel = .chat
+
+        usageTracker?.record(text: trimmed)
 
         currentTask?.cancel()
         currentTask = Task {
@@ -65,10 +86,7 @@ final class MainViewModel: ObservableObject {
         lastUserText = nil
         lastLLMReply = nil
         isLoading = false
+        panel = .none
         inputText = ""
-    }
-
-    func toggleHistoryView() {
-        isShowingHistory.toggle()
     }
 }

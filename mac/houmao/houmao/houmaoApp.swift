@@ -4,15 +4,20 @@ import HoumaoCore
 
 @main
 struct HoumaoApp: App {
-    @StateObject private var mainViewModel = MainViewModel(llmClient: MockLLMClient())
+    @StateObject private var mainViewModel: MainViewModel
     @StateObject private var historyViewModel: HistoryViewModel
 
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
         let store = HistoryStore()
+        let tracker = UsageTracker(store: store)
+        let vm = MainViewModel(llmClient: MockLLMClient())
+        vm.usageTracker = tracker
+        _mainViewModel = StateObject(wrappedValue: vm)
         _historyViewModel = StateObject(wrappedValue: HistoryViewModel(store: store))
         AppDelegate.sharedStore = store
+        AppDelegate.sharedTracker = tracker
     }
 
     var body: some Scene {
@@ -38,9 +43,17 @@ struct HoumaoApp: App {
             CommandGroup(after: .textEditing) {
                 Button("Toggle History") {
                     historyViewModel.load()
-                    mainViewModel.toggleHistoryView()
+                    mainViewModel.panel = (mainViewModel.panel == .history) ? .none : .history
                 }
                 .keyboardShortcut("b", modifiers: .command)
+            }
+
+            // Cmd+L: clear all history
+            CommandGroup(after: .textEditing) {
+                Button("Clear History") {
+                    historyViewModel.clearAll()
+                }
+                .keyboardShortcut("l", modifiers: .command)
             }
 
             // Cmd+W: hide window (not quit)
@@ -78,16 +91,15 @@ struct HoumaoApp: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     static var sharedStore: HistoryStore?
-    private var usageTracker: UsageTracker?
+    static var sharedTracker: UsageTracker?
     private var hotKeyManager: GlobalHotKeyManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         hotKeyManager = GlobalHotKeyManager.shared
 
-        if let store = Self.sharedStore {
-            usageTracker = UsageTracker(store: store)
-        }
+        // Start tracker after app launches
+        AppDelegate.sharedTracker?.start()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
