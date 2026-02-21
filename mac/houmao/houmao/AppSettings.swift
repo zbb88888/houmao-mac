@@ -13,7 +13,7 @@ final class AppSettings: ObservableObject {
     }
 
     private init() {
-        // Read from UserDefaults, default to false if not set
+        // Read showTimestamp from UserDefaults, default to false if not set
         if UserDefaults.standard.object(forKey: "showTimestamp") == nil {
             self.showTimestamp = false
         } else {

@@ -104,7 +104,7 @@ struct HoumaoApp: App {
     static func openSettingsWindow() {
         DispatchQueue.main.async {
             let settingsWindow = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 400, height: 250),
+                contentRect: NSRect(x: 0, y: 0, width: 300, height: 120),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false

@@ -5,21 +5,8 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Settings")
-                .font(.system(size: 20, weight: .semibold))
-                .padding(.bottom, 8)
-
-            Divider()
-
-            // History section
-            VStack(alignment: .leading, spacing: 12) {
-                Text("History")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
-
-                Toggle("Show timestamp in history", isOn: $settings.showTimestamp)
-                    .font(.system(size: 13))
-            }
+            Toggle("show timestamp", isOn: $settings.showTimestamp)
+                .font(.system(size: 13))
 
             Spacer()
 
@@ -32,7 +19,7 @@ struct SettingsView: View {
             }
         }
         .padding(24)
-        .frame(width: 400, height: 250)
+        .frame(width: 300, height: 120)
         .background(Color(NSColor.windowBackgroundColor))
     }
 }
