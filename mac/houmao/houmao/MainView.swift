@@ -25,7 +25,7 @@ struct MainView: View {
     @EnvironmentObject var viewModel: MainViewModel
     @EnvironmentObject var historyViewModel: HistoryViewModel
     @Environment(\.colorScheme) private var colorScheme
-    @FocusState private var isInputFocused: Bool
+    @State private var isInputFocused: Bool = false
     @ObservedObject private var settings = AppSettings.shared
 
     private let cornerRadius: CGFloat = 12
@@ -58,20 +58,17 @@ struct MainView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Search bar
-            TextField("", text: $viewModel.inputText,
-                      prompt: Text("Type something...")
-                        .foregroundColor(.secondary)
-                        .font(.system(size: 18, weight: .medium))
+            IMETextField(
+                text: $viewModel.inputText,
+                isFocused: $isInputFocused,
+                placeholder: "Type something...",
+                font: .systemFont(ofSize: 18, weight: .medium),
+                onSubmit: {
+                    viewModel.submit(onShowHistory: {
+                        historyViewModel.load()
+                    })
+                }
             )
-            .onSubmit {
-                viewModel.submit(onShowHistory: {
-                    historyViewModel.load()
-                })
-            }
-            .textFieldStyle(.plain)
-            .font(.system(size: 18, weight: .medium))
-            .foregroundStyle(.primary)
-            .focused($isInputFocused)
             .padding(.leading, 24)
             .padding(.trailing, 16)
             .frame(height: 56)
@@ -207,6 +204,7 @@ struct MainView: View {
                         Text(record.text)
                             .font(.system(size: 12))
                             .lineLimit(2)
+                            .textSelection(.enabled)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
