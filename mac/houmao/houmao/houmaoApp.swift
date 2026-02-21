@@ -16,8 +16,9 @@ struct HoumaoApp: App {
         vm.usageTracker = tracker
         _mainViewModel = StateObject(wrappedValue: vm)
         _historyViewModel = StateObject(wrappedValue: HistoryViewModel(store: store))
-        AppDelegate.sharedStore = store
-        AppDelegate.sharedTracker = tracker
+
+        // AppDelegate 需要访问这些对象
+        AppDelegate.configure(store: store, tracker: tracker)
     }
 
     var body: some Scene {
@@ -63,71 +64,32 @@ struct HoumaoApp: App {
                 }
                 .keyboardShortcut("w", modifiers: .command)
             }
-
-            // Cmd+,: settings
-            CommandGroup(after: .appSettings) {
-                Button("Settings...") {
-                    HoumaoApp.openSettingsWindow()
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            }
-
-            CommandMenu("Debug") {
-                Button("Double-Click Option Test...") {
-                    HoumaoApp.openDebugWindow()
-                }
-                .keyboardShortcut("d", modifiers: [.command, .shift])
-            }
         }
 
-        // Settings window
+        // Settings window - standard macOS way
         Settings {
             SettingsView()
-        }
-    }
-
-    static func openDebugWindow() {
-        DispatchQueue.main.async {
-            let debugWindow = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 500, height: 450),
-                styleMask: [.titled, .closable, .resizable],
-                backing: .buffered,
-                defer: false
-            )
-            debugWindow.title = "HotKey Debug"
-            debugWindow.contentView = NSHostingView(rootView: HotKeyDebugView())
-            debugWindow.center()
-            debugWindow.makeKeyAndOrderFront(nil)
-        }
-    }
-
-    static func openSettingsWindow() {
-        DispatchQueue.main.async {
-            let settingsWindow = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 300, height: 120),
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false
-            )
-            settingsWindow.title = "Settings"
-            settingsWindow.contentView = NSHostingView(rootView: SettingsView())
-            settingsWindow.center()
-            settingsWindow.makeKeyAndOrderFront(nil)
         }
     }
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    static var sharedStore: HistoryStore?
-    static var sharedTracker: UsageTracker?
     private var hotKeyManager: GlobalHotKeyManager?
+    private static var tracker: UsageTracker?
+
+    // Static configuration method called from App.init
+    static func configure(store: HistoryStore, tracker: UsageTracker) {
+        self.tracker = tracker
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+
+        // Initialize global services
         hotKeyManager = GlobalHotKeyManager.shared
 
-        // Start tracker after app launches
-        AppDelegate.sharedTracker?.start()
+        // Start tracker
+        AppDelegate.tracker?.start()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -136,5 +98,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         print("Houmao App exiting...")
+        // Cleanup
+        hotKeyManager?.cleanup()
     }
 }

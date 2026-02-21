@@ -26,9 +26,8 @@ final class UsageTracker {
     }
 
     deinit {
-        queue.sync {
-            commitTimer?.cancel()
-        }
+        commitTimer?.cancel()
+
         if let obs = appObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(obs)
         }

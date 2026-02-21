@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct SettingsView: View {
     @ObservedObject var settings = AppSettings.shared
@@ -12,6 +13,7 @@ struct SettingsView: View {
 
             HStack {
                 Spacer()
+
                 Button("OK") {
                     NSApplication.shared.keyWindow?.close()
                 }
