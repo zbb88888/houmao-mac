@@ -188,8 +188,12 @@ struct MainView: View {
                 .padding(.top, 16)
                 .frame(maxWidth: .infinity, alignment: .center)
         } else {
+            let filtered = settings.showAppSwitch
+                ? historyViewModel.records
+                : historyViewModel.records.filter { !$0.text.hasPrefix("[切换]") }
+
             LazyVStack(alignment: .leading, spacing: 6) {
-                ForEach(historyViewModel.records) { record in
+                ForEach(filtered) { record in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             if settings.showTimestamp {

@@ -12,12 +12,23 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    @Published var showAppSwitch: Bool {
+        didSet {
+            UserDefaults.standard.set(showAppSwitch, forKey: "showAppSwitch")
+        }
+    }
+
     private init() {
-        // Read showTimestamp from UserDefaults, default to false if not set
         if UserDefaults.standard.object(forKey: "showTimestamp") == nil {
             self.showTimestamp = false
         } else {
             self.showTimestamp = UserDefaults.standard.bool(forKey: "showTimestamp")
+        }
+
+        if UserDefaults.standard.object(forKey: "showAppSwitch") == nil {
+            self.showAppSwitch = false
+        } else {
+            self.showAppSwitch = UserDefaults.standard.bool(forKey: "showAppSwitch")
         }
     }
 }

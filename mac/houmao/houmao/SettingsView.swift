@@ -9,6 +9,9 @@ struct SettingsView: View {
             Toggle("show timestamp", isOn: $settings.showTimestamp)
                 .font(.system(size: 13))
 
+            Toggle("show app switch", isOn: $settings.showAppSwitch)
+                .font(.system(size: 13))
+
             Spacer()
 
             HStack {
