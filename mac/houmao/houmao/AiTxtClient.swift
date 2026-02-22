@@ -34,7 +34,14 @@ nonisolated struct AiTxtClient: LLMClient {
             throw error("Invalid response: \(debugInfo)")
         }
 
-        return content
+        // Strip thinking process wrapped in <think>…</think> tags, keep only the final answer.
+        let stripped = content.replacingOccurrences(
+            of: "<think>[\\s\\S]*?</think>",
+            with: "",
+            options: .regularExpression
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return stripped.isEmpty ? content : stripped
     }
 
     private func error(_ message: String) -> Error {
