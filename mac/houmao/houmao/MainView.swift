@@ -119,7 +119,7 @@ struct MainView: View {
                     .padding(.vertical, 16)
                     .textSelection(.enabled)
                 }
-                .frame(height: 300)
+                .frame(maxHeight: 400)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
