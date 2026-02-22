@@ -5,7 +5,6 @@ import AppKit
 struct HoumaoApp: App {
     @StateObject private var mainViewModel: MainViewModel
     @StateObject private var historyViewModel: HistoryViewModel
-
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
@@ -14,9 +13,7 @@ struct HoumaoApp: App {
         let vm = MainViewModel(llmClient: MockLLMClient(), usageTracker: tracker)
         _mainViewModel = StateObject(wrappedValue: vm)
         _historyViewModel = StateObject(wrappedValue: HistoryViewModel(store: store))
-
-        // AppDelegate 需要访问这些对象
-        AppDelegate.configure(tracker: tracker)
+        AppDelegate.tracker = tracker
     }
 
     var body: some Scene {
@@ -64,7 +61,7 @@ struct HoumaoApp: App {
             }
         }
 
-        // Settings window - standard macOS way
+        // Settings window
         Settings {
             SettingsView()
         }
@@ -73,21 +70,12 @@ struct HoumaoApp: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyManager: GlobalHotKeyManager?
-    private static var tracker: UsageTracker?
-
-    // Static configuration method called from App.init
-    static func configure(tracker: UsageTracker) {
-        self.tracker = tracker
-    }
+    static var tracker: UsageTracker?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
-
-        // Initialize global services
         hotKeyManager = GlobalHotKeyManager.shared
-
-        // Start tracker
-        AppDelegate.tracker?.start()
+        Self.tracker?.start()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -95,7 +83,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Cleanup
         hotKeyManager?.cleanup()
     }
 }

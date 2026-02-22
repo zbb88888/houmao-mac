@@ -20,8 +20,7 @@ final class MainViewModel: ObservableObject {
     private var currentTask: Task<Void, Never>?
     private(set) var usageTracker: UsageTracker?
 
-    /// Commands: single-letter input → panel toggle.
-    /// Add new entries here for future special commands.
+    /// Single-letter commands that toggle panels.
     private let commands: [String: Panel] = [
         "b": .history,
         "h": .help,
@@ -60,7 +59,7 @@ final class MainViewModel: ObservableObject {
                 guard !Task.isCancelled else { return }
                 self.lastLLMReply = reply
             } catch is CancellationError {
-                // Cancelled, do nothing
+                // Task was cancelled
             } catch {
                 self.lastLLMReply = "Error: \(error.localizedDescription)"
             }

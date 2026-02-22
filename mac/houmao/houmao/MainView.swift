@@ -136,9 +136,7 @@ struct MainView: View {
     // MARK: - Window config
 
     private func configureWindow() {
-        let window = NSApplication.shared.keyWindow
-            ?? NSApp.windows.first { $0.title != "Settings" }
-        guard let window else { return }
+        guard let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.title != "Settings" }) else { return }
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
@@ -180,26 +178,7 @@ struct MainView: View {
 
             LazyVStack(alignment: .leading, spacing: 6) {
                 ForEach(filtered) { record in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            if settings.showTimestamp {
-                                Text(dateFormatter.string(from: record.timestamp))
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
-                            }
-                            Text(record.appName)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary.opacity(0.7))
-                        }
-                        Text(record.text)
-                            .font(.system(size: 12))
-                            .lineLimit(2)
-                            .textSelection(.enabled)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .background(recordBackground)
-                    .cornerRadius(6)
+                    recordRow(record)
                 }
             }
             .padding(.vertical, 8)
@@ -211,6 +190,29 @@ struct MainView: View {
             .foregroundColor(.red.opacity(0.8))
             .padding(.top, 4)
         }
+    }
+
+    private func recordRow(_ record: UsageRecord) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                if settings.showTimestamp {
+                    Text(dateFormatter.string(from: record.timestamp))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                Text(record.appName)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary.opacity(0.7))
+            }
+            Text(record.text)
+                .font(.system(size: 12))
+                .lineLimit(2)
+                .textSelection(.enabled)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(recordBackground)
+        .cornerRadius(6)
     }
 
     // MARK: - Help content

@@ -27,7 +27,7 @@ actor HistoryStore {
         fileURL = dir.appendingPathComponent("usage-history.json")
     }
 
-    /// Load persisted records from cache or disk.
+    /// Load records from cache or disk.
     private func loadFromDisk() -> [UsageRecord] {
         if let cached = cachedRecords {
             return cached
@@ -67,7 +67,6 @@ actor HistoryStore {
     }
 
     func append(_ record: UsageRecord) {
-        // Add to pending queue
         pendingWrites.append(record)
 
         // Debounce: flush after 2 seconds of inactivity

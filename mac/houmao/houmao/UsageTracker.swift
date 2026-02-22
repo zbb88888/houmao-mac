@@ -3,8 +3,8 @@ import os.log
 
 private let axLog = Logger(subsystem: "com.houmao", category: "AXRead")
 
-/// 记录用户在其他 app 中的输入。
-/// 累积按键字符，回车时提交。对支持 AX 的 app 读取最终文本（含中文）。
+/// Tracks user input in other apps.
+/// Accumulates keystrokes, commits on Enter. Reads final text via AX for CJK support.
 final class UsageTracker {
     private let store: HistoryStore
     private let myBundleID = Bundle.main.bundleIdentifier
@@ -96,7 +96,7 @@ final class UsageTracker {
 
     // MARK: - Commit
 
-    /// 回车时调用：尝试 AX 读最终文本（含中文），失败或过长则用按键字符。
+    /// Commits input on Enter: tries reading final text via AX (for CJK), falls back to keystrokes.
     private func commitInput() {
         guard !isOwnApp else { return }
 
@@ -104,9 +104,9 @@ final class UsageTracker {
         keystrokeBuffer = ""
         guard !keystrokes.isEmpty else { return }
 
-        axLog.debug("commitInput: keystrokes=\(keystrokes.count) chars, buffer='\(keystrokes)'")
+        axLog.debug("commitInput: keystrokes=\(keystrokes.count) chars")
 
-        // AX 读文本框内容（能拿到中文），但如果内容远长于按键数，说明读到了整个编辑器，回退用按键
+        // Try reading via AX (gets CJK chars), but if text is much longer than keystrokes, fallback
         var text = keystrokes
         if let axText = readFocusedText(), axText.count <= keystrokes.count * 3 {
             axLog.debug("commitInput: using AX text='\(axText)'")
@@ -200,18 +200,16 @@ final class UsageTracker {
 
     private func handleAppSwitch(to newAppName: String, bundleID: String?, pid: pid_t) {
         queue.async { [weak self] in
-            guard let self else { return }
+            guard let self, bundleID != self.myBundleID else { return }
 
-            // 未回车的输入直接丢弃
+            // Discard uncommitted input
             self.keystrokeBuffer = ""
 
             let oldApp = self.currentAppName
             self.previousAppName = self.currentAppName
             self.currentAppName = newAppName
             self.currentAppPID = pid
-            self.isOwnApp = (bundleID == self.myBundleID)
-
-            guard bundleID != self.myBundleID else { return }
+            self.isOwnApp = false
 
             let record = UsageRecord(
                 id: UUID(),
@@ -225,7 +223,7 @@ final class UsageTracker {
         }
     }
 
-    // MARK: - Manual record (houmao input)
+    // MARK: - Manual record (for houmao's own input)
 
     func record(text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

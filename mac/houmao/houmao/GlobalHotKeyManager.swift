@@ -1,6 +1,6 @@
 import AppKit
 
-/// 使用 NSEvent 监听器实现双击 Option 键唤醒/隐藏主窗口。
+/// Listens for double-tap Option key to show/hide main window.
 final class GlobalHotKeyManager {
     static let shared = GlobalHotKeyManager()
 
@@ -13,7 +13,7 @@ final class GlobalHotKeyManager {
     private init() {
         checkAccessibilityPermission()
 
-        // 同时监听本地和全局事件
+        // Monitor both local and global events
         setupLocalMonitor()
         setupGlobalMonitor()
     }
@@ -37,7 +37,7 @@ final class GlobalHotKeyManager {
 
         guard isOptionKey else { return }
 
-        // 检测 Option 键按下（从未按下到按下的转换）
+        // Detect Option key press (transition from released to pressed)
         if isOptionPressed && !optionKeyState {
             let now = Date().timeIntervalSince1970
             let timeSinceLastPress = now - lastOptionPressTime
@@ -61,22 +61,18 @@ final class GlobalHotKeyManager {
 
     private func toggleMainWindow() {
         DispatchQueue.main.async {
-            // 获取主窗口（排除设置窗口）
-            let mainWindow = NSApp.windows.first { window in
-                window.isVisible && window.title != "Settings"
-            }
+            guard let mainWindow = NSApp.windows.first(where: { $0.title != "Settings" }) else { return }
 
-            if let window = mainWindow {
-                window.orderOut(nil)
+            if mainWindow.isVisible {
+                mainWindow.orderOut(nil)
             } else {
-                // 显示主窗口
-                NSApp.windows.first { $0.title != "Settings" }?.makeKeyAndOrderFront(nil)
+                mainWindow.makeKeyAndOrderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)
             }
         }
     }
 
-    // Public method to cleanup (for testing or explicit shutdown)
+    // Cleanup monitors (for explicit shutdown if needed)
     func cleanup() {
         if let monitor = localMonitor {
             NSEvent.removeMonitor(monitor)

@@ -87,7 +87,7 @@ struct IMETextField: NSViewRepresentable {
                 if textView.hasMarkedText() {
                     return false
                 }
-                // Sync binding and fire submit
+                // Fire submit when composition is complete
                 text.wrappedValue = (control as? NSTextField)?.stringValue ?? ""
                 onSubmit?()
                 return true

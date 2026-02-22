@@ -1,7 +1,7 @@
 import SwiftUI
 import Combine
 
-/// App settings stored in UserDefaults
+/// App settings stored in UserDefaults.
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 

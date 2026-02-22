@@ -1,48 +1,48 @@
-.PHONY: clean run build test archive install
+.PHONY: clean run build test install
 
-# 项目配置
+# Project configuration
 PROJECT := mac/houmao/houmao.xcodeproj
 SCHEME := houmao
 CONFIGURATION := Debug
 APP_NAME := houmao
 
-# 清理：关闭应用 + 清理缓存
+# Clean: kill app + clear Xcode cache
 clean:
-	@echo "🧹 关闭旧应用..."
+	@echo "Closing old app..."
 	@pkill -9 $(APP_NAME) 2>/dev/null || true
-	@echo "🧹 清理 Xcode 缓存..."
+	@echo "Cleaning Xcode cache..."
 	@rm -rf ~/Library/Developer/Xcode/DerivedData
-	@echo "✅ 清理完成"
+	@echo "Clean complete"
 
-# 运行：清理 + 打开 Xcode
+# Run: clean + open Xcode
 run: clean
-	@echo "🚀 打开 Xcode..."
+	@echo "Opening Xcode..."
 	@open $(PROJECT)
 
-# 构建（可选，用于 CI 或命令行构建）
+# Build (for CI or command-line builds)
 build:
-	@echo "🔨 构建项目..."
+	@echo "Building project..."
 	@xcodebuild -project $(PROJECT) \
 		-scheme $(SCHEME) \
 		-configuration $(CONFIGURATION) \
 		build
 
-# 构建 Release 版本并安装到 Applications
+# Build Release and install to /Applications
 install:
-	@echo "🔨 构建 Release 版本..."
+	@echo "Building Release version..."
 	@xcodebuild -project $(PROJECT) \
 		-scheme $(SCHEME) \
 		-configuration Release \
 		clean build
-	@echo "📦 安装到 /Applications..."
+	@echo "Installing to /Applications..."
 	@sudo rm -rf /Applications/$(APP_NAME).app
 	@sudo cp -R ~/Library/Developer/Xcode/DerivedData/*/Build/Products/Release/$(APP_NAME).app /Applications/
-	@echo "✅ 安装完成！请从 Spotlight 或 Applications 文件夹启动应用"
-	@echo "💡 注意：首次启动时需要授予辅助功能权限"
+	@echo "Install complete! Launch from Spotlight or Applications folder"
+	@echo "Note: First launch requires Accessibility permission"
 
-# 运行测试
+# Run tests
 test:
-	@echo "🧪 运行测试..."
+	@echo "Running tests..."
 	@xcodebuild -project $(PROJECT) \
 		-scheme $(SCHEME) \
 		-configuration $(CONFIGURATION) \
