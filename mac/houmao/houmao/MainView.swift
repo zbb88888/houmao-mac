@@ -133,6 +133,21 @@ struct MainView: View {
         }
     }
 
+    // MARK: - Helpers
+
+    private func panelHeader(title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 14, weight: .semibold))
+            Spacer()
+            Button(action: { viewModel.panel = .none }) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     // MARK: - Window config
 
     private func configureWindow() {
@@ -154,16 +169,7 @@ struct MainView: View {
 
     @ViewBuilder
     private var historyContent: some View {
-        HStack {
-            Text("Usage History")
-                .font(.system(size: 14, weight: .semibold))
-            Spacer()
-            Button(action: { viewModel.panel = .none }) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
+        panelHeader(title: "Usage History")
 
         if historyViewModel.records.isEmpty {
             Text("No history yet")
@@ -219,16 +225,7 @@ struct MainView: View {
 
     @ViewBuilder
     private var helpContent: some View {
-        HStack {
-            Text("Help")
-                .font(.system(size: 14, weight: .semibold))
-            Spacer()
-            Button(action: { viewModel.panel = .none }) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
+        panelHeader(title: "Help")
 
         VStack(alignment: .leading, spacing: 12) {
             Text("Shortcuts")

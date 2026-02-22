@@ -19,8 +19,11 @@ final class UsageTracker {
     private var currentAppPID: pid_t = 0
     private var isStarted = false
     private var isOwnApp = false
-
     private var keystrokeBuffer: String = ""
+
+    // Key codes
+    private let returnKeyCode: UInt16 = 36
+    private let enterKeyCode: UInt16 = 76
 
     init(store: HistoryStore) {
         self.store = store
@@ -75,7 +78,7 @@ final class UsageTracker {
             guard let self else { return }
             guard event.modifierFlags.intersection([.command, .control]).isEmpty else { return }
 
-            let isEnter = event.keyCode == 36 || event.keyCode == 76
+            let isEnter = event.keyCode == self.returnKeyCode || event.keyCode == self.enterKeyCode
 
             if isEnter {
                 self.queue.async { self.commitInput() }

@@ -7,8 +7,12 @@ final class GlobalHotKeyManager {
     private var localMonitor: Any?
     private var globalMonitor: Any?
     private var lastOptionPressTime: TimeInterval = 0
-    private let doubleClickInterval: TimeInterval = 0.4
     private var optionKeyState: Bool = false
+
+    private let doubleClickInterval: TimeInterval = 0.4
+    private let minPressInterval: TimeInterval = 0.05
+    private let leftOptionKeyCode: UInt16 = 58
+    private let rightOptionKeyCode: UInt16 = 61
 
     private init() {
         checkAccessibilityPermission()
@@ -32,7 +36,7 @@ final class GlobalHotKeyManager {
     }
 
     private func handleFlagsChanged(_ event: NSEvent) {
-        let isOptionKey = event.keyCode == 58 || event.keyCode == 61
+        let isOptionKey = event.keyCode == leftOptionKeyCode || event.keyCode == rightOptionKeyCode
         let isOptionPressed = event.modifierFlags.contains(.option)
 
         guard isOptionKey else { return }
@@ -42,7 +46,7 @@ final class GlobalHotKeyManager {
             let now = Date().timeIntervalSince1970
             let timeSinceLastPress = now - lastOptionPressTime
 
-            if timeSinceLastPress < doubleClickInterval && timeSinceLastPress > 0.05 {
+            if timeSinceLastPress < doubleClickInterval && timeSinceLastPress > minPressInterval {
                 toggleMainWindow()
                 lastOptionPressTime = 0
             } else {

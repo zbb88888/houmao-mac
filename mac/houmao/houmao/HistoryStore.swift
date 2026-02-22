@@ -5,13 +5,6 @@ nonisolated struct UsageRecord: Codable, Identifiable, Sendable {
     let timestamp: Date
     let appName: String
     let text: String
-
-    init(id: UUID, timestamp: Date, appName: String, text: String) {
-        self.id = id
-        self.timestamp = timestamp
-        self.appName = appName
-        self.text = text
-    }
 }
 
 actor HistoryStore {
@@ -63,6 +56,7 @@ actor HistoryStore {
             try data.write(to: fileURL, options: .atomic)
             cachedRecords = records
         } catch {
+            // Silent failure - history is non-critical
         }
     }
 
