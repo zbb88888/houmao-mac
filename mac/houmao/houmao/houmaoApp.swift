@@ -10,7 +10,7 @@ struct HoumaoApp: App {
     init() {
         let store = HistoryStore()
         let tracker = UsageTracker(store: store)
-        let vm = MainViewModel(llmClient: MockLLMClient(), usageTracker: tracker)
+        let vm = MainViewModel(llmClient: AiTxtClient(), usageTracker: tracker)
         _mainViewModel = StateObject(wrappedValue: vm)
         _historyViewModel = StateObject(wrappedValue: HistoryViewModel(store: store))
         AppDelegate.tracker = tracker
