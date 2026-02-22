@@ -81,7 +81,7 @@ struct MainView: View {
             IMETextField(
                 text: $viewModel.inputText,
                 isFocused: $isInputFocused,
-                placeholder: "Type something...",
+                placeholder: "zzz...",
                 font: .systemFont(ofSize: 18, weight: .medium),
                 onSubmit: {
                     viewModel.submit(onShowHistory: {
@@ -115,6 +115,7 @@ struct MainView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
+                    .textSelection(.enabled)
                 }
                 .frame(height: 300)
             }
@@ -272,38 +273,86 @@ struct MainView: View {
 
     @ViewBuilder
     private var chatContent: some View {
-        if let user = viewModel.lastUserText, !user.isEmpty {
-            HStack(alignment: .top, spacing: 8) {
-                Text("Q:")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.secondary)
-                Text(user)
-                    .font(.system(size: 13))
+        if viewModel.isLoading {
+            VStack(alignment: .leading, spacing: 12) {
+                if let user = viewModel.lastUserText, !user.isEmpty {
+                    Text(buildQuestion(user))
+                }
+                HStack(alignment: .top, spacing: 8) {
+                    Text("A:")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 16, height: 16)
+                    Text("Thinking...")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
             }
+        } else {
+            // Merge Q and A into single Text for unified text selection
+            Text(buildConversation())
+        }
+    }
+
+    private func buildConversation() -> AttributedString {
+        var result = AttributedString()
+
+        // Add question
+        if let user = viewModel.lastUserText, !user.isEmpty {
+            var q = AttributedString("Q: ")
+            q.font = .system(size: 13, weight: .semibold)
+            q.foregroundColor = .secondary
+
+            var qContent = AttributedString(user)
+            qContent.font = .system(size: 13)
+
+            result.append(q)
+            result.append(qContent)
         }
 
-        if viewModel.isLoading {
-            HStack(alignment: .top, spacing: 8) {
-                Text("A:")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.secondary)
-                ProgressView()
-                    .scaleEffect(0.6)
-                    .frame(width: 16, height: 16)
-                Text("Thinking...")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
+        // Add answer
+        if let reply = viewModel.lastLLMReply, !reply.isEmpty {
+            if !result.characters.isEmpty {
+                result.append(AttributedString("\n\n"))
             }
-            .padding(.top, 8)
-        } else if let reply = viewModel.lastLLMReply, !reply.isEmpty {
-            HStack(alignment: .top, spacing: 8) {
-                Text("A:")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.secondary)
-                Text(reply)
-                    .font(.system(size: 13))
-            }
-            .padding(.top, 8)
+
+            var a = AttributedString("A: ")
+            a.font = .system(size: 13, weight: .semibold)
+            a.foregroundColor = .secondary
+
+            var aContent = AttributedString(reply)
+            aContent.font = .system(size: 13)
+
+            result.append(a)
+            result.append(aContent)
         }
+
+        return result
+    }
+
+    private func buildQuestion(_ text: String) -> AttributedString {
+        var result = AttributedString("Q: ")
+        result.font = .system(size: 13, weight: .semibold)
+        result.foregroundColor = .secondary
+
+        var content = AttributedString(text)
+        content.font = .system(size: 13)
+
+        result.append(content)
+        return result
+    }
+
+    private func buildAnswer(_ text: String) -> AttributedString {
+        var result = AttributedString("A: ")
+        result.font = .system(size: 13, weight: .semibold)
+        result.foregroundColor = .secondary
+
+        var content = AttributedString(text)
+        content.font = .system(size: 13)
+
+        result.append(content)
+        return result
     }
 }
