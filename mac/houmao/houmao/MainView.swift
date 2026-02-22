@@ -271,88 +271,55 @@ struct MainView: View {
 
     // MARK: - Chat content
 
+    // MARK: - Chat content
+
+    private let textSize: CGFloat = 13
+
     @ViewBuilder
     private var chatContent: some View {
         if viewModel.isLoading {
             VStack(alignment: .leading, spacing: 12) {
                 if let user = viewModel.lastUserText, !user.isEmpty {
-                    Text(buildQuestion(user))
+                    Text(makeAttributedText("Q: ", user))
                 }
                 HStack(alignment: .top, spacing: 8) {
                     Text("A:")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: textSize, weight: .semibold))
                         .foregroundColor(.secondary)
                     ProgressView()
                         .scaleEffect(0.6)
                         .frame(width: 16, height: 16)
                     Text("Thinking...")
-                        .font(.system(size: 13))
+                        .font(.system(size: textSize))
                         .foregroundColor(.secondary)
                 }
             }
         } else {
-            // Merge Q and A into single Text for unified text selection
             Text(buildConversation())
         }
     }
 
     private func buildConversation() -> AttributedString {
-        var result = AttributedString()
+        let parts = [
+            viewModel.lastUserText.map { makeAttributedText("Q: ", $0) },
+            viewModel.lastLLMReply.map { makeAttributedText("A: ", $0) }
+        ].compactMap { $0 }
 
-        // Add question
-        if let user = viewModel.lastUserText, !user.isEmpty {
-            var q = AttributedString("Q: ")
-            q.font = .system(size: 13, weight: .semibold)
-            q.foregroundColor = .secondary
-
-            var qContent = AttributedString(user)
-            qContent.font = .system(size: 13)
-
-            result.append(q)
-            result.append(qContent)
+        return parts.enumerated().reduce(into: AttributedString()) { result, item in
+            if item.offset > 0 { result.append(AttributedString("\n\n")) }
+            result.append(item.element)
         }
-
-        // Add answer
-        if let reply = viewModel.lastLLMReply, !reply.isEmpty {
-            if !result.characters.isEmpty {
-                result.append(AttributedString("\n\n"))
-            }
-
-            var a = AttributedString("A: ")
-            a.font = .system(size: 13, weight: .semibold)
-            a.foregroundColor = .secondary
-
-            var aContent = AttributedString(reply)
-            aContent.font = .system(size: 13)
-
-            result.append(a)
-            result.append(aContent)
-        }
-
-        return result
     }
 
-    private func buildQuestion(_ text: String) -> AttributedString {
-        var result = AttributedString("Q: ")
-        result.font = .system(size: 13, weight: .semibold)
+    private func makeAttributedText(_ label: String, _ content: String) -> AttributedString {
+        var result = AttributedString(label)
+        result.font = .system(size: textSize, weight: .semibold)
         result.foregroundColor = .secondary
 
-        var content = AttributedString(text)
-        content.font = .system(size: 13)
+        var text = AttributedString(content)
+        text.font = .system(size: textSize)
 
-        result.append(content)
-        return result
-    }
-
-    private func buildAnswer(_ text: String) -> AttributedString {
-        var result = AttributedString("A: ")
-        result.font = .system(size: 13, weight: .semibold)
-        result.foregroundColor = .secondary
-
-        var content = AttributedString(text)
-        content.font = .system(size: 13)
-
-        result.append(content)
+        result.append(text)
         return result
     }
 }
