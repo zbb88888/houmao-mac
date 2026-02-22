@@ -1,29 +1,18 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @ObservedObject var settings = AppSettings.shared
-    @Environment(\.dismiss) private var dismiss
+    @AppStorage("showTimestamp") private var showTimestamp = false
+    @AppStorage("showAppSwitch") private var showAppSwitch = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Toggle("show timestamp", isOn: $settings.showTimestamp)
-                .font(.system(size: 13))
-
-            Toggle("show app switch", isOn: $settings.showAppSwitch)
-                .font(.system(size: 13))
-
-            Spacer()
-
-            HStack {
-                Spacer()
-
-                Button("OK") {
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle("Show timestamp", isOn: $showTimestamp)
+            Toggle("Show app switch", isOn: $showAppSwitch)
         }
-        .padding(24)
-        .frame(width: 300, height: 120)
+        .toggleStyle(.checkbox)
+        .padding(20)
+        .frame(width: 240, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .navigationTitle("")
     }
 }
