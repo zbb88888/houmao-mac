@@ -3,14 +3,12 @@ import Foundation
 /// AI text client for local LLM.
 nonisolated struct AiTxtClient: LLMClient {
     func ask(question: String) async throws -> String {
-        guard let url = URL(string: "http://localhost:8080/v1/chat/completions") else {
-            throw NSError(domain: "AiTxtClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
+        let url = URL(string: "http://localhost:8080/v1/chat/completions")!
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 300
+        request.timeoutInterval = 60
 
         let body: [String: Any] = [
             "model": "minicpm-o-4.5",
@@ -24,17 +22,22 @@ nonisolated struct AiTxtClient: LLMClient {
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             let msg = String(data: data, encoding: .utf8) ?? "Request failed"
-            throw NSError(domain: "AiTxtClient", code: -2, userInfo: [NSLocalizedDescriptionKey: msg])
+            throw error(msg)
         }
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let choices = json["choices"] as? [[String: Any]],
               let message = choices.first?["message"] as? [String: Any],
-              let content = message["content"] as? String else {
+              let content = message["content"] as? String,
+              !content.isEmpty else {
             let debugInfo = String(data: data, encoding: .utf8) ?? "Unable to parse response"
-            throw NSError(domain: "AiTxtClient", code: -3, userInfo: [NSLocalizedDescriptionKey: "Invalid response: \(debugInfo)"])
+            throw error("Invalid response: \(debugInfo)")
         }
 
         return content
+    }
+
+    private func error(_ message: String) -> Error {
+        NSError(domain: "AiTxtClient", code: -1, userInfo: [NSLocalizedDescriptionKey: message])
     }
 }
