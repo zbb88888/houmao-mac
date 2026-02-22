@@ -88,12 +88,8 @@ struct MainView: View {
                         historyViewModel.load()
                     })
                 },
-                onUpArrow: {
-                    viewModel.navigateToPreviousCommand()
-                },
-                onDownArrow: {
-                    viewModel.navigateToNextCommand()
-                }
+                onUpArrow: viewModel.commandHistory.previous,
+                onDownArrow: viewModel.commandHistory.next
             )
             .padding(.leading, 24)
             .padding(.trailing, 16)

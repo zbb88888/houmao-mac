@@ -78,14 +78,6 @@ final class MainViewModel: ObservableObject {
         isLoading = false
         panel = .none
         inputText = ""
-        commandHistory.resetIndex()
-    }
-
-    func navigateToPreviousCommand() -> String? {
-        commandHistory.previous()
-    }
-
-    func navigateToNextCommand() -> String? {
-        commandHistory.next()
+        commandHistory.reset()
     }
 }

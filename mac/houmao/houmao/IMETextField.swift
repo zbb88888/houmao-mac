@@ -1,11 +1,6 @@
 import SwiftUI
 import AppKit
 
-/// AppKit-backed text field that correctly handles CJK Input Method (IME) composition.
-///
-/// SwiftUI's `TextField.onSubmit` can fire while the IME is still composing,
-/// capturing raw pinyin instead of the final Chinese characters.
-/// This wrapper uses `NSTextFieldDelegate` to only submit when composition is complete.
 struct IMETextField: NSViewRepresentable {
     @Binding var text: String
     @Binding var isFocused: Bool
@@ -35,41 +30,39 @@ struct IMETextField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSTextField, context: Context) {
-        // Avoid overwriting text while IME is composing
         let isComposing = (nsView.currentEditor() as? NSTextView)?.hasMarkedText() ?? false
         if !isComposing && nsView.stringValue != text {
             nsView.stringValue = text
         }
-        context.coordinator.onSubmit = onSubmit
-        context.coordinator.onUpArrow = onUpArrow
-        context.coordinator.onDownArrow = onDownArrow
 
-        if isFocused && nsView.window != nil {
+        let coord = context.coordinator
+        coord.onSubmit = onSubmit
+        coord.onUpArrow = onUpArrow
+        coord.onDownArrow = onDownArrow
+
+        if isFocused, let window = nsView.window {
             DispatchQueue.main.async {
-                if nsView.window?.firstResponder != nsView.currentEditor() {
-                    nsView.window?.makeFirstResponder(nsView)
+                if window.firstResponder != nsView.currentEditor() {
+                    window.makeFirstResponder(nsView)
                 }
             }
         }
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, isFocused: $isFocused, onSubmit: onSubmit, onUpArrow: onUpArrow, onDownArrow: onDownArrow)
+        Coordinator(text: $text, isFocused: $isFocused)
     }
 
     final class Coordinator: NSObject, NSTextFieldDelegate {
-        var text: Binding<String>
-        var isFocused: Binding<Bool>
+        let text: Binding<String>
+        let isFocused: Binding<Bool>
         var onSubmit: (() -> Void)?
         var onUpArrow: (() -> String?)?
         var onDownArrow: (() -> String?)?
 
-        init(text: Binding<String>, isFocused: Binding<Bool>, onSubmit: (() -> Void)?, onUpArrow: (() -> String?)?, onDownArrow: (() -> String?)?) {
+        init(text: Binding<String>, isFocused: Binding<Bool>) {
             self.text = text
             self.isFocused = isFocused
-            self.onSubmit = onSubmit
-            self.onUpArrow = onUpArrow
-            self.onDownArrow = onDownArrow
         }
 
         func controlTextDidChange(_ obj: Notification) {
@@ -90,40 +83,30 @@ struct IMETextField: NSViewRepresentable {
             textView: NSTextView,
             doCommandBy commandSelector: Selector
         ) -> Bool {
-            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
-                // Let the IME finish composing before we submit
-                if textView.hasMarkedText() {
-                    return false
-                }
-                // Fire submit when composition is complete
+            switch commandSelector {
+            case #selector(NSResponder.insertNewline(_:)):
+                guard !textView.hasMarkedText() else { return false }
                 text.wrappedValue = (control as? NSTextField)?.stringValue ?? ""
                 onSubmit?()
                 return true
-            }
 
-            // Handle up arrow - previous command
-            if commandSelector == #selector(NSResponder.moveUp(_:)) {
-                if let previousCommand = onUpArrow?() {
-                    text.wrappedValue = previousCommand
-                    (control as? NSTextField)?.stringValue = previousCommand
-                    // Move cursor to end
-                    textView.moveToEndOfLine(nil)
-                }
-                return true
-            }
+            case #selector(NSResponder.moveUp(_:)):
+                return handleArrow(onUpArrow, control: control, textView: textView)
 
-            // Handle down arrow - next command
-            if commandSelector == #selector(NSResponder.moveDown(_:)) {
-                if let nextCommand = onDownArrow?() {
-                    text.wrappedValue = nextCommand
-                    (control as? NSTextField)?.stringValue = nextCommand
-                    // Move cursor to end
-                    textView.moveToEndOfLine(nil)
-                }
-                return true
-            }
+            case #selector(NSResponder.moveDown(_:)):
+                return handleArrow(onDownArrow, control: control, textView: textView)
 
-            return false
+            default:
+                return false
+            }
+        }
+
+        private func handleArrow(_ handler: (() -> String?)?, control: NSControl, textView: NSTextView) -> Bool {
+            guard let command = handler?(), let textField = control as? NSTextField else { return true }
+            text.wrappedValue = command
+            textField.stringValue = command
+            textView.moveToEndOfLine(nil)
+            return true
         }
     }
 }
