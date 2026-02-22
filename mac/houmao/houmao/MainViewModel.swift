@@ -1,7 +1,5 @@
-import Foundation
 import SwiftUI
 import Combine
-import HoumaoCore
 
 enum Panel: Equatable {
     case none
@@ -20,7 +18,7 @@ final class MainViewModel: ObservableObject {
 
     private let llmClient: LLMClient
     private var currentTask: Task<Void, Never>?
-    var usageTracker: UsageTracker?
+    private(set) var usageTracker: UsageTracker?
 
     /// Commands: single-letter input → panel toggle.
     /// Add new entries here for future special commands.
@@ -29,8 +27,9 @@ final class MainViewModel: ObservableObject {
         "h": .help,
     ]
 
-    init(llmClient: LLMClient) {
+    init(llmClient: LLMClient, usageTracker: UsageTracker? = nil) {
         self.llmClient = llmClient
+        self.usageTracker = usageTracker
     }
 
     func submit(onShowHistory: () -> Void) {

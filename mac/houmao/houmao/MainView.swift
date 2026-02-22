@@ -1,6 +1,5 @@
 import SwiftUI
 import AppKit
-import HoumaoCore
 
 // MARK: - Frosted glass (NSVisualEffectView)
 
@@ -74,7 +73,7 @@ struct MainView: View {
             .frame(height: 56)
 
             // Results - only after interaction
-            if shouldShowResults {
+            if viewModel.panel != .none {
                 Divider()
                     .overlay(dividerColor)
                     .padding(.horizontal, 16)
@@ -138,7 +137,7 @@ struct MainView: View {
 
     private func configureWindow() {
         let window = NSApplication.shared.keyWindow
-            ?? NSApp.windows.first { $0.title != "HotKey Debug" }
+            ?? NSApp.windows.first { $0.title != "Settings" }
         guard let window else { return }
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -151,12 +150,6 @@ struct MainView: View {
         window.standardWindowButton(.closeButton)?.isHidden = true
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
-    }
-
-    // MARK: - Should show results
-
-    private var shouldShowResults: Bool {
-        viewModel.panel != .none
     }
 
     // MARK: - History content

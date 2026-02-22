@@ -1,7 +1,6 @@
-import Foundation
 import AppKit
 
-/// 使用 Carbon Event 实现双击 Option 键唤醒/隐藏主窗口。
+/// 使用 NSEvent 监听器实现双击 Option 键唤醒/隐藏主窗口。
 final class GlobalHotKeyManager {
     static let shared = GlobalHotKeyManager()
 

@@ -1,6 +1,5 @@
 import SwiftUI
 import AppKit
-import HoumaoCore
 
 @main
 struct HoumaoApp: App {
@@ -12,8 +11,7 @@ struct HoumaoApp: App {
     init() {
         let store = HistoryStore()
         let tracker = UsageTracker(store: store)
-        let vm = MainViewModel(llmClient: MockLLMClient())
-        vm.usageTracker = tracker
+        let vm = MainViewModel(llmClient: MockLLMClient(), usageTracker: tracker)
         _mainViewModel = StateObject(wrappedValue: vm)
         _historyViewModel = StateObject(wrappedValue: HistoryViewModel(store: store))
 

@@ -1,7 +1,5 @@
-import Foundation
 import SwiftUI
 import Combine
-import HoumaoCore
 
 @MainActor
 final class HistoryViewModel: ObservableObject {

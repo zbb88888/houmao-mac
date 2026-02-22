@@ -1,6 +1,7 @@
-import Foundation
 import AppKit
-import HoumaoCore
+import os.log
+
+private let axLog = Logger(subsystem: "com.houmao", category: "AXRead")
 
 /// 记录用户在其他 app 中的输入。
 /// 累积按键字符，回车时提交。对支持 AX 的 app 读取最终文本（含中文）。
@@ -103,10 +104,15 @@ final class UsageTracker {
         keystrokeBuffer = ""
         guard !keystrokes.isEmpty else { return }
 
+        axLog.debug("commitInput: keystrokes=\(keystrokes.count) chars, buffer='\(keystrokes)'")
+
         // AX 读文本框内容（能拿到中文），但如果内容远长于按键数，说明读到了整个编辑器，回退用按键
         var text = keystrokes
         if let axText = readFocusedText(), axText.count <= keystrokes.count * 3 {
+            axLog.debug("commitInput: using AX text='\(axText)'")
             text = axText
+        } else {
+            axLog.debug("commitInput: using keystrokes (AX failed or too long)")
         }
 
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -134,13 +140,17 @@ final class UsageTracker {
     ]
 
     private func readFocusedText() -> String? {
-        guard AXIsProcessTrusted(), currentAppPID > 0 else { return nil }
+        guard AXIsProcessTrusted(), currentAppPID > 0 else {
+            axLog.debug("readFocusedText: not trusted or pid=0")
+            return nil
+        }
 
         let appElement = AXUIElementCreateApplication(currentAppPID)
         var focusedRef: AnyObject?
         var err = AXUIElementCopyAttributeValue(
             appElement, kAXFocusedUIElementAttribute as CFString, &focusedRef
         )
+        axLog.debug("readFocusedText: focusedElement from app err=\(err.rawValue)")
 
         if err != .success {
             var winRef: AnyObject?
@@ -150,6 +160,7 @@ final class UsageTracker {
                 err = AXUIElementCopyAttributeValue(
                     winRef as! AXUIElement, kAXFocusedUIElementAttribute as CFString, &focusedRef
                 )
+                axLog.debug("readFocusedText: focusedElement from window err=\(err.rawValue)")
             }
         }
 
@@ -157,21 +168,31 @@ final class UsageTracker {
             err = AXUIElementCopyAttributeValue(
                 AXUIElementCreateSystemWide(), kAXFocusedUIElementAttribute as CFString, &focusedRef
             )
+            axLog.debug("readFocusedText: focusedElement from systemWide err=\(err.rawValue)")
         }
 
-        guard err == .success, let focusedRef else { return nil }
+        guard err == .success, let focusedRef else {
+            axLog.debug("readFocusedText: no focused element found")
+            return nil
+        }
 
         let element = focusedRef as! AXUIElement
         AXUIElementSetMessagingTimeout(element, 0.5)
 
         var roleRef: AnyObject?
         AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef)
-        if let role = roleRef as? String, Self.nonTextRoles.contains(role) { return nil }
+        let role = roleRef as? String ?? "<nil>"
+        axLog.debug("readFocusedText: role=\(role)")
+        if Self.nonTextRoles.contains(role) { return nil }
 
         var ref: AnyObject?
         if AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &ref) == .success,
-           let text = ref as? String, !text.isEmpty { return text }
+           let text = ref as? String, !text.isEmpty {
+            axLog.debug("readFocusedText: got value len=\(text.count)")
+            return text
+        }
 
+        axLog.debug("readFocusedText: no value attribute")
         return nil
     }
 
