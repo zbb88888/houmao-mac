@@ -5,11 +5,7 @@ import HoumaoCore
 
 @MainActor
 final class HistoryViewModel: ObservableObject {
-    nonisolated let objectWillChange = ObservableObjectPublisher()
-
-    var records: [UsageRecord] = [] {
-        didSet { objectWillChange.send() }
-    }
+    @Published var records: [UsageRecord] = []
 
     private let store: HistoryStore
 

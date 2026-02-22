@@ -19,16 +19,7 @@ final class AppSettings: ObservableObject {
     }
 
     private init() {
-        if UserDefaults.standard.object(forKey: "showTimestamp") == nil {
-            self.showTimestamp = false
-        } else {
-            self.showTimestamp = UserDefaults.standard.bool(forKey: "showTimestamp")
-        }
-
-        if UserDefaults.standard.object(forKey: "showAppSwitch") == nil {
-            self.showAppSwitch = false
-        } else {
-            self.showAppSwitch = UserDefaults.standard.bool(forKey: "showAppSwitch")
-        }
+        self.showTimestamp = UserDefaults.standard.bool(forKey: "showTimestamp")
+        self.showAppSwitch = UserDefaults.standard.bool(forKey: "showAppSwitch")
     }
 }

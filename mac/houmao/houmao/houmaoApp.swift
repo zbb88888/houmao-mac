@@ -18,7 +18,7 @@ struct HoumaoApp: App {
         _historyViewModel = StateObject(wrappedValue: HistoryViewModel(store: store))
 
         // AppDelegate 需要访问这些对象
-        AppDelegate.configure(store: store, tracker: tracker)
+        AppDelegate.configure(tracker: tracker)
     }
 
     var body: some Scene {
@@ -78,7 +78,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private static var tracker: UsageTracker?
 
     // Static configuration method called from App.init
-    static func configure(store: HistoryStore, tracker: UsageTracker) {
+    static func configure(tracker: UsageTracker) {
         self.tracker = tracker
     }
 
@@ -97,7 +97,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        print("Houmao App exiting...")
         // Cleanup
         hotKeyManager?.cleanup()
     }

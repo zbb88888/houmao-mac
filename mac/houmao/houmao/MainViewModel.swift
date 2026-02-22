@@ -12,23 +12,11 @@ enum Panel: Equatable {
 
 @MainActor
 final class MainViewModel: ObservableObject {
-    nonisolated let objectWillChange = ObservableObjectPublisher()
-
-    var inputText: String = "" {
-        didSet { objectWillChange.send() }
-    }
-    var lastUserText: String? {
-        didSet { objectWillChange.send() }
-    }
-    var lastLLMReply: String? {
-        didSet { objectWillChange.send() }
-    }
-    var isLoading: Bool = false {
-        didSet { objectWillChange.send() }
-    }
-    var panel: Panel = .none {
-        didSet { objectWillChange.send() }
-    }
+    @Published var inputText: String = ""
+    @Published var lastUserText: String?
+    @Published var lastLLMReply: String?
+    @Published var isLoading: Bool = false
+    @Published var panel: Panel = .none
 
     private let llmClient: LLMClient
     private var currentTask: Task<Void, Never>?

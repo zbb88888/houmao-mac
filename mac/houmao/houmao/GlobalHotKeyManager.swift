@@ -1,6 +1,5 @@
 import Foundation
 import AppKit
-import Carbon
 
 /// 使用 Carbon Event 实现双击 Option 键唤醒/隐藏主窗口。
 final class GlobalHotKeyManager {
@@ -13,7 +12,6 @@ final class GlobalHotKeyManager {
     private var optionKeyState: Bool = false
 
     private init() {
-        print("🔧 GlobalHotKeyManager 初始化中...")
         checkAccessibilityPermission()
 
         // 同时监听本地和全局事件
@@ -23,25 +21,18 @@ final class GlobalHotKeyManager {
 
     private func setupLocalMonitor() {
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            self?.handleFlagsChanged(event, source: "LOCAL")
+            self?.handleFlagsChanged(event)
             return event
         }
-        print("✅ 本地监听器已启动")
     }
 
     private func setupGlobalMonitor() {
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            self?.handleFlagsChanged(event, source: "GLOBAL")
-        }
-
-        if globalMonitor == nil {
-            print("⚠️ 全局监听器启动失败，可能需要辅助功能权限")
-        } else {
-            print("✅ 全局监听器已启动")
+            self?.handleFlagsChanged(event)
         }
     }
 
-    private func handleFlagsChanged(_ event: NSEvent, source: String) {
+    private func handleFlagsChanged(_ event: NSEvent) {
         let isOptionKey = event.keyCode == 58 || event.keyCode == 61
         let isOptionPressed = event.modifierFlags.contains(.option)
 
@@ -53,7 +44,6 @@ final class GlobalHotKeyManager {
             let timeSinceLastPress = now - lastOptionPressTime
 
             if timeSinceLastPress < doubleClickInterval && timeSinceLastPress > 0.05 {
-                print("✅ 检测到双击 Option 键！")
                 toggleMainWindow()
                 lastOptionPressTime = 0
             } else {
@@ -67,13 +57,7 @@ final class GlobalHotKeyManager {
 
     private func checkAccessibilityPermission() {
         let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        let accessEnabled = AXIsProcessTrustedWithOptions(options)
-
-        if accessEnabled {
-            print("✅ 已获得辅助功能权限")
-        } else {
-            print("⚠️ 未获得辅助功能权限！请在系统设置中授权")
-        }
+        _ = AXIsProcessTrustedWithOptions(options)
     }
 
     private func toggleMainWindow() {

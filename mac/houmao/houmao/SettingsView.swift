@@ -1,8 +1,8 @@
 import SwiftUI
-import AppKit
 
 struct SettingsView: View {
     @ObservedObject var settings = AppSettings.shared
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -18,13 +18,12 @@ struct SettingsView: View {
                 Spacer()
 
                 Button("OK") {
-                    NSApplication.shared.keyWindow?.close()
+                    dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
             }
         }
         .padding(24)
         .frame(width: 300, height: 120)
-        .background(Color(NSColor.windowBackgroundColor))
     }
 }

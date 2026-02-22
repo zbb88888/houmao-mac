@@ -117,19 +117,12 @@ struct MainView: View {
         .onAppear {
             configureWindow()
             isInputFocused = true
-
-            NotificationCenter.default.addObserver(
-                forName: NSWindow.didBecomeKeyNotification,
-                object: nil,
-                queue: .main
-            ) { _ in
-                configureWindow()
-                Task { @MainActor in
-                    viewModel.clearConversation()
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    isInputFocused = true
-                }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            configureWindow()
+            viewModel.clearConversation()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInputFocused = true
             }
         }
         .onChange(of: viewModel.panel) {
