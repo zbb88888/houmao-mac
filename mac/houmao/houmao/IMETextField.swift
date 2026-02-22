@@ -12,6 +12,8 @@ struct IMETextField: NSViewRepresentable {
     var placeholder: String = ""
     var font: NSFont = .systemFont(ofSize: 18, weight: .medium)
     var onSubmit: (() -> Void)?
+    var onUpArrow: (() -> String?)?
+    var onDownArrow: (() -> String?)?
 
     func makeNSView(context: Context) -> NSTextField {
         let tf = NSTextField()
@@ -39,6 +41,8 @@ struct IMETextField: NSViewRepresentable {
             nsView.stringValue = text
         }
         context.coordinator.onSubmit = onSubmit
+        context.coordinator.onUpArrow = onUpArrow
+        context.coordinator.onDownArrow = onDownArrow
 
         if isFocused && nsView.window != nil {
             DispatchQueue.main.async {
@@ -50,18 +54,22 @@ struct IMETextField: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, isFocused: $isFocused, onSubmit: onSubmit)
+        Coordinator(text: $text, isFocused: $isFocused, onSubmit: onSubmit, onUpArrow: onUpArrow, onDownArrow: onDownArrow)
     }
 
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var text: Binding<String>
         var isFocused: Binding<Bool>
         var onSubmit: (() -> Void)?
+        var onUpArrow: (() -> String?)?
+        var onDownArrow: (() -> String?)?
 
-        init(text: Binding<String>, isFocused: Binding<Bool>, onSubmit: (() -> Void)?) {
+        init(text: Binding<String>, isFocused: Binding<Bool>, onSubmit: (() -> Void)?, onUpArrow: (() -> String?)?, onDownArrow: (() -> String?)?) {
             self.text = text
             self.isFocused = isFocused
             self.onSubmit = onSubmit
+            self.onUpArrow = onUpArrow
+            self.onDownArrow = onDownArrow
         }
 
         func controlTextDidChange(_ obj: Notification) {
@@ -92,6 +100,29 @@ struct IMETextField: NSViewRepresentable {
                 onSubmit?()
                 return true
             }
+
+            // Handle up arrow - previous command
+            if commandSelector == #selector(NSResponder.moveUp(_:)) {
+                if let previousCommand = onUpArrow?() {
+                    text.wrappedValue = previousCommand
+                    (control as? NSTextField)?.stringValue = previousCommand
+                    // Move cursor to end
+                    textView.moveToEndOfLine(nil)
+                }
+                return true
+            }
+
+            // Handle down arrow - next command
+            if commandSelector == #selector(NSResponder.moveDown(_:)) {
+                if let nextCommand = onDownArrow?() {
+                    text.wrappedValue = nextCommand
+                    (control as? NSTextField)?.stringValue = nextCommand
+                    // Move cursor to end
+                    textView.moveToEndOfLine(nil)
+                }
+                return true
+            }
+
             return false
         }
     }

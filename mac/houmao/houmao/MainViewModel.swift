@@ -19,6 +19,7 @@ final class MainViewModel: ObservableObject {
     private let llmClient: LLMClient
     private var currentTask: Task<Void, Never>?
     private(set) var usageTracker: UsageTracker?
+    let commandHistory = CommandHistory()
 
     /// Single-letter commands that toggle panels.
     private let commands: [String: Panel] = [
@@ -34,6 +35,9 @@ final class MainViewModel: ObservableObject {
     func submit(onShowHistory: () -> Void) {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+
+        // Add to command history
+        commandHistory.add(trimmed)
 
         // Check commands
         if let target = commands[trimmed.lowercased()] {
@@ -74,5 +78,14 @@ final class MainViewModel: ObservableObject {
         isLoading = false
         panel = .none
         inputText = ""
+        commandHistory.resetIndex()
+    }
+
+    func navigateToPreviousCommand() -> String? {
+        commandHistory.previous()
+    }
+
+    func navigateToNextCommand() -> String? {
+        commandHistory.next()
     }
 }

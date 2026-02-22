@@ -87,6 +87,12 @@ struct MainView: View {
                     viewModel.submit(onShowHistory: {
                         historyViewModel.load()
                     })
+                },
+                onUpArrow: {
+                    viewModel.navigateToPreviousCommand()
+                },
+                onDownArrow: {
+                    viewModel.navigateToNextCommand()
                 }
             )
             .padding(.leading, 24)
