@@ -8,7 +8,7 @@ struct VisualEffectBackground: NSViewRepresentable {
     let blendingMode: NSVisualEffectView.BlendingMode
 
     func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
+        let view = VisualEffectBackgroundView()
         view.material = material
         view.blendingMode = blendingMode
         view.state = .active
@@ -16,6 +16,27 @@ struct VisualEffectBackground: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
+private class VisualEffectBackgroundView: NSVisualEffectView {
+    private var isWindowConfigured = false
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let window = window, !isWindowConfigured else { return }
+        isWindowConfigured = true
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = false
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isMovableByWindowBackground = true
+        window.styleMask.insert(.fullSizeContentView)
+        window.styleMask.remove([.closable, .miniaturizable, .resizable])
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+    }
 }
 
 // MARK: - Main View
@@ -114,11 +135,9 @@ struct MainView: View {
             NSApplication.shared.keyWindow?.orderOut(nil)
         }
         .onAppear {
-            configureWindow()
             isInputFocused = true
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-            configureWindow()
             viewModel.clearConversation()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 isInputFocused = true
@@ -146,23 +165,6 @@ struct MainView: View {
             }
             .buttonStyle(.plain)
         }
-    }
-
-    // MARK: - Window config
-
-    private func configureWindow() {
-        guard let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.title != "Settings" }) else { return }
-        window.isOpaque = false
-        window.backgroundColor = .clear
-        window.hasShadow = false
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
-        window.styleMask.insert(.fullSizeContentView)
-        window.styleMask.remove([.closable, .miniaturizable, .resizable])
-        window.standardWindowButton(.closeButton)?.isHidden = true
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        window.standardWindowButton(.zoomButton)?.isHidden = true
     }
 
     // MARK: - History content
