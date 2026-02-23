@@ -49,17 +49,10 @@ final class MainViewModel: ObservableObject {
 
     /// Parse `@workerName message` from input. Returns (workerName, actualMessage) or nil.
     private func parseWorkerMention(_ text: String) -> (name: String, message: String)? {
-        guard let match = text.range(of: #"^@(\S+)\s+([\s\S]+)"#, options: .regularExpression) else {
-            return nil
-        }
-        let matched = String(text[match])
-        // Extract worker name (after @ until first whitespace)
-        let afterAt = matched.dropFirst() // drop @
-        guard let spaceIndex = afterAt.firstIndex(where: { $0.isWhitespace }) else { return nil }
-        let name = String(afterAt[afterAt.startIndex..<spaceIndex])
-        let message = String(afterAt[spaceIndex...]).trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty, !message.isEmpty else { return nil }
-        return (name, message)
+        guard text.hasPrefix("@") else { return nil }
+        let parts = text.dropFirst().split(maxSplits: 1, whereSeparator: \.isWhitespace)
+        guard parts.count == 2 else { return nil }
+        return (String(parts[0]), String(parts[1]))
     }
 
     func submit(onShowHistory: () -> Void) {
@@ -87,14 +80,11 @@ final class MainViewModel: ObservableObject {
         if let mention = parseWorkerMention(trimmed) {
             if let worker = AppSettings.shared.worker(named: mention.name) {
                 question = mention.message
-                client = WorkerClient(baseURL: worker.url)
+                client = AiTxtClient(baseURL: worker.url)
                 workerName = worker.name
             } else {
-                // Worker not found — show error
                 lastUserText = trimmed
                 lastLLMReply = "Error: Worker \"\(mention.name)\" not found. Add it in Settings → Workers."
-                lastWorkerName = nil
-                isLoading = false
                 panel = .chat
                 inputText = ""
                 return

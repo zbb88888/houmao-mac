@@ -1,9 +1,21 @@
 import Foundation
 
-/// AI text client for local LLM.
+/// OpenAI-compatible LLM client with configurable base URL.
 nonisolated struct AiTxtClient: LLMClient {
+    let baseURL: String
+
+    init(baseURL: String = "http://localhost:8080") {
+        self.baseURL = baseURL
+    }
+
     func ask(question: String, attachments: [Attachment]) async throws -> String {
-        let url = URL(string: "http://localhost:8080/v1/chat/completions")!
+        let endpoint = baseURL.hasSuffix("/")
+            ? "\(baseURL)v1/chat/completions"
+            : "\(baseURL)/v1/chat/completions"
+
+        guard let url = URL(string: endpoint) else {
+            throw error("Invalid URL: \(endpoint)")
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

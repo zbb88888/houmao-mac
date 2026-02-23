@@ -37,7 +37,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.borderless)
                     Button(role: .destructive) {
-                        settings.removeWorker(id: worker.id)
+                        settings.workers.removeAll { $0.id == worker.id }
                     } label: {
                         Image(systemName: "trash")
                     }
@@ -57,10 +57,12 @@ struct SettingsView: View {
                             let name = workerName.trimmingCharacters(in: .whitespaces)
                             let url = workerURL.trimmingCharacters(in: .whitespaces)
                             guard !name.isEmpty, !url.isEmpty else { return }
-                            if let id = editingWorkerID {
-                                settings.updateWorker(id: id, name: name, url: url)
+                            if let id = editingWorkerID,
+                               let i = settings.workers.firstIndex(where: { $0.id == id }) {
+                                settings.workers[i].name = name
+                                settings.workers[i].url = url
                             } else {
-                                settings.addWorker(name: name, url: url)
+                                settings.workers.append(Worker(name: name, url: url))
                             }
                             resetForm()
                         }

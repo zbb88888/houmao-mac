@@ -45,21 +45,7 @@ final class AppSettings: ObservableObject {
         }
     }
 
-    func addWorker(name: String, url: String) {
-        workers.append(Worker(name: name, url: url))
-    }
-
-    func removeWorker(id: UUID) {
-        workers.removeAll { $0.id == id }
-    }
-
-    func updateWorker(id: UUID, name: String, url: String) {
-        guard let index = workers.firstIndex(where: { $0.id == id }) else { return }
-        workers[index].name = name
-        workers[index].url = url
-    }
-
     func worker(named name: String) -> Worker? {
-        workers.first { $0.name.lowercased() == name.lowercased() }
+        workers.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
     }
 }
