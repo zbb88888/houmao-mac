@@ -1,36 +1,36 @@
 """
-OpenAI SDK 测试示例
+OpenAI SDK Test Examples
 """
 from openai import OpenAI
 
-# 初始化客户端
+# Initialize client
 client = OpenAI(
-    api_key="not-needed",  # 不需要 API key
+    api_key="not-needed",  # No API key required
     base_url="http://localhost:8080/v1"
 )
 
 print("=" * 60)
-print("测试 1: 简单对话")
+print("Test 1: Simple Conversation")
 print("=" * 60)
 
 response = client.chat.completions.create(
     model="minicpm-o-4.5",
     messages=[
-        {"role": "user", "content": "你好，请用一句话介绍你自己"}
+        {"role": "user", "content": "Hello, please introduce yourself in one sentence"}
     ]
 )
 
 print(f"AI: {response.choices[0].message.content}")
-print(f"Token 使用: {response.usage.total_tokens}")
+print(f"Token usage: {response.usage.total_tokens}")
 
 print("\n" + "=" * 60)
-print("测试 2: 流式响应")
+print("Test 2: Streaming Response")
 print("=" * 60)
 
 stream = client.chat.completions.create(
     model="minicpm-o-4.5",
     messages=[
-        {"role": "user", "content": "讲一个30字以内的小故事"}
+        {"role": "user", "content": "Tell me a short story in 30 words or less"}
     ],
     stream=True,
     max_tokens=50
@@ -43,11 +43,11 @@ for chunk in stream:
 print("\n")
 
 print("=" * 60)
-print("测试 3: 多轮对话")
+print("Test 3: Multi-turn Conversation")
 print("=" * 60)
 
 messages = [
-    {"role": "user", "content": "请推荐一本科幻小说"}
+    {"role": "user", "content": "Please recommend a science fiction novel"}
 ]
 
 response = client.chat.completions.create(
@@ -59,9 +59,9 @@ response = client.chat.completions.create(
 print(f"User: {messages[0]['content']}")
 print(f"AI: {response.choices[0].message.content}")
 
-# 继续对话
+# Continue conversation
 messages.append({"role": "assistant", "content": response.choices[0].message.content})
-messages.append({"role": "user", "content": "为什么推荐这本书？"})
+messages.append({"role": "user", "content": "Why do you recommend this book?"})
 
 response = client.chat.completions.create(
     model="minicpm-o-4.5",
@@ -73,5 +73,5 @@ print(f"\nUser: {messages[-1]['content']}")
 print(f"AI: {response.choices[0].message.content}")
 
 print("\n" + "=" * 60)
-print("✅ 所有测试通过！")
+print("✅ All tests passed!")
 print("=" * 60)

@@ -274,7 +274,7 @@ struct MainView: View {
         } else {
             let filtered = settings.showAppSwitch
                 ? historyViewModel.records
-                : historyViewModel.records.filter { !$0.text.hasPrefix("[切换]") }
+                : historyViewModel.records.filter { !$0.text.hasPrefix("[Switch]") }
 
             LazyVStack(alignment: .leading, spacing: 6) {
                 ForEach(filtered) { record in

@@ -218,7 +218,7 @@ final class UsageTracker {
                 id: UUID(),
                 timestamp: Date(),
                 appName: newAppName,
-                text: "[切换] \(oldApp) → \(newAppName)"
+                text: "[Switch] \(oldApp) → \(newAppName)"
             )
             Task.detached(priority: .utility) { [store] in
                 await store.append(record)

@@ -1,18 +1,18 @@
 """
-OpenAI 兼容适配层 - MiniCPM-o 4.5
-透明代理，将 OpenAI API 请求直接转发到 llama-server
+OpenAI Compatible Adapter for MiniCPM-o 4.5
+Transparent proxy that forwards OpenAI API requests directly to llama-server
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse
 import httpx
 
-# ==================== 配置 ====================
+# ==================== Configuration ====================
 
 LLAMA_SERVER_URL = "http://localhost:19060"
 TIMEOUT = 300.0
 
-# ==================== FastAPI 应用 ====================
+# ==================== FastAPI Application ====================
 
 http_client: httpx.AsyncClient
 
@@ -29,7 +29,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# ==================== API 端点 ====================
+# ==================== API Endpoints ====================
 
 @app.get("/")
 def root():
@@ -53,7 +53,7 @@ def list_models():
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
-    """透明代理 - 转发所有 OpenAI 兼容参数到 llama-server"""
+    """Transparent proxy - forwards all OpenAI-compatible parameters to llama-server"""
     try:
         body = await request.json()
         body["model"] = "MiniCPM-o-4.5"
@@ -72,12 +72,12 @@ async def chat_completions(request: Request):
         return resp.json()
 
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=503, detail=f"llama-server 错误: {e}")
+        raise HTTPException(status_code=503, detail=f"llama-server error: {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"请求失败: {e}")
+        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
 
 async def stream_response(payload: dict):
-    """流式透传 - 原样转发 SSE 字节流"""
+    """Stream passthrough - forwards SSE byte stream as-is"""
     async with http_client.stream(
         "POST",
         f"{LLAMA_SERVER_URL}/v1/chat/completions",
@@ -103,7 +103,7 @@ async def health():
             "error": str(e)
         }
 
-# ==================== 启动 ====================
+# ==================== Startup ====================
 
 if __name__ == "__main__":
     import uvicorn
