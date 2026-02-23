@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 
 class ImageAwareTextField: NSTextField {
     var onPasteImages: (([NSImage]) -> Void)?
+    var onDropAudios: (([URL]) -> Void)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -21,7 +22,7 @@ class ImageAwareTextField: NSTextField {
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         let pb = sender.draggingPasteboard
-        if Self.hasImageContent(pb) {
+        if Self.hasAudioContent(pb) || Self.hasImageContent(pb) {
             return .copy
         }
         return super.draggingEntered(sender)
@@ -29,12 +30,41 @@ class ImageAwareTextField: NSTextField {
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         let pb = sender.draggingPasteboard
+
+        // Check audio files first
+        let audioURLs = Self.extractAudioURLs(from: pb)
+        if !audioURLs.isEmpty {
+            onDropAudios?(audioURLs)
+        }
+
+        // Then check images
         let images = Self.extractImages(from: pb)
         if !images.isEmpty {
             onPasteImages?(images)
+        }
+
+        if !audioURLs.isEmpty || !images.isEmpty {
             return true
         }
         return super.performDragOperation(sender)
+    }
+
+    // MARK: - Audio extraction helpers
+
+    static func hasAudioContent(_ pb: NSPasteboard) -> Bool {
+        if let urls = pb.readObjects(forClasses: [NSURL.self], options: [
+            .urlReadingContentsConformToTypes: [UTType.audio.identifier]
+        ]) as? [URL], !urls.isEmpty {
+            return true
+        }
+        return false
+    }
+
+    static func extractAudioURLs(from pb: NSPasteboard) -> [URL] {
+        guard let urls = pb.readObjects(forClasses: [NSURL.self], options: [
+            .urlReadingContentsConformToTypes: [UTType.audio.identifier]
+        ]) as? [URL] else { return [] }
+        return urls
     }
 
     // MARK: - Image extraction helpers
@@ -89,6 +119,7 @@ struct IMETextField: NSViewRepresentable {
     var onUpArrow: (() -> String?)?
     var onDownArrow: (() -> String?)?
     var onPasteImages: (([NSImage]) -> Void)?
+    var onDropAudios: (([URL]) -> Void)?
 
     func makeNSView(context: Context) -> ImageAwareTextField {
         let tf = ImageAwareTextField()
@@ -107,6 +138,7 @@ struct IMETextField: NSViewRepresentable {
         tf.cell?.isScrollable = true
         tf.delegate = context.coordinator
         tf.onPasteImages = onPasteImages
+        tf.onDropAudios = onDropAudios
         return tf
     }
 
@@ -121,7 +153,9 @@ struct IMETextField: NSViewRepresentable {
         coord.onUpArrow = onUpArrow
         coord.onDownArrow = onDownArrow
         coord.onPasteImages = onPasteImages
+        coord.onDropAudios = onDropAudios
         nsView.onPasteImages = onPasteImages
+        nsView.onDropAudios = onDropAudios
 
         if isFocused, let window = nsView.window {
             DispatchQueue.main.async {
@@ -143,6 +177,7 @@ struct IMETextField: NSViewRepresentable {
         var onUpArrow: (() -> String?)?
         var onDownArrow: (() -> String?)?
         var onPasteImages: (([NSImage]) -> Void)?
+        var onDropAudios: (([URL]) -> Void)?
 
         private var pasteMonitor: Any?
 

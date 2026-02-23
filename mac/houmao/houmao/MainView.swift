@@ -96,25 +96,30 @@ struct MainView: View {
                         for img in images {
                             viewModel.addImage(img)
                         }
+                    },
+                    onDropAudios: { urls in
+                        for url in urls {
+                            viewModel.addAudio(url: url)
+                        }
                     }
                 )
 
-                // Image attachment button
-                Button(action: openImagePicker) {
-                    Image(systemName: "photo.on.rectangle.angled")
+                // Attachment button (images + audio)
+                Button(action: openFilePicker) {
+                    Image(systemName: "paperclip")
                         .font(.system(size: 16))
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Attach images")
+                .help("Attach files")
             }
             .padding(.leading, 24)
             .padding(.trailing, 16)
             .frame(height: 56)
 
-            // Thumbnail strip
-            if !viewModel.attachedImages.isEmpty {
-                thumbnailStrip
+            // Attachment strip
+            if !viewModel.attachedImages.isEmpty || !viewModel.attachedAudios.isEmpty {
+                attachmentStrip
             }
 
             // Results - only after interaction
@@ -182,28 +187,34 @@ struct MainView: View {
         }
     }
 
-    // MARK: - Image picker
+    // MARK: - File picker
 
-    private func openImagePicker() {
+    private func openFilePicker() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = [.image]
+        panel.allowedContentTypes = [.image, .audio]
         panel.begin { response in
             guard response == .OK else { return }
             DispatchQueue.main.async {
                 for url in panel.urls {
-                    if let img = NSImage(contentsOf: url) {
-                        viewModel.addImage(img)
+                    if let type = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType {
+                        if type.conforms(to: .audio) {
+                            viewModel.addAudio(url: url)
+                        } else if type.conforms(to: .image) {
+                            if let img = NSImage(contentsOf: url) {
+                                viewModel.addImage(img)
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    // MARK: - Thumbnail strip
+    // MARK: - Attachment strip
 
-    private var thumbnailStrip: some View {
+    private var attachmentStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(viewModel.attachedImages) { attached in
@@ -226,11 +237,48 @@ struct MainView: View {
                         .offset(x: 4, y: -4)
                     }
                 }
+
+                ForEach(viewModel.attachedAudios) { attached in
+                    ZStack(alignment: .topTrailing) {
+                        VStack(spacing: 2) {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 16))
+                                .foregroundColor(.secondary)
+                            Text(attached.fileName)
+                                .font(.system(size: 8))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Text(formatDuration(attached.duration))
+                                .font(.system(size: 7))
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(width: 48, height: 48)
+                        .background(recordBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                        Button(action: {
+                            viewModel.removeAudio(id: attached.id)
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.white)
+                                .background(Circle().fill(Color.black.opacity(0.5)))
+                        }
+                        .buttonStyle(.plain)
+                        .offset(x: 4, y: -4)
+                    }
+                }
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 6)
         }
         .frame(height: 60)
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 
     // MARK: - Helpers
@@ -394,6 +442,24 @@ struct MainView: View {
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: 60, height: 60)
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                    }
+                }
+
+                if let audios = viewModel.lastUserAudios, !audios.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(audios.enumerated()), id: \.offset) { _, audio in
+                            HStack(spacing: 6) {
+                                Image(systemName: "speaker.wave.2")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                                Text(audio.name)
+                                    .font(.system(size: 11))
+                                    .lineLimit(1)
+                                Text(formatDuration(audio.duration))
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
