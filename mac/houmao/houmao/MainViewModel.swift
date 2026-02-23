@@ -15,6 +15,7 @@ final class MainViewModel: ObservableObject {
     @Published var lastLLMReply: String?
     @Published var isLoading: Bool = false
     @Published var panel: Panel = .none
+    @Published var lastWorkerName: String?
 
     @Published var attachments: [Attachment] = []
 
@@ -46,6 +47,21 @@ final class MainViewModel: ObservableObject {
         attachments.removeAll { $0.id == id }
     }
 
+    /// Parse `@workerName message` from input. Returns (workerName, actualMessage) or nil.
+    private func parseWorkerMention(_ text: String) -> (name: String, message: String)? {
+        guard let match = text.range(of: #"^@(\S+)\s+([\s\S]+)"#, options: .regularExpression) else {
+            return nil
+        }
+        let matched = String(text[match])
+        // Extract worker name (after @ until first whitespace)
+        let afterAt = matched.dropFirst() // drop @
+        guard let spaceIndex = afterAt.firstIndex(where: { $0.isWhitespace }) else { return nil }
+        let name = String(afterAt[afterAt.startIndex..<spaceIndex])
+        let message = String(afterAt[spaceIndex...]).trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty, !message.isEmpty else { return nil }
+        return (name, message)
+    }
+
     func submit(onShowHistory: () -> Void) {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasAttachments = !attachments.isEmpty
@@ -63,10 +79,31 @@ final class MainViewModel: ObservableObject {
             return
         }
 
-        // Normal LLM query
-        let question = trimmed.isEmpty ? "Describe this." : trimmed
+        // Check for @worker mention
+        var question = trimmed.isEmpty ? "Describe this." : trimmed
+        var client: LLMClient = llmClient
+        var workerName: String? = nil
+
+        if let mention = parseWorkerMention(trimmed) {
+            if let worker = AppSettings.shared.worker(named: mention.name) {
+                question = mention.message
+                client = WorkerClient(baseURL: worker.url)
+                workerName = worker.name
+            } else {
+                // Worker not found — show error
+                lastUserText = trimmed
+                lastLLMReply = "Error: Worker \"\(mention.name)\" not found. Add it in Settings → Workers."
+                lastWorkerName = nil
+                isLoading = false
+                panel = .chat
+                inputText = ""
+                return
+            }
+        }
+
         lastUserText = question
         lastLLMReply = nil
+        lastWorkerName = workerName
         isLoading = true
         panel = .chat
 
@@ -79,7 +116,7 @@ final class MainViewModel: ObservableObject {
         currentTask?.cancel()
         currentTask = Task {
             do {
-                let reply = try await llmClient.ask(question: question, attachments: currentAttachments)
+                let reply = try await client.ask(question: question, attachments: currentAttachments)
                 guard !Task.isCancelled else { return }
                 self.lastLLMReply = reply
             } catch is CancellationError {
@@ -95,6 +132,7 @@ final class MainViewModel: ObservableObject {
         currentTask?.cancel()
         lastUserText = nil
         lastLLMReply = nil
+        lastWorkerName = nil
         isLoading = false
         panel = .none
         inputText = ""

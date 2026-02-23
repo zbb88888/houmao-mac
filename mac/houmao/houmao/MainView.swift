@@ -366,8 +366,18 @@ struct MainView: View {
 
     @ViewBuilder
     private var chatContent: some View {
-        if viewModel.isLoading {
-            VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
+            if let workerName = viewModel.lastWorkerName {
+                Text("@\(workerName)")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.accentColor.opacity(0.7))
+                    .cornerRadius(4)
+            }
+
+            if viewModel.isLoading {
                 if let user = viewModel.lastUserText, !user.isEmpty {
                     Text(makeAttributedText("Q: ", user))
                 }
@@ -382,9 +392,9 @@ struct MainView: View {
                         .font(.system(size: textSize))
                         .foregroundColor(.secondary)
                 }
+            } else {
+                Text(buildConversation())
             }
-        } else {
-            Text(buildConversation())
         }
     }
 
