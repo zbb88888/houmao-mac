@@ -16,11 +16,7 @@ final class MainViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var panel: Panel = .none
 
-    @Published var attachedImages: [AttachedImage] = []
-    @Published var lastUserImages: [NSImage]?
-
-    @Published var attachedAudios: [AttachedAudio] = []
-    @Published var lastUserAudios: [(name: String, duration: TimeInterval)]?
+    @Published var attachments: [Attachment] = []
 
     private let llmClient: LLMClient
     private var currentTask: Task<Void, Never>?
@@ -38,37 +34,29 @@ final class MainViewModel: ObservableObject {
         self.usageTracker = usageTracker
     }
 
-    func addImage(_ nsImage: NSImage) {
-        guard let attached = AttachedImage(image: nsImage) else { return }
-        attachedImages.append(attached)
+    func addFile(url: URL) {
+        if let nsImage = NSImage(contentsOf: url), let att = Attachment.image(nsImage) {
+            attachments.append(att)
+        } else if let att = Attachment.audio(url: url) {
+            attachments.append(att)
+        }
     }
 
-    func removeImage(id: UUID) {
-        attachedImages.removeAll { $0.id == id }
-    }
-
-    func addAudio(url: URL) {
-        guard let attached = AttachedAudio(url: url) else { return }
-        attachedAudios.append(attached)
-    }
-
-    func removeAudio(id: UUID) {
-        attachedAudios.removeAll { $0.id == id }
+    func removeAttachment(id: UUID) {
+        attachments.removeAll { $0.id == id }
     }
 
     func submit(onShowHistory: () -> Void) {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hasImages = !attachedImages.isEmpty
-        let hasAudios = !attachedAudios.isEmpty
-        guard !trimmed.isEmpty || hasImages || hasAudios else { return }
+        let hasAttachments = !attachments.isEmpty
+        guard !trimmed.isEmpty || hasAttachments else { return }
 
-        // Add to command history (only if there's text)
         if !trimmed.isEmpty {
             commandHistory.add(trimmed)
         }
 
         // Check commands (only when no media attached)
-        if !hasImages && !hasAudios, let target = commands[trimmed.lowercased()] {
+        if !hasAttachments, let target = commands[trimmed.lowercased()] {
             inputText = ""
             if target == .history { onShowHistory() }
             panel = (panel == target) ? .none : target
@@ -76,29 +64,14 @@ final class MainViewModel: ObservableObject {
         }
 
         // Normal LLM query
-        let question: String
-        if trimmed.isEmpty {
-            question = hasAudios ? "Describe this audio." : "Describe this image."
-        } else {
-            question = trimmed
-        }
+        let question = trimmed.isEmpty ? "Describe this." : trimmed
         lastUserText = question
         lastLLMReply = nil
         isLoading = true
         panel = .chat
 
-        // Capture images for display and extract base64 for the API call
-        let images = attachedImages.map { $0.nsImage }
-        let base64s = attachedImages.map { $0.base64JPEG }
-        lastUserImages = hasImages ? images : nil
-
-        // Capture audios for display and extract data for the API call
-        let audioInfos = attachedAudios.map { (name: $0.fileName, duration: $0.duration) }
-        let audioParts = attachedAudios.map { (data: $0.base64Data, format: $0.format) }
-        lastUserAudios = hasAudios ? audioInfos : nil
-
-        attachedImages = []
-        attachedAudios = []
+        let currentAttachments = attachments
+        attachments = []
         inputText = ""
 
         usageTracker?.record(text: question)
@@ -106,7 +79,7 @@ final class MainViewModel: ObservableObject {
         currentTask?.cancel()
         currentTask = Task {
             do {
-                let reply = try await llmClient.ask(question: question, imageBase64s: base64s, audioBase64s: audioParts)
+                let reply = try await llmClient.ask(question: question, attachments: currentAttachments)
                 guard !Task.isCancelled else { return }
                 self.lastLLMReply = reply
             } catch is CancellationError {
@@ -122,13 +95,10 @@ final class MainViewModel: ObservableObject {
         currentTask?.cancel()
         lastUserText = nil
         lastLLMReply = nil
-        lastUserImages = nil
-        lastUserAudios = nil
         isLoading = false
         panel = .none
         inputText = ""
-        attachedImages = []
-        attachedAudios = []
+        attachments = []
         commandHistory.reset()
     }
 }

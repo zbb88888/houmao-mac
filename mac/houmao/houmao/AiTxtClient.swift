@@ -2,32 +2,27 @@ import Foundation
 
 /// AI text client for local LLM.
 nonisolated struct AiTxtClient: LLMClient {
-    func ask(question: String, imageBase64s: [String], audioBase64s: [(data: String, format: String)]) async throws -> String {
+    func ask(question: String, attachments: [Attachment]) async throws -> String {
         let url = URL(string: "http://localhost:8080/v1/chat/completions")!
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let hasMedia = !imageBase64s.isEmpty || !audioBase64s.isEmpty
-        request.timeoutInterval = hasMedia ? 120 : 60
+        request.timeoutInterval = attachments.isEmpty ? 60 : 120
 
         // Build the user message content
         let content: Any
-        if !hasMedia {
+        if attachments.isEmpty {
             content = question
         } else {
-            var parts: [[String: Any]] = imageBase64s.map { base64 in
-                [
-                    "type": "image_url",
-                    "image_url": ["url": "data:image/jpeg;base64,\(base64)"]
-                ]
-            }
-            parts += audioBase64s.map { audio in
-                [
-                    "type": "input_audio",
-                    "input_audio": ["data": audio.data, "format": audio.format]
-                ]
+            var parts: [[String: Any]] = []
+            for att in attachments {
+                switch att.content {
+                case .image(_, let base64):
+                    parts.append(["type": "image_url", "image_url": ["url": "data:image/jpeg;base64,\(base64)"]])
+                case .audio(_, let base64, let format):
+                    parts.append(["type": "input_audio", "input_audio": ["data": base64, "format": format]])
+                }
             }
             parts.append(["type": "text", "text": question])
             content = parts
