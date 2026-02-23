@@ -10,7 +10,7 @@ struct HoumaoApp: App {
     init() {
         let store = HistoryStore()
         let tracker = UsageTracker(store: store)
-        let vm = MainViewModel(llmClient: AiTxtClient(), usageTracker: tracker)
+        let vm = MainViewModel(usageTracker: tracker)
         _mainViewModel = StateObject(wrappedValue: vm)
         _historyViewModel = StateObject(wrappedValue: HistoryViewModel(store: store))
         AppDelegate.tracker = tracker
@@ -38,7 +38,6 @@ struct HoumaoApp: App {
             // Cmd+B: toggle history
             CommandGroup(after: .textEditing) {
                 Button("Toggle History") {
-                    historyViewModel.load()
                     mainViewModel.panel = (mainViewModel.panel == .history) ? .none : .history
                 }
                 .keyboardShortcut("b", modifiers: .command)

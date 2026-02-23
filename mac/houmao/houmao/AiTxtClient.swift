@@ -1,10 +1,10 @@
 import Foundation
 
 /// OpenAI-compatible LLM client with configurable base URL.
-nonisolated struct AiTxtClient: LLMClient {
+struct AiTxtClient: Sendable {
     let baseURL: String
 
-    init(baseURL: String = "http://localhost:8080") {
+    init(baseURL: String = "http://localhost:8080") { // TODO-REMOVE: hardcoded default URL, should be user-configurable in settings
         self.baseURL = baseURL
     }
 
@@ -41,7 +41,7 @@ nonisolated struct AiTxtClient: LLMClient {
         }
 
         let body: [String: Any] = [
-            "model": "minicpm-o-4.5",
+            "model": "minicpm-o-4.5", // TODO-REMOVE: hardcoded model name, should be user-configurable per worker
             "messages": [["role": "user", "content": content]],
             "stream": false
         ]

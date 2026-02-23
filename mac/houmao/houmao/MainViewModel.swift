@@ -19,7 +19,6 @@ final class MainViewModel: ObservableObject {
 
     @Published var attachments: [Attachment] = []
 
-    private let llmClient: LLMClient
     private var currentTask: Task<Void, Never>?
     private(set) var usageTracker: UsageTracker?
     let commandHistory = CommandHistory()
@@ -30,8 +29,7 @@ final class MainViewModel: ObservableObject {
         "h": .help,
     ]
 
-    init(llmClient: LLMClient, usageTracker: UsageTracker? = nil) {
-        self.llmClient = llmClient
+    init(usageTracker: UsageTracker? = nil) {
         self.usageTracker = usageTracker
     }
 
@@ -48,14 +46,16 @@ final class MainViewModel: ObservableObject {
     }
 
     /// Parse `@workerName message` from input. Returns (workerName, actualMessage) or nil.
+    /// Supports `@worker some question` and `@worker` alone (for attachment-only use).
     private func parseWorkerMention(_ text: String) -> (name: String, message: String)? {
         guard text.hasPrefix("@") else { return nil }
         let parts = text.dropFirst().split(maxSplits: 1, whereSeparator: \.isWhitespace)
-        guard parts.count == 2 else { return nil }
-        return (String(parts[0]), String(parts[1]))
+        guard let name = parts.first, !name.isEmpty else { return nil }
+        let message = parts.count > 1 ? String(parts[1]) : ""
+        return (String(name), message)
     }
 
-    func submit(onShowHistory: () -> Void) {
+    func submit() {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasAttachments = !attachments.isEmpty
         guard !trimmed.isEmpty || hasAttachments else { return }
@@ -67,19 +67,20 @@ final class MainViewModel: ObservableObject {
         // Check commands (only when no media attached)
         if !hasAttachments, let target = commands[trimmed.lowercased()] {
             inputText = ""
-            if target == .history { onShowHistory() }
             panel = (panel == target) ? .none : target
             return
         }
 
         // Check for @worker mention
         var question = trimmed.isEmpty ? "Describe this." : trimmed
-        var client: LLMClient = llmClient
+        var client = AiTxtClient()
         var workerName: String? = nil
 
         if let mention = parseWorkerMention(trimmed) {
             if let worker = AppSettings.shared.worker(named: mention.name) {
-                question = mention.message
+                question = mention.message.isEmpty
+                    ? (hasAttachments ? "Describe this." : "Hello")
+                    : mention.message
                 client = AiTxtClient(baseURL: worker.url)
                 workerName = worker.name
             } else {

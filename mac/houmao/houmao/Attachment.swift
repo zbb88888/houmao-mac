@@ -28,17 +28,3 @@ struct Attachment: Identifiable {
         ))
     }
 }
-
-/// Protocol for LLM clients.
-nonisolated protocol LLMClient: Sendable {
-    func ask(question: String, attachments: [Attachment]) async throws -> String
-}
-
-/// Mock LLM client for testing.
-nonisolated struct MockLLMClient: LLMClient {
-    func ask(question: String, attachments: [Attachment]) async throws -> String {
-        try await Task.sleep(for: .milliseconds(600))
-        let note = attachments.isEmpty ? "" : " (with \(attachments.count) attachments)"
-        return "Mock LLM reply\(note): You just asked: \"\(question)\". This will integrate with MiniCPM-V in the future."
-    }
-}

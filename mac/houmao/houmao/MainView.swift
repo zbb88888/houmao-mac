@@ -47,6 +47,8 @@ struct MainView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isInputFocused: Bool = false
     @ObservedObject private var settings = AppSettings.shared
+    @AppStorage("showTimestamp") private var showTimestamp = false
+    @AppStorage("showAppSwitch") private var showAppSwitch = false
 
     private let cornerRadius: CGFloat = 12
 
@@ -84,11 +86,7 @@ struct MainView: View {
                     isFocused: $isInputFocused,
                     placeholder: "zzz...",
                     font: .systemFont(ofSize: 18, weight: .medium),
-                    onSubmit: {
-                        viewModel.submit(onShowHistory: {
-                            historyViewModel.load()
-                        })
-                    },
+                    onSubmit: { viewModel.submit() },
                     onUpArrow: viewModel.commandHistory.previous,
                     onDownArrow: viewModel.commandHistory.next
                 )
@@ -167,6 +165,9 @@ struct MainView: View {
             }
         }
         .onChange(of: viewModel.panel) {
+            if viewModel.panel == .history {
+                historyViewModel.load()
+            }
             if viewModel.panel == .none {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     isInputFocused = true
@@ -272,7 +273,7 @@ struct MainView: View {
                 .padding(.top, 16)
                 .frame(maxWidth: .infinity, alignment: .center)
         } else {
-            let filtered = settings.showAppSwitch
+            let filtered = showAppSwitch
                 ? historyViewModel.records
                 : historyViewModel.records.filter { !$0.text.hasPrefix("[Switch]") }
 
@@ -295,7 +296,7 @@ struct MainView: View {
     private func recordRow(_ record: UsageRecord) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                if settings.showTimestamp {
+                if showTimestamp {
                     Text(dateFormatter.string(from: record.timestamp))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
@@ -332,7 +333,6 @@ struct MainView: View {
             helpRow(key: "Cmd + B", description: "Toggle usage history")
             helpRow(key: "Cmd + L", description: "Clear all history")
             helpRow(key: "Cmd + W", description: "Hide window")
-            helpRow(key: "Cmd + Shift + D", description: "Open debug window")
 
             Divider().overlay(dividerColor).padding(.vertical, 4)
 
@@ -342,6 +342,19 @@ struct MainView: View {
 
             helpRow(key: "h", description: "Show this help")
             helpRow(key: "b", description: "Toggle usage history")
+            helpRow(key: "@name msg", description: "Send message to a worker")
+
+            if !settings.workers.isEmpty {
+                Divider().overlay(dividerColor).padding(.vertical, 4)
+
+                Text("Workers")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.secondary)
+
+                ForEach(settings.workers) { worker in
+                    helpRow(key: "@\(worker.name)", description: worker.url)
+                }
+            }
         }
         .padding(.vertical, 8)
     }
@@ -377,10 +390,11 @@ struct MainView: View {
                     .cornerRadius(4)
             }
 
+            if let q = viewModel.lastUserText, !q.isEmpty {
+                Text(makeAttributedText("Q: ", q))
+            }
+
             if viewModel.isLoading {
-                if let user = viewModel.lastUserText, !user.isEmpty {
-                    Text(makeAttributedText("Q: ", user))
-                }
                 HStack(alignment: .top, spacing: 8) {
                     Text("A:")
                         .font(.system(size: textSize, weight: .semibold))
@@ -392,21 +406,9 @@ struct MainView: View {
                         .font(.system(size: textSize))
                         .foregroundColor(.secondary)
                 }
-            } else {
-                Text(buildConversation())
+            } else if let a = viewModel.lastLLMReply {
+                Text(makeAttributedText("A: ", a))
             }
-        }
-    }
-
-    private func buildConversation() -> AttributedString {
-        let parts = [
-            viewModel.lastUserText.map { makeAttributedText("Q: ", $0) },
-            viewModel.lastLLMReply.map { makeAttributedText("A: ", $0) }
-        ].compactMap { $0 }
-
-        return parts.enumerated().reduce(into: AttributedString()) { result, item in
-            if item.offset > 0 { result.append(AttributedString("\n\n")) }
-            result.append(item.element)
         }
     }
 

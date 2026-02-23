@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct UsageRecord: Codable, Identifiable, Sendable {
+struct UsageRecord: Codable, Identifiable, Sendable {
     let id: UUID
     let timestamp: Date
     let appName: String

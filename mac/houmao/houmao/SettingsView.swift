@@ -5,10 +5,10 @@ struct SettingsView: View {
     @AppStorage("showAppSwitch") private var showAppSwitch = false
     @ObservedObject private var settings = AppSettings.shared
 
-    @State private var isAddingWorker = false
     @State private var editingWorkerID: UUID?
     @State private var workerName = ""
     @State private var workerURL = ""
+    @State private var workerError = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -34,6 +34,7 @@ struct SettingsView: View {
                         workerName = worker.name
                         workerURL = worker.url
                         editingWorkerID = worker.id
+                        workerError = ""
                     }
                     .buttonStyle(.borderless)
                     Button(role: .destructive) {
@@ -46,34 +47,25 @@ struct SettingsView: View {
                 .padding(.vertical, 2)
             }
 
-            if isAddingWorker || editingWorkerID != nil {
+            if editingWorkerID != nil {
                 VStack(alignment: .leading, spacing: 6) {
-                    TextField("Name", text: $workerName)
+                    TextField("Name (no spaces)", text: $workerName)
                         .textFieldStyle(.roundedBorder)
                     TextField("URL (e.g. http://localhost:8081)", text: $workerURL)
                         .textFieldStyle(.roundedBorder)
+                    if !workerError.isEmpty {
+                        Text(workerError)
+                            .font(.system(size: 11))
+                            .foregroundColor(.red)
+                    }
                     HStack {
-                        Button("Save") {
-                            let name = workerName.trimmingCharacters(in: .whitespaces)
-                            let url = workerURL.trimmingCharacters(in: .whitespaces)
-                            guard !name.isEmpty, !url.isEmpty else { return }
-                            if let id = editingWorkerID,
-                               let i = settings.workers.firstIndex(where: { $0.id == id }) {
-                                settings.workers[i].name = name
-                                settings.workers[i].url = url
-                            } else {
-                                settings.workers.append(Worker(name: name, url: url))
-                            }
-                            resetForm()
-                        }
-                        Button("Cancel") {
-                            resetForm()
-                        }
+                        Button("Save") { saveWorker() }
+                        Button("Cancel") { resetForm() }
                     }
                 }
                 .padding(.top, 4)
             } else {
-                Button(action: { isAddingWorker = true }) {
+                Button(action: { editingWorkerID = UUID() }) {
                     Image(systemName: "plus")
                 }
                 .buttonStyle(.borderless)
@@ -86,10 +78,46 @@ struct SettingsView: View {
         .navigationTitle("")
     }
 
+    private func saveWorker() {
+        let name = workerName.trimmingCharacters(in: .whitespaces)
+        let url = workerURL.trimmingCharacters(in: .whitespaces)
+
+        // Validate
+        if name.isEmpty || url.isEmpty {
+            workerError = "Name and URL are required."
+            return
+        }
+        if name.contains(where: \.isWhitespace) {
+            workerError = "Name cannot contain spaces."
+            return
+        }
+        if URL(string: url) == nil {
+            workerError = "Invalid URL."
+            return
+        }
+        // Duplicate check (skip self when editing)
+        let duplicate = settings.workers.first {
+            $0.name.caseInsensitiveCompare(name) == .orderedSame && $0.id != editingWorkerID
+        }
+        if duplicate != nil {
+            workerError = "A worker named \"\(name)\" already exists."
+            return
+        }
+
+        if let id = editingWorkerID,
+           let i = settings.workers.firstIndex(where: { $0.id == id }) {
+            settings.workers[i].name = name
+            settings.workers[i].url = url
+        } else {
+            settings.workers.append(Worker(name: name, url: url))
+        }
+        resetForm()
+    }
+
     private func resetForm() {
         workerName = ""
         workerURL = ""
-        isAddingWorker = false
+        workerError = ""
         editingWorkerID = nil
     }
 }
