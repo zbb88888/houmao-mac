@@ -64,12 +64,10 @@ nonisolated struct AiTxtClient: LLMClient {
             throw error("Invalid response: \(debugInfo)")
         }
 
-        // Strip thinking process wrapped in <think>…</think> tags, keep only the final answer.
-        let stripped = responseContent.replacingOccurrences(
-            of: "<think>[\\s\\S]*?</think>",
-            with: "",
-            options: .regularExpression
-        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip thinking process: drop everything up to and including the last </think>.
+        let stripped = responseContent
+            .replacingOccurrences(of: "^[\\s\\S]*</think>", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
         return stripped.isEmpty ? responseContent : stripped
     }
