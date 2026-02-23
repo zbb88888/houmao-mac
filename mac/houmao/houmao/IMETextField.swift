@@ -1,5 +1,84 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
+
+// MARK: - ImageAwareTextField (NSTextField subclass for drag-and-drop)
+
+class ImageAwareTextField: NSTextField {
+    var onPasteImages: (([NSImage]) -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        registerForDraggedTypes([.fileURL, .png, .tiff])
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        registerForDraggedTypes([.fileURL, .png, .tiff])
+    }
+
+    // MARK: - Drag & Drop
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let pb = sender.draggingPasteboard
+        if Self.hasImageContent(pb) {
+            return .copy
+        }
+        return super.draggingEntered(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let pb = sender.draggingPasteboard
+        let images = Self.extractImages(from: pb)
+        if !images.isEmpty {
+            onPasteImages?(images)
+            return true
+        }
+        return super.performDragOperation(sender)
+    }
+
+    // MARK: - Image extraction helpers
+
+    static func hasImageContent(_ pb: NSPasteboard) -> Bool {
+        if let urls = pb.readObjects(forClasses: [NSURL.self], options: [
+            .urlReadingContentsConformToTypes: [UTType.image.identifier]
+        ]) as? [URL], !urls.isEmpty {
+            return true
+        }
+        if pb.data(forType: .png) != nil || pb.data(forType: .tiff) != nil {
+            return true
+        }
+        return false
+    }
+
+    static func extractImages(from pb: NSPasteboard) -> [NSImage] {
+        var images: [NSImage] = []
+
+        // 1. File URLs (Finder drag, file copy)
+        if let urls = pb.readObjects(forClasses: [NSURL.self], options: [
+            .urlReadingContentsConformToTypes: [UTType.image.identifier]
+        ]) as? [URL] {
+            for url in urls {
+                if let img = NSImage(contentsOf: url) {
+                    images.append(img)
+                }
+            }
+        }
+
+        // 2. Raw image data (screenshot paste)
+        if images.isEmpty {
+            if let pngData = pb.data(forType: .png), let img = NSImage(data: pngData) {
+                images.append(img)
+            } else if let tiffData = pb.data(forType: .tiff), let img = NSImage(data: tiffData) {
+                images.append(img)
+            }
+        }
+
+        return images
+    }
+}
+
+// MARK: - IMETextField (SwiftUI wrapper)
 
 struct IMETextField: NSViewRepresentable {
     @Binding var text: String
@@ -9,9 +88,10 @@ struct IMETextField: NSViewRepresentable {
     var onSubmit: (() -> Void)?
     var onUpArrow: (() -> String?)?
     var onDownArrow: (() -> String?)?
+    var onPasteImages: (([NSImage]) -> Void)?
 
-    func makeNSView(context: Context) -> NSTextField {
-        let tf = NSTextField()
+    func makeNSView(context: Context) -> ImageAwareTextField {
+        let tf = ImageAwareTextField()
         tf.placeholderAttributedString = NSAttributedString(
             string: placeholder,
             attributes: [
@@ -26,10 +106,11 @@ struct IMETextField: NSViewRepresentable {
         tf.focusRingType = .none
         tf.cell?.isScrollable = true
         tf.delegate = context.coordinator
+        tf.onPasteImages = onPasteImages
         return tf
     }
 
-    func updateNSView(_ nsView: NSTextField, context: Context) {
+    func updateNSView(_ nsView: ImageAwareTextField, context: Context) {
         let isComposing = (nsView.currentEditor() as? NSTextView)?.hasMarkedText() ?? false
         if !isComposing && nsView.stringValue != text {
             nsView.stringValue = text
@@ -39,6 +120,8 @@ struct IMETextField: NSViewRepresentable {
         coord.onSubmit = onSubmit
         coord.onUpArrow = onUpArrow
         coord.onDownArrow = onDownArrow
+        coord.onPasteImages = onPasteImages
+        nsView.onPasteImages = onPasteImages
 
         if isFocused, let window = nsView.window {
             DispatchQueue.main.async {
@@ -59,10 +142,42 @@ struct IMETextField: NSViewRepresentable {
         var onSubmit: (() -> Void)?
         var onUpArrow: (() -> String?)?
         var onDownArrow: (() -> String?)?
+        var onPasteImages: (([NSImage]) -> Void)?
+
+        private var pasteMonitor: Any?
 
         init(text: Binding<String>, isFocused: Binding<Bool>) {
             self.text = text
             self.isFocused = isFocused
+            super.init()
+            installPasteMonitor()
+        }
+
+        deinit {
+            if let monitor = pasteMonitor {
+                NSEvent.removeMonitor(monitor)
+            }
+        }
+
+        private func installPasteMonitor() {
+            pasteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self = self else { return event }
+                if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                   event.charactersIgnoringModifiers == "v" {
+                    let pb = NSPasteboard.general
+                    let images = ImageAwareTextField.extractImages(from: pb)
+                    if !images.isEmpty {
+                        self.onPasteImages?(images)
+                        // If pasteboard also has text, let the default paste proceed
+                        if pb.string(forType: .string) != nil {
+                            return event
+                        }
+                        // Image-only paste: consume the event
+                        return nil
+                    }
+                }
+                return event
+            }
         }
 
         func controlTextDidChange(_ obj: Notification) {

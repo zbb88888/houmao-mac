@@ -1,5 +1,10 @@
 import AppKit
 
+extension Notification.Name {
+    /// Posted when the main window is shown after being hidden.
+    static let houmaoWindowDidShow = Notification.Name("houmaoWindowDidShow")
+}
+
 /// Listens for double-tap Option key to show/hide main window.
 final class GlobalHotKeyManager {
     static let shared = GlobalHotKeyManager()
@@ -70,6 +75,7 @@ final class GlobalHotKeyManager {
             if mainWindow.isVisible {
                 mainWindow.orderOut(nil)
             } else {
+                NotificationCenter.default.post(name: .houmaoWindowDidShow, object: nil)
                 mainWindow.makeKeyAndOrderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)
             }

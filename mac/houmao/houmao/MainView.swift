@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 // MARK: - Frosted glass (NSVisualEffectView)
 
@@ -78,22 +79,43 @@ struct MainView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Search bar
-            IMETextField(
-                text: $viewModel.inputText,
-                isFocused: $isInputFocused,
-                placeholder: "zzz...",
-                font: .systemFont(ofSize: 18, weight: .medium),
-                onSubmit: {
-                    viewModel.submit(onShowHistory: {
-                        historyViewModel.load()
-                    })
-                },
-                onUpArrow: viewModel.commandHistory.previous,
-                onDownArrow: viewModel.commandHistory.next
-            )
+            HStack(spacing: 8) {
+                IMETextField(
+                    text: $viewModel.inputText,
+                    isFocused: $isInputFocused,
+                    placeholder: "zzz...",
+                    font: .systemFont(ofSize: 18, weight: .medium),
+                    onSubmit: {
+                        viewModel.submit(onShowHistory: {
+                            historyViewModel.load()
+                        })
+                    },
+                    onUpArrow: viewModel.commandHistory.previous,
+                    onDownArrow: viewModel.commandHistory.next,
+                    onPasteImages: { images in
+                        for img in images {
+                            viewModel.addImage(img)
+                        }
+                    }
+                )
+
+                // Image attachment button
+                Button(action: openImagePicker) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Attach images")
+            }
             .padding(.leading, 24)
             .padding(.trailing, 16)
             .frame(height: 56)
+
+            // Thumbnail strip
+            if !viewModel.attachedImages.isEmpty {
+                thumbnailStrip
+            }
 
             // Results - only after interaction
             if viewModel.panel != .none {
@@ -140,8 +162,13 @@ struct MainView: View {
         .onAppear {
             isInputFocused = true
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .houmaoWindowDidShow)) { _ in
             viewModel.clearConversation()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInputFocused = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 isInputFocused = true
             }
@@ -153,6 +180,57 @@ struct MainView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Image picker
+
+    private func openImagePicker() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.image]
+        panel.begin { response in
+            guard response == .OK else { return }
+            DispatchQueue.main.async {
+                for url in panel.urls {
+                    if let img = NSImage(contentsOf: url) {
+                        viewModel.addImage(img)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Thumbnail strip
+
+    private var thumbnailStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(viewModel.attachedImages) { attached in
+                    ZStack(alignment: .topTrailing) {
+                        Image(nsImage: attached.nsImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 48, height: 48)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                        Button(action: {
+                            viewModel.removeImage(id: attached.id)
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.white)
+                                .background(Circle().fill(Color.black.opacity(0.5)))
+                        }
+                        .buttonStyle(.plain)
+                        .offset(x: 4, y: -4)
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 6)
+        }
+        .frame(height: 60)
     }
 
     // MARK: - Helpers
@@ -273,17 +351,13 @@ struct MainView: View {
 
     // MARK: - Chat content
 
-    // MARK: - Chat content
-
     private let textSize: CGFloat = 13
 
     @ViewBuilder
     private var chatContent: some View {
         if viewModel.isLoading {
             VStack(alignment: .leading, spacing: 12) {
-                if let user = viewModel.lastUserText, !user.isEmpty {
-                    Text(makeAttributedText("Q: ", user))
-                }
+                userMessageView
                 HStack(alignment: .top, spacing: 8) {
                     Text("A:")
                         .font(.system(size: textSize, weight: .semibold))
@@ -297,19 +371,33 @@ struct MainView: View {
                 }
             }
         } else {
-            Text(buildConversation())
+            VStack(alignment: .leading, spacing: 12) {
+                userMessageView
+                if let reply = viewModel.lastLLMReply {
+                    Text(makeAttributedText("A: ", reply))
+                }
+            }
         }
     }
 
-    private func buildConversation() -> AttributedString {
-        let parts = [
-            viewModel.lastUserText.map { makeAttributedText("Q: ", $0) },
-            viewModel.lastLLMReply.map { makeAttributedText("A: ", $0) }
-        ].compactMap { $0 }
+    @ViewBuilder
+    private var userMessageView: some View {
+        if let user = viewModel.lastUserText, !user.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(makeAttributedText("Q: ", user))
 
-        return parts.enumerated().reduce(into: AttributedString()) { result, item in
-            if item.offset > 0 { result.append(AttributedString("\n\n")) }
-            result.append(item.element)
+                if let images = viewModel.lastUserImages, !images.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(Array(images.enumerated()), id: \.offset) { _, img in
+                            Image(nsImage: img)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 60, height: 60)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                    }
+                }
+            }
         }
     }
 
