@@ -87,8 +87,8 @@ struct ChatResponseMessage: Decodable {
 struct AiTxtClient: Sendable {
     let baseURL: String
 
-    init(baseURL: String = "http://100.100.55.109:19060") { // TODO-REMOVE: hardcoded default URL, should be user-configurable in settings
-        self.baseURL = baseURL
+    init(baseURL: String? = nil) {
+        self.baseURL = baseURL ?? "http://100.100.55.109:19060"
     }
 
     func ask(question: String, attachments: [Attachment]) async throws -> String {

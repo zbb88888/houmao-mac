@@ -72,33 +72,29 @@ final class MainViewModel {
             return
         }
 
-        // Check for @worker mention
+        // Check for @worker mention, otherwise use default/built-in
         var question = trimmed.isEmpty ? "Describe this." : trimmed
-        var client: AiTxtClient
         var workerName: String? = nil
+        var workerURL: String? = nil
 
         if let mention = parseWorkerMention(trimmed) {
-            if let worker = AppSettings.shared.worker(named: mention.name) {
-                question = mention.message.isEmpty
-                    ? (hasAttachments ? "Describe this." : "Hello")
-                    : mention.message
-                client = AiTxtClient(baseURL: worker.url)
-                workerName = worker.name
-            } else {
+            guard let worker = AppSettings.shared.worker(named: mention.name) else {
                 lastUserText = trimmed
                 lastLLMReply = "Error: Worker \"\(mention.name)\" not found. Add it in Settings → Workers."
                 panel = .chat
                 inputText = ""
                 return
             }
+            question = mention.message.isEmpty
+                ? (hasAttachments ? "Describe this." : "Hello")
+                : mention.message
+            workerURL = worker.url
+            workerName = worker.name
         } else if let defaultWorker = AppSettings.shared.defaultWorker() {
-            // Use default worker if no @mention
-            client = AiTxtClient(baseURL: defaultWorker.url)
-            workerName = nil  // Don't display name for default worker
-        } else {
-            // No @mention and no default worker, use built-in default URL
-            client = AiTxtClient()
+            workerURL = defaultWorker.url
         }
+
+        let client = AiTxtClient(baseURL: workerURL)
 
         lastUserText = question
         lastLLMReply = nil

@@ -83,15 +83,9 @@ struct SettingsView: View {
             ForEach(settings.workers) { worker in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
-                            Text(worker.name.isEmpty ? "Default" : worker.name)
-                                .font(.system(size: 13, weight: .medium))
-                            if worker.name.isEmpty {
-                                Text("(no @mention needed)")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
+                        let displayName = worker.name.isEmpty ? "Default (no @mention needed)" : worker.name
+                        Text(displayName)
+                            .font(.system(size: 13, weight: .medium))
                         Text(worker.url)
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
@@ -172,40 +166,37 @@ struct SettingsView: View {
         let name = workerName.trimmingCharacters(in: .whitespaces)
         let url = workerURL.trimmingCharacters(in: .whitespaces)
 
-        // Validate
-        if url.isEmpty {
+        // Validate URL
+        guard !url.isEmpty else {
             workerError = "URL is required."
             return
         }
-        if !name.isEmpty && name.contains(where: \.isWhitespace) {
-            workerError = "Name cannot contain spaces."
-            return
-        }
-        if URL(string: url) == nil {
+        guard URL(string: url) != nil else {
             workerError = "Invalid URL."
             return
         }
 
-        // Check for existing default worker if trying to create/edit one
-        if name.isEmpty {
-            let existingDefault = settings.workers.first { $0.name.isEmpty && $0.id != editingWorkerID }
-            if existingDefault != nil {
-                workerError = "A default worker already exists. Delete it first or use a name."
-                return
-            }
+        // Validate name
+        guard name.isEmpty || !name.contains(where: \.isWhitespace) else {
+            workerError = "Name cannot contain spaces."
+            return
         }
 
-        // Duplicate check (skip self when editing)
-        if !name.isEmpty {
-            let duplicate = settings.workers.first {
-                $0.name.caseInsensitiveCompare(name) == .orderedSame && $0.id != editingWorkerID
-            }
-            if duplicate != nil {
-                workerError = "A worker named \"\(name)\" already exists."
-                return
-            }
+        // Check duplicates
+        let isDuplicate = settings.workers.contains { worker in
+            worker.id != editingWorkerID && (
+                (name.isEmpty && worker.name.isEmpty) ||
+                (!name.isEmpty && worker.name.caseInsensitiveCompare(name) == .orderedSame)
+            )
+        }
+        guard !isDuplicate else {
+            workerError = name.isEmpty
+                ? "A default worker already exists. Delete it first or use a name."
+                : "A worker named \"\(name)\" already exists."
+            return
         }
 
+        // Save
         if let id = editingWorkerID,
            let i = settings.workers.firstIndex(where: { $0.id == id }) {
             settings.workers[i].name = name
