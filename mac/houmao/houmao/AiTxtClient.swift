@@ -79,6 +79,12 @@ struct ChatChoice: Decodable {
 
 struct ChatResponseMessage: Decodable {
     let content: String?
+    let reasoningContent: String?
+
+    enum CodingKeys: String, CodingKey {
+        case content
+        case reasoningContent = "reasoning_content"
+    }
 }
 
 // MARK: - Client
@@ -141,8 +147,10 @@ struct AiTxtClient: Sendable {
         }
 
         let chatResponse = try JSONDecoder().decode(ChatResponse.self, from: data)
-        guard let responseContent = chatResponse.choices.first?.message.content,
-              !responseContent.isEmpty else {
+        let msg = chatResponse.choices.first?.message
+        let responseContent = msg?.content?.isEmpty == false ? msg?.content
+            : msg?.reasoningContent
+        guard let responseContent, !responseContent.isEmpty else {
             let debugInfo = String(data: data, encoding: .utf8) ?? "Unable to parse response"
             throw ClientError.invalidResponse(debugInfo)
         }

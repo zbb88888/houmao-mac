@@ -121,7 +121,7 @@ struct SettingsView: View {
                     TextField("Name (empty = default, or no spaces)", text: $workerName)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { saveWorker() }
-                    TextField("URL (e.g. http://100.100.55.109:19060)", text: $workerURL)
+                    TextField("URL (e.g. http://127.0.0.1:19060)", text: $workerURL)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { saveWorker() }
                     TextField("Model (e.g. minicpm-o-4.5, gpt-4)", text: $workerModel)
