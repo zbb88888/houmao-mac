@@ -88,7 +88,7 @@ struct AiTxtClient: Sendable {
     let baseURL: String
     let model: String
 
-    init(baseURL: String, model: String = "minicpm-o-4.5") {
+    init(baseURL: String, model: String = Worker.defaultModel) {
         self.baseURL = baseURL
         self.model = model
     }

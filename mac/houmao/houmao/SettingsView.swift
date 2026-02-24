@@ -68,7 +68,7 @@ struct SettingsView: View {
     @State private var editingWorkerID: UUID?
     @State private var workerName = ""
     @State private var workerURL = ""
-    @State private var workerModel = "minicpm-o-4.5"
+    @State private var workerModel = Worker.defaultModel
     @State private var workerError = ""
 
     var body: some View {
@@ -192,12 +192,12 @@ struct SettingsView: View {
     }
 
     private func validateWorker(name: String, url: String, model: String) -> String? {
-        // Check URL
+        // Check required fields
         guard !url.isEmpty else { return "URL is required." }
-        guard URL(string: url) != nil else { return "Invalid URL." }
-
-        // Check model
         guard !model.isEmpty else { return "Model is required." }
+
+        // Check URL validity
+        guard URL(string: url) != nil else { return "Invalid URL." }
 
         // Check name format
         guard name.isEmpty || !name.contains(where: \.isWhitespace) else {
@@ -205,25 +205,20 @@ struct SettingsView: View {
         }
 
         // Check duplicates
-        let hasDuplicate = settings.workers.contains { worker in
-            worker.id != editingWorkerID && (
-                (name.isEmpty && worker.name.isEmpty) ||
-                (!name.isEmpty && worker.name.caseInsensitiveCompare(name) == .orderedSame)
-            )
-        }
-        if hasDuplicate {
-            return name.isEmpty
-                ? "A default worker already exists. Delete it first or use a name."
-                : "A worker named \"\(name)\" already exists."
+        let isDuplicate = settings.workers.contains { worker in
+            worker.id != editingWorkerID &&
+            (name.isEmpty ? worker.name.isEmpty : worker.name.caseInsensitiveCompare(name) == .orderedSame)
         }
 
-        return nil
+        return isDuplicate
+            ? (name.isEmpty ? "A default worker already exists. Delete it first or use a name." : "A worker named \"\(name)\" already exists.")
+            : nil
     }
 
     private func resetForm() {
         workerName = ""
         workerURL = ""
-        workerModel = "minicpm-o-4.5"
+        workerModel = Worker.defaultModel
         workerError = ""
         editingWorkerID = nil
     }

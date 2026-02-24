@@ -73,34 +73,39 @@ final class MainViewModel {
         }
 
         // Determine worker and question
-        var question = trimmed.isEmpty ? "Describe this." : trimmed
-        var workerName: String? = nil
-        var workerURL: String
-        var workerModel: String
+        let mention = parseWorkerMention(trimmed)
+        let worker: Worker
+        let workerName: String?
 
-        if let mention = parseWorkerMention(trimmed) {
+        if let mention = mention {
             // Has @mention
-            guard let worker = AppSettings.shared.worker(named: mention.name) else {
+            guard let w = AppSettings.shared.worker(named: mention.name) else {
                 showError("Worker \"\(mention.name)\" not found. Add it in Settings → Workers.")
                 return
             }
-            question = mention.message.isEmpty
-                ? (hasAttachments ? "Describe this." : "Hello")
-                : mention.message
-            workerURL = worker.url
-            workerName = worker.name
-            workerModel = worker.model
+            worker = w
+            workerName = w.name
         } else {
-            // No @mention, use default worker if exists
-            guard let defaultWorker = AppSettings.shared.worker(named: nil) else {
+            // No @mention, use default worker
+            guard let w = AppSettings.shared.worker(named: nil) else {
                 showError("No default worker configured. Open Settings (⌘,) to add a worker with empty name.")
                 return
             }
-            workerURL = defaultWorker.url
-            workerModel = defaultWorker.model
+            worker = w
+            workerName = nil
         }
 
-        executeQuery(question: question, workerURL: workerURL, workerModel: workerModel, workerName: workerName, attachments: attachments)
+        // Generate question
+        let question: String
+        if let mention = mention {
+            question = mention.message.isEmpty
+                ? (hasAttachments ? "Describe this." : "Hello")
+                : mention.message
+        } else {
+            question = trimmed.isEmpty ? "Describe this." : trimmed
+        }
+
+        executeQuery(question: question, worker: worker, workerName: workerName, attachments: attachments)
     }
 
     private func showError(_ message: String) {
@@ -110,8 +115,8 @@ final class MainViewModel {
         inputText = ""
     }
 
-    private func executeQuery(question: String, workerURL: String, workerModel: String, workerName: String?, attachments: [Attachment]) {
-        let client = AiTxtClient(baseURL: workerURL, model: workerModel)
+    private func executeQuery(question: String, worker: Worker, workerName: String?, attachments: [Attachment]) {
+        let client = AiTxtClient(baseURL: worker.url, model: worker.model)
 
         lastUserText = question
         lastLLMReply = nil
