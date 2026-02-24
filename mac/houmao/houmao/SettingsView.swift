@@ -83,8 +83,15 @@ struct SettingsView: View {
             ForEach(settings.workers) { worker in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(worker.name)
-                            .font(.system(size: 13, weight: .medium))
+                        HStack(spacing: 4) {
+                            Text(worker.name.isEmpty ? "Default" : worker.name)
+                                .font(.system(size: 13, weight: .medium))
+                            if worker.name.isEmpty {
+                                Text("(no @mention needed)")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                         Text(worker.url)
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
@@ -109,10 +116,13 @@ struct SettingsView: View {
 
             if editingWorkerID != nil {
                 VStack(alignment: .leading, spacing: 6) {
-                    TextField("Name (no spaces)", text: $workerName)
+                    Text("Leave name empty for default worker (no @mention needed)")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                    TextField("Name (empty = default, or no spaces)", text: $workerName)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { saveWorker() }
-                    TextField("URL (e.g. http://localhost:8081)", text: $workerURL)
+                    TextField("URL (e.g. http://100.100.55.109:19060)", text: $workerURL)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { saveWorker() }
                     if !workerError.isEmpty {
@@ -163,11 +173,11 @@ struct SettingsView: View {
         let url = workerURL.trimmingCharacters(in: .whitespaces)
 
         // Validate
-        if name.isEmpty || url.isEmpty {
-            workerError = "Name and URL are required."
+        if url.isEmpty {
+            workerError = "URL is required."
             return
         }
-        if name.contains(where: \.isWhitespace) {
+        if !name.isEmpty && name.contains(where: \.isWhitespace) {
             workerError = "Name cannot contain spaces."
             return
         }
@@ -175,13 +185,25 @@ struct SettingsView: View {
             workerError = "Invalid URL."
             return
         }
-        // Duplicate check (skip self when editing)
-        let duplicate = settings.workers.first {
-            $0.name.caseInsensitiveCompare(name) == .orderedSame && $0.id != editingWorkerID
+
+        // Check for existing default worker if trying to create/edit one
+        if name.isEmpty {
+            let existingDefault = settings.workers.first { $0.name.isEmpty && $0.id != editingWorkerID }
+            if existingDefault != nil {
+                workerError = "A default worker already exists. Delete it first or use a name."
+                return
+            }
         }
-        if duplicate != nil {
-            workerError = "A worker named \"\(name)\" already exists."
-            return
+
+        // Duplicate check (skip self when editing)
+        if !name.isEmpty {
+            let duplicate = settings.workers.first {
+                $0.name.caseInsensitiveCompare(name) == .orderedSame && $0.id != editingWorkerID
+            }
+            if duplicate != nil {
+                workerError = "A worker named \"\(name)\" already exists."
+                return
+            }
         }
 
         if let id = editingWorkerID,

@@ -87,7 +87,7 @@ struct ChatResponseMessage: Decodable {
 struct AiTxtClient: Sendable {
     let baseURL: String
 
-    init(baseURL: String = "http://localhost:8080") { // TODO-REMOVE: hardcoded default URL, should be user-configurable in settings
+    init(baseURL: String = "http://100.100.55.109:19060") { // TODO-REMOVE: hardcoded default URL, should be user-configurable in settings
         self.baseURL = baseURL
     }
 

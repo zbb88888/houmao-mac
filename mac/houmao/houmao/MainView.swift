@@ -78,6 +78,8 @@ struct MainView: View {
     }
 
     var body: some View {
+        @Bindable var viewModel = viewModel
+
         VStack(spacing: 0) {
             // Search bar
             HStack(spacing: 8) {

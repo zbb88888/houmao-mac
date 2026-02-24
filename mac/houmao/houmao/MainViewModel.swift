@@ -74,7 +74,7 @@ final class MainViewModel {
 
         // Check for @worker mention
         var question = trimmed.isEmpty ? "Describe this." : trimmed
-        var client = AiTxtClient()
+        var client: AiTxtClient
         var workerName: String? = nil
 
         if let mention = parseWorkerMention(trimmed) {
@@ -91,6 +91,13 @@ final class MainViewModel {
                 inputText = ""
                 return
             }
+        } else if let defaultWorker = AppSettings.shared.defaultWorker() {
+            // Use default worker if no @mention
+            client = AiTxtClient(baseURL: defaultWorker.url)
+            workerName = nil  // Don't display name for default worker
+        } else {
+            // No @mention and no default worker, use built-in default URL
+            client = AiTxtClient()
         }
 
         lastUserText = question

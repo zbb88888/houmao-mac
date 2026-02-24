@@ -36,4 +36,9 @@ final class AppSettings {
     func worker(named name: String) -> Worker? {
         workers.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
     }
+
+    /// Get default worker (worker with empty name)
+    func defaultWorker() -> Worker? {
+        workers.first { $0.name.isEmpty }
+    }
 }
