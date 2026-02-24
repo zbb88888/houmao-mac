@@ -3,9 +3,15 @@ import Observation
 
 /// A named LLM worker with an OpenAI-compatible base URL.
 struct Worker: Codable, Identifiable, Equatable {
-    var id = UUID()
+    let id: UUID
     var name: String
     var url: String
+
+    init(id: UUID = UUID(), name: String, url: String) {
+        self.id = id
+        self.name = name
+        self.url = url
+    }
 }
 
 /// Worker list stored in UserDefaults.
@@ -33,12 +39,12 @@ final class AppSettings {
         }
     }
 
-    func worker(named name: String) -> Worker? {
-        workers.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
-    }
-
-    /// Get default worker (worker with empty name)
-    func defaultWorker() -> Worker? {
-        workers.first { $0.name.isEmpty }
+    /// Get worker by name, or default worker if name is nil
+    func worker(named name: String?) -> Worker? {
+        if let name = name {
+            return workers.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+        } else {
+            return workers.first { $0.name.isEmpty }
+        }
     }
 }

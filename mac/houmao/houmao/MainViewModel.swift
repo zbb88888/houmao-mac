@@ -72,17 +72,15 @@ final class MainViewModel {
             return
         }
 
-        // Check for @worker mention, otherwise use default/built-in
+        // Determine worker and question
         var question = trimmed.isEmpty ? "Describe this." : trimmed
         var workerName: String? = nil
         var workerURL: String? = nil
 
         if let mention = parseWorkerMention(trimmed) {
+            // Has @mention
             guard let worker = AppSettings.shared.worker(named: mention.name) else {
-                lastUserText = trimmed
-                lastLLMReply = "Error: Worker \"\(mention.name)\" not found. Add it in Settings → Workers."
-                panel = .chat
-                inputText = ""
+                showError("Worker \"\(mention.name)\" not found. Add it in Settings → Workers.")
                 return
             }
             question = mention.message.isEmpty
@@ -90,10 +88,22 @@ final class MainViewModel {
                 : mention.message
             workerURL = worker.url
             workerName = worker.name
-        } else if let defaultWorker = AppSettings.shared.defaultWorker() {
-            workerURL = defaultWorker.url
+        } else {
+            // No @mention, use default worker if exists
+            workerURL = AppSettings.shared.worker(named: nil)?.url
         }
 
+        executeQuery(question: question, workerURL: workerURL, workerName: workerName, attachments: attachments)
+    }
+
+    private func showError(_ message: String) {
+        lastUserText = inputText
+        lastLLMReply = "Error: \(message)"
+        panel = .chat
+        inputText = ""
+    }
+
+    private func executeQuery(question: String, workerURL: String?, workerName: String?, attachments: [Attachment]) {
         let client = AiTxtClient(baseURL: workerURL)
 
         lastUserText = question
@@ -103,7 +113,7 @@ final class MainViewModel {
         panel = .chat
 
         let currentAttachments = attachments
-        attachments = []
+        self.attachments = []
         inputText = ""
 
         usageTracker?.record(text: question)

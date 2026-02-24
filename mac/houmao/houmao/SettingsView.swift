@@ -166,45 +166,46 @@ struct SettingsView: View {
         let name = workerName.trimmingCharacters(in: .whitespaces)
         let url = workerURL.trimmingCharacters(in: .whitespaces)
 
-        // Validate URL
-        guard !url.isEmpty else {
-            workerError = "URL is required."
-            return
-        }
-        guard URL(string: url) != nil else {
-            workerError = "Invalid URL."
+        // Validate
+        if let error = validateWorker(name: name, url: url) {
+            workerError = error
             return
         }
 
-        // Validate name
+        // Save or update
+        if let id = editingWorkerID,
+           let i = settings.workers.firstIndex(where: { $0.id == id }) {
+            settings.workers[i] = Worker(id: id, name: name, url: url)
+        } else {
+            settings.workers.append(Worker(name: name, url: url))
+        }
+        resetForm()
+    }
+
+    private func validateWorker(name: String, url: String) -> String? {
+        // Check URL
+        guard !url.isEmpty else { return "URL is required." }
+        guard URL(string: url) != nil else { return "Invalid URL." }
+
+        // Check name format
         guard name.isEmpty || !name.contains(where: \.isWhitespace) else {
-            workerError = "Name cannot contain spaces."
-            return
+            return "Name cannot contain spaces."
         }
 
         // Check duplicates
-        let isDuplicate = settings.workers.contains { worker in
+        let hasDuplicate = settings.workers.contains { worker in
             worker.id != editingWorkerID && (
                 (name.isEmpty && worker.name.isEmpty) ||
                 (!name.isEmpty && worker.name.caseInsensitiveCompare(name) == .orderedSame)
             )
         }
-        guard !isDuplicate else {
-            workerError = name.isEmpty
+        if hasDuplicate {
+            return name.isEmpty
                 ? "A default worker already exists. Delete it first or use a name."
                 : "A worker named \"\(name)\" already exists."
-            return
         }
 
-        // Save
-        if let id = editingWorkerID,
-           let i = settings.workers.firstIndex(where: { $0.id == id }) {
-            settings.workers[i].name = name
-            settings.workers[i].url = url
-        } else {
-            settings.workers.append(Worker(name: name, url: url))
-        }
-        resetForm()
+        return nil
     }
 
     private func resetForm() {
