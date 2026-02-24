@@ -1,9 +1,10 @@
 import SwiftUI
-import Combine
+import Observation
 
 @MainActor
-final class HistoryViewModel: ObservableObject {
-    @Published var records: [UsageRecord] = []
+@Observable
+final class HistoryViewModel {
+    var records: [UsageRecord] = []
 
     private let store: HistoryStore
 

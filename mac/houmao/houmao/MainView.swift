@@ -42,11 +42,11 @@ private class VisualEffectBackgroundView: NSVisualEffectView {
 // MARK: - Main View
 
 struct MainView: View {
-    @EnvironmentObject var viewModel: MainViewModel
-    @EnvironmentObject var historyViewModel: HistoryViewModel
+    @Environment(MainViewModel.self) private var viewModel
+    @Environment(HistoryViewModel.self) private var historyViewModel
     @Environment(\.colorScheme) private var colorScheme
     @State private var isInputFocused: Bool = false
-    @ObservedObject private var settings = AppSettings.shared
+    private var settings = AppSettings.shared
     @AppStorage("showTimestamp") private var showTimestamp = false
     @AppStorage("showAppSwitch") private var showAppSwitch = false
 
@@ -380,8 +380,8 @@ struct MainView: View {
     @ViewBuilder
     private var chatContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let workerName = viewModel.lastWorkerName {
-                Text("@\(workerName)")
+            if let lastWorkerName = viewModel.lastWorkerName {
+                Text("@\(lastWorkerName)")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundColor(.white)
                     .padding(.horizontal, 6)
@@ -390,8 +390,8 @@ struct MainView: View {
                     .cornerRadius(4)
             }
 
-            if let q = viewModel.lastUserText, !q.isEmpty {
-                Text(makeAttributedText("Q: ", q))
+            if let lastUserText = viewModel.lastUserText, !lastUserText.isEmpty {
+                Text(makeAttributedText("Q: ", lastUserText))
             }
 
             if viewModel.isLoading {
@@ -406,8 +406,8 @@ struct MainView: View {
                         .font(.system(size: textSize))
                         .foregroundColor(.secondary)
                 }
-            } else if let a = viewModel.lastLLMReply {
-                Text(makeAttributedText("A: ", a))
+            } else if let lastLLMReply = viewModel.lastLLMReply {
+                Text(makeAttributedText("A: ", lastLLMReply))
             }
         }
     }

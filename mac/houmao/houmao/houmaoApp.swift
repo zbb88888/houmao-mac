@@ -3,24 +3,24 @@ import AppKit
 
 @main
 struct HoumaoApp: App {
-    @StateObject private var mainViewModel: MainViewModel
-    @StateObject private var historyViewModel: HistoryViewModel
+    @State private var mainViewModel: MainViewModel
+    @State private var historyViewModel: HistoryViewModel
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
         let store = HistoryStore()
         let tracker = UsageTracker(store: store)
         let vm = MainViewModel(usageTracker: tracker)
-        _mainViewModel = StateObject(wrappedValue: vm)
-        _historyViewModel = StateObject(wrappedValue: HistoryViewModel(store: store))
+        _mainViewModel = State(wrappedValue: vm)
+        _historyViewModel = State(wrappedValue: HistoryViewModel(store: store))
         AppDelegate.tracker = tracker
     }
 
     var body: some Scene {
         WindowGroup {
             MainView()
-                .environmentObject(mainViewModel)
-                .environmentObject(historyViewModel)
+                .environment(mainViewModel)
+                .environment(historyViewModel)
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
