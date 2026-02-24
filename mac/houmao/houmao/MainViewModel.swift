@@ -75,7 +75,8 @@ final class MainViewModel {
         // Determine worker and question
         var question = trimmed.isEmpty ? "Describe this." : trimmed
         var workerName: String? = nil
-        var workerURL: String? = nil
+        var workerURL: String
+        var workerModel: String
 
         if let mention = parseWorkerMention(trimmed) {
             // Has @mention
@@ -88,12 +89,18 @@ final class MainViewModel {
                 : mention.message
             workerURL = worker.url
             workerName = worker.name
+            workerModel = worker.model
         } else {
             // No @mention, use default worker if exists
-            workerURL = AppSettings.shared.worker(named: nil)?.url
+            guard let defaultWorker = AppSettings.shared.worker(named: nil) else {
+                showError("No default worker configured. Open Settings (⌘,) to add a worker with empty name.")
+                return
+            }
+            workerURL = defaultWorker.url
+            workerModel = defaultWorker.model
         }
 
-        executeQuery(question: question, workerURL: workerURL, workerName: workerName, attachments: attachments)
+        executeQuery(question: question, workerURL: workerURL, workerModel: workerModel, workerName: workerName, attachments: attachments)
     }
 
     private func showError(_ message: String) {
@@ -103,8 +110,8 @@ final class MainViewModel {
         inputText = ""
     }
 
-    private func executeQuery(question: String, workerURL: String?, workerName: String?, attachments: [Attachment]) {
-        let client = AiTxtClient(baseURL: workerURL)
+    private func executeQuery(question: String, workerURL: String, workerModel: String, workerName: String?, attachments: [Attachment]) {
+        let client = AiTxtClient(baseURL: workerURL, model: workerModel)
 
         lastUserText = question
         lastLLMReply = nil

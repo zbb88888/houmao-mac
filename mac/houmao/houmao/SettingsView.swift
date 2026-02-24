@@ -68,6 +68,7 @@ struct SettingsView: View {
     @State private var editingWorkerID: UUID?
     @State private var workerName = ""
     @State private var workerURL = ""
+    @State private var workerModel = "minicpm-o-4.5"
     @State private var workerError = ""
 
     var body: some View {
@@ -89,11 +90,15 @@ struct SettingsView: View {
                         Text(worker.url)
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                        Text("Model: \(worker.model)")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary.opacity(0.8))
                     }
                     Spacer()
                     Button("Edit") {
                         workerName = worker.name
                         workerURL = worker.url
+                        workerModel = worker.model
                         editingWorkerID = worker.id
                         workerError = ""
                     }
@@ -117,6 +122,9 @@ struct SettingsView: View {
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { saveWorker() }
                     TextField("URL (e.g. http://100.100.55.109:19060)", text: $workerURL)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { saveWorker() }
+                    TextField("Model (e.g. minicpm-o-4.5, gpt-4)", text: $workerModel)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { saveWorker() }
                     if !workerError.isEmpty {
@@ -165,9 +173,10 @@ struct SettingsView: View {
     private func saveWorker() {
         let name = workerName.trimmingCharacters(in: .whitespaces)
         let url = workerURL.trimmingCharacters(in: .whitespaces)
+        let model = workerModel.trimmingCharacters(in: .whitespaces)
 
         // Validate
-        if let error = validateWorker(name: name, url: url) {
+        if let error = validateWorker(name: name, url: url, model: model) {
             workerError = error
             return
         }
@@ -175,17 +184,20 @@ struct SettingsView: View {
         // Save or update
         if let id = editingWorkerID,
            let i = settings.workers.firstIndex(where: { $0.id == id }) {
-            settings.workers[i] = Worker(id: id, name: name, url: url)
+            settings.workers[i] = Worker(id: id, name: name, url: url, model: model)
         } else {
-            settings.workers.append(Worker(name: name, url: url))
+            settings.workers.append(Worker(name: name, url: url, model: model))
         }
         resetForm()
     }
 
-    private func validateWorker(name: String, url: String) -> String? {
+    private func validateWorker(name: String, url: String, model: String) -> String? {
         // Check URL
         guard !url.isEmpty else { return "URL is required." }
         guard URL(string: url) != nil else { return "Invalid URL." }
+
+        // Check model
+        guard !model.isEmpty else { return "Model is required." }
 
         // Check name format
         guard name.isEmpty || !name.contains(where: \.isWhitespace) else {
@@ -211,6 +223,7 @@ struct SettingsView: View {
     private func resetForm() {
         workerName = ""
         workerURL = ""
+        workerModel = "minicpm-o-4.5"
         workerError = ""
         editingWorkerID = nil
     }

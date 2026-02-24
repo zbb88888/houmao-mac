@@ -86,9 +86,11 @@ struct ChatResponseMessage: Decodable {
 /// OpenAI-compatible LLM client with configurable base URL.
 struct AiTxtClient: Sendable {
     let baseURL: String
+    let model: String
 
-    init(baseURL: String? = nil) {
-        self.baseURL = baseURL ?? "http://100.100.55.109:19060"
+    init(baseURL: String, model: String = "minicpm-o-4.5") {
+        self.baseURL = baseURL
+        self.model = model
     }
 
     func ask(question: String, attachments: [Attachment]) async throws -> String {
@@ -124,7 +126,7 @@ struct AiTxtClient: Sendable {
         }
 
         let body = ChatRequest(
-            model: "minicpm-o-4.5", // TODO-REMOVE: hardcoded model name
+            model: model,
             messages: [ChatMessage(role: "user", content: content)],
             stream: false
         )
