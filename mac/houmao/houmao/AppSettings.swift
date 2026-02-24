@@ -1,5 +1,5 @@
 import Foundation
-import Combine
+import Observation
 
 /// A named LLM worker with an OpenAI-compatible base URL.
 struct Worker: Codable, Identifiable, Equatable {
@@ -10,10 +10,11 @@ struct Worker: Codable, Identifiable, Equatable {
 
 /// Worker list stored in UserDefaults.
 /// Boolean prefs (showTimestamp, showAppSwitch) live in @AppStorage at the view layer.
-final class AppSettings: ObservableObject {
+@Observable
+final class AppSettings {
     static let shared = AppSettings()
 
-    @Published var workers: [Worker] {
+    var workers: [Worker] {
         didSet { saveWorkers() }
     }
 

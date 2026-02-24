@@ -63,7 +63,7 @@ struct SettingsKeyHandler: NSViewRepresentable {
 struct SettingsView: View {
     @AppStorage("showTimestamp") private var showTimestamp = false
     @AppStorage("showAppSwitch") private var showAppSwitch = false
-    @ObservedObject private var settings = AppSettings.shared
+    private var settings = AppSettings.shared
 
     @State private var editingWorkerID: UUID?
     @State private var workerName = ""

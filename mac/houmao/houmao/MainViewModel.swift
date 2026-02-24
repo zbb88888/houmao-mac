@@ -1,5 +1,5 @@
 import SwiftUI
-import Combine
+import Observation
 
 enum Panel: Equatable {
     case none
@@ -9,15 +9,16 @@ enum Panel: Equatable {
 }
 
 @MainActor
-final class MainViewModel: ObservableObject {
-    @Published var inputText: String = ""
-    @Published var lastUserText: String?
-    @Published var lastLLMReply: String?
-    @Published var isLoading: Bool = false
-    @Published var panel: Panel = .none
-    @Published var lastWorkerName: String?
+@Observable
+final class MainViewModel {
+    var inputText: String = ""
+    var lastUserText: String?
+    var lastLLMReply: String?
+    var isLoading: Bool = false
+    var panel: Panel = .none
+    var lastWorkerName: String?
 
-    @Published var attachments: [Attachment] = []
+    var attachments: [Attachment] = []
 
     private var currentTask: Task<Void, Never>?
     private(set) var usageTracker: UsageTracker?
