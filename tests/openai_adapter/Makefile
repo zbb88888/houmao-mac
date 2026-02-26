@@ -4,8 +4,8 @@
 .PHONY: minicpm-start minicpm-stop minicpm-restart minicpm-status minicpm-logs debug-llama
 
 # 配置
-PYTHON := /Users/ftwhmg/v.v/bin/python
-PIP := /Users/ftwhmg/v.v/bin/pip
+PYTHON := python3
+PIP := pip3
 ADAPTER_PORT := 8080
 LLAMA_PORT := 19060
 LOG_FILE := /tmp/adapter_final.log
