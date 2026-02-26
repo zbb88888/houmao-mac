@@ -10,6 +10,7 @@ targets:
     settings:
       base:
         DEVELOPMENT_TEAM: ""
+        GENERATE_INFOPLIST_FILE: "YES"
 
   houmaoTests:
     type: bundle.unit-test
