@@ -1,0 +1,547 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0DEE5C2C2E1A07512B98B996 /* AiTxtClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FFE8C91E62BDDBEC4875FAC /* AiTxtClient.swift */; };
+		39D57155CF6966C808689D94 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0BC36FC5E119006A965686E /* Assets.xcassets */; };
+		43269FE26BD3EC1A4D306903 /* houmaoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9AEEE5D5E88D810CC2F4E7 /* houmaoApp.swift */; };
+		49D52BFAFAB5BE4F988A4751 /* CommandHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98C53C009C94ACAC49D0474C /* CommandHistory.swift */; };
+		51B22447BCA96ED141D2470F /* houmaoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */; };
+		66B77BCF21C91F327B06BB07 /* UsageTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DEA0EA2BAF153958FC236CB /* UsageTracker.swift */; };
+		720B6BF62E68556D13CB61E0 /* GlobalHotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E00EBE3D61489D710C85775 /* GlobalHotKeyManager.swift */; };
+		9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */; };
+		9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31DADFF4D45E07705B344E48 /* MainViewModel.swift */; };
+		B22951764CED660C9E9BA1C7 /* Attachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E013A5D3FB90CCA58385B61 /* Attachment.swift */; };
+		BAB644872A115BB9438153C0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16507913561BC701851E7B52 /* AppSettings.swift */; };
+		CAE8880B5D80A8AC100228C2 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75259439A55CE9D1A9179843 /* SettingsView.swift */; };
+		D23123A0AE23E2F18E0D45A1 /* houmaoUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8482DAE51378989DE1B24152 /* houmaoUITestsLaunchTests.swift */; };
+		F796883257E05BF2207103FE /* houmaoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6A21B56C31A9618F79441D /* houmaoUITests.swift */; };
+		F91C0061C677A89D66AD3817 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD58C3AFB563B123BF6B396A /* MainView.swift */; };
+		FAB3A2A9C6F83ABC56044514 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12AEE99DB8DCC1D5E3C81F9A /* HistoryStore.swift */; };
+		FE5B96D0DAB765848D33CD16 /* HistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEA5AB90AB62A854C853FF3A /* HistoryViewModel.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2D4B532D496EB046C909EE78 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EBE60E5A67FD6FB311327289 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1E215E7B22EB14CE04210641;
+			remoteInfo = houmao;
+		};
+		49AA07C1DB5C22AEEE8070CB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EBE60E5A67FD6FB311327289 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1E215E7B22EB14CE04210641;
+			remoteInfo = houmao;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		12AEE99DB8DCC1D5E3C81F9A /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
+		16507913561BC701851E7B52 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		2C9AEEE5D5E88D810CC2F4E7 /* houmaoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoApp.swift; sourceTree = "<group>"; };
+		2E013A5D3FB90CCA58385B61 /* Attachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attachment.swift; sourceTree = "<group>"; };
+		31DADFF4D45E07705B344E48 /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
+		5DEA0EA2BAF153958FC236CB /* UsageTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageTracker.swift; sourceTree = "<group>"; };
+		5FFE8C91E62BDDBEC4875FAC /* AiTxtClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiTxtClient.swift; sourceTree = "<group>"; };
+		6217DF1DFAFCB0989F9FC1EC /* houmaoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = houmaoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6E00EBE3D61489D710C85775 /* GlobalHotKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotKeyManager.swift; sourceTree = "<group>"; };
+		75259439A55CE9D1A9179843 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		8482DAE51378989DE1B24152 /* houmaoUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		8AB2D08692D6137AFEE6BF4A /* houmao.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = houmao.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoTests.swift; sourceTree = "<group>"; };
+		9014401F2CE5CEA21AF65771 /* houmaoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = houmaoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		98C53C009C94ACAC49D0474C /* CommandHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandHistory.swift; sourceTree = "<group>"; };
+		AC6A21B56C31A9618F79441D /* houmaoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoUITests.swift; sourceTree = "<group>"; };
+		C0BC36FC5E119006A965686E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMETextField.swift; sourceTree = "<group>"; };
+		EEA5AB90AB62A854C853FF3A /* HistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewModel.swift; sourceTree = "<group>"; };
+		FD58C3AFB563B123BF6B396A /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		444E935E4C485CFCE6BB81BF /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8AB2D08692D6137AFEE6BF4A /* houmao.app */,
+				6217DF1DFAFCB0989F9FC1EC /* houmaoTests.xctest */,
+				9014401F2CE5CEA21AF65771 /* houmaoUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		7281214FAC24114FFF5CD1DB = {
+			isa = PBXGroup;
+			children = (
+				FB272FED30A621D6D038D168 /* houmao */,
+				813DBC004100C8BF5957B8CD /* houmaoTests */,
+				E38EE195051B6A0E81163D80 /* houmaoUITests */,
+				444E935E4C485CFCE6BB81BF /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		813DBC004100C8BF5957B8CD /* houmaoTests */ = {
+			isa = PBXGroup;
+			children = (
+				8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */,
+			);
+			path = houmaoTests;
+			sourceTree = "<group>";
+		};
+		E38EE195051B6A0E81163D80 /* houmaoUITests */ = {
+			isa = PBXGroup;
+			children = (
+				AC6A21B56C31A9618F79441D /* houmaoUITests.swift */,
+				8482DAE51378989DE1B24152 /* houmaoUITestsLaunchTests.swift */,
+			);
+			path = houmaoUITests;
+			sourceTree = "<group>";
+		};
+		FB272FED30A621D6D038D168 /* houmao */ = {
+			isa = PBXGroup;
+			children = (
+				5FFE8C91E62BDDBEC4875FAC /* AiTxtClient.swift */,
+				16507913561BC701851E7B52 /* AppSettings.swift */,
+				C0BC36FC5E119006A965686E /* Assets.xcassets */,
+				2E013A5D3FB90CCA58385B61 /* Attachment.swift */,
+				98C53C009C94ACAC49D0474C /* CommandHistory.swift */,
+				6E00EBE3D61489D710C85775 /* GlobalHotKeyManager.swift */,
+				12AEE99DB8DCC1D5E3C81F9A /* HistoryStore.swift */,
+				EEA5AB90AB62A854C853FF3A /* HistoryViewModel.swift */,
+				2C9AEEE5D5E88D810CC2F4E7 /* houmaoApp.swift */,
+				CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */,
+				FD58C3AFB563B123BF6B396A /* MainView.swift */,
+				31DADFF4D45E07705B344E48 /* MainViewModel.swift */,
+				75259439A55CE9D1A9179843 /* SettingsView.swift */,
+				5DEA0EA2BAF153958FC236CB /* UsageTracker.swift */,
+			);
+			path = houmao;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1E215E7B22EB14CE04210641 /* houmao */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A7188AABFB78EA337442E08A /* Build configuration list for PBXNativeTarget "houmao" */;
+			buildPhases = (
+				34A3038C48DA1230A4A0258F /* Sources */,
+				EB204B05B2A5A04CEA75A44A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = houmao;
+			packageProductDependencies = (
+			);
+			productName = houmao;
+			productReference = 8AB2D08692D6137AFEE6BF4A /* houmao.app */;
+			productType = "com.apple.product-type.application";
+		};
+		50A6B47D4C2D01A363AE53CE /* houmaoUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3812212679B27ED112D26EC8 /* Build configuration list for PBXNativeTarget "houmaoUITests" */;
+			buildPhases = (
+				417A3A4C160A2C3443F97589 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				64C36C282CC42B7554FCA72E /* PBXTargetDependency */,
+			);
+			name = houmaoUITests;
+			packageProductDependencies = (
+			);
+			productName = houmaoUITests;
+			productReference = 9014401F2CE5CEA21AF65771 /* houmaoUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		E712BC26775173C8070DE741 /* houmaoTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 525ED5614863F048119ED971 /* Build configuration list for PBXNativeTarget "houmaoTests" */;
+			buildPhases = (
+				C48F6934F91F3DA77A8FB56F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DDBDE9B352D02EDD80D357D0 /* PBXTargetDependency */,
+			);
+			name = houmaoTests;
+			packageProductDependencies = (
+			);
+			productName = houmaoTests;
+			productReference = 6217DF1DFAFCB0989F9FC1EC /* houmaoTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		EBE60E5A67FD6FB311327289 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					1E215E7B22EB14CE04210641 = {
+						DevelopmentTeam = "";
+					};
+					50A6B47D4C2D01A363AE53CE = {
+						TestTargetID = 1E215E7B22EB14CE04210641;
+					};
+				};
+			};
+			buildConfigurationList = 1CA4C505B8218E8374C6A493 /* Build configuration list for PBXProject "houmao" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 7281214FAC24114FFF5CD1DB;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				1E215E7B22EB14CE04210641 /* houmao */,
+				E712BC26775173C8070DE741 /* houmaoTests */,
+				50A6B47D4C2D01A363AE53CE /* houmaoUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		EB204B05B2A5A04CEA75A44A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				39D57155CF6966C808689D94 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		34A3038C48DA1230A4A0258F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0DEE5C2C2E1A07512B98B996 /* AiTxtClient.swift in Sources */,
+				BAB644872A115BB9438153C0 /* AppSettings.swift in Sources */,
+				B22951764CED660C9E9BA1C7 /* Attachment.swift in Sources */,
+				49D52BFAFAB5BE4F988A4751 /* CommandHistory.swift in Sources */,
+				720B6BF62E68556D13CB61E0 /* GlobalHotKeyManager.swift in Sources */,
+				FAB3A2A9C6F83ABC56044514 /* HistoryStore.swift in Sources */,
+				FE5B96D0DAB765848D33CD16 /* HistoryViewModel.swift in Sources */,
+				9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */,
+				F91C0061C677A89D66AD3817 /* MainView.swift in Sources */,
+				9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */,
+				CAE8880B5D80A8AC100228C2 /* SettingsView.swift in Sources */,
+				66B77BCF21C91F327B06BB07 /* UsageTracker.swift in Sources */,
+				43269FE26BD3EC1A4D306903 /* houmaoApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		417A3A4C160A2C3443F97589 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F796883257E05BF2207103FE /* houmaoUITests.swift in Sources */,
+				D23123A0AE23E2F18E0D45A1 /* houmaoUITestsLaunchTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C48F6934F91F3DA77A8FB56F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				51B22447BCA96ED141D2470F /* houmaoTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		64C36C282CC42B7554FCA72E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1E215E7B22EB14CE04210641 /* houmao */;
+			targetProxy = 49AA07C1DB5C22AEEE8070CB /* PBXContainerItemProxy */;
+		};
+		DDBDE9B352D02EDD80D357D0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1E215E7B22EB14CE04210641 /* houmao */;
+			targetProxy = 2D4B532D496EB046C909EE78 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		3BE545BBF55D8CA85122F790 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.com.houmao.houmaoTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/houmao.app/Contents/MacOS/houmao";
+			};
+			name = Release;
+		};
+		3EF92939C379A2E58E64A831 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.com.houmao.houmao;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		42D859BC6A710BBE14D910EE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.com.houmao.houmaoUITests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = houmao;
+			};
+			name = Debug;
+		};
+		503AA2A9E07BB791D8DBD95A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.com.houmao.houmaoUITests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = houmao;
+			};
+			name = Release;
+		};
+		A1A791C837D142140108CDA1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B38FB54B762609D6B2F98867 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.com.houmao.houmao;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		C64980552154B10CB110A1F6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		C97E74FB4E7A04BE226406B9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.com.houmao.houmaoTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/houmao.app/Contents/MacOS/houmao";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1CA4C505B8218E8374C6A493 /* Build configuration list for PBXProject "houmao" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1A791C837D142140108CDA1 /* Debug */,
+				C64980552154B10CB110A1F6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3812212679B27ED112D26EC8 /* Build configuration list for PBXNativeTarget "houmaoUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				42D859BC6A710BBE14D910EE /* Debug */,
+				503AA2A9E07BB791D8DBD95A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		525ED5614863F048119ED971 /* Build configuration list for PBXNativeTarget "houmaoTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C97E74FB4E7A04BE226406B9 /* Debug */,
+				3BE545BBF55D8CA85122F790 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A7188AABFB78EA337442E08A /* Build configuration list for PBXNativeTarget "houmao" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B38FB54B762609D6B2F98867 /* Debug */,
+				3EF92939C379A2E58E64A831 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = EBE60E5A67FD6FB311327289 /* Project object */;
+}

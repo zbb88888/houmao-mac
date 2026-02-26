@@ -1,0 +1,28 @@
+name: houmao
+options:
+  bundleIdPrefix: cn.com.houmao
+targets:
+  houmao:
+    type: application
+    platform: macOS
+    deploymentTarget: "26.0"
+    sources: [houmao]
+    settings:
+      base:
+        DEVELOPMENT_TEAM: ""
+
+  houmaoTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "26.0"
+    sources: [houmaoTests]
+    dependencies:
+      - target: houmao
+
+  houmaoUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    deploymentTarget: "26.0"
+    sources: [houmaoUITests]
+    dependencies:
+      - target: houmao
