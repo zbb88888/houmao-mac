@@ -1,89 +1,72 @@
-# macOS
+# ========================================
+# 1. 操作系统环境噪音 (OS)
+# ========================================
 .DS_Store
 .AppleDouble
 .LSOverride
 Icon?
 ._*
-.DocumentRevisions-V100
-.fseventsd
 .Spotlight-V100
-.TemporaryItems
 .Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-.AppleDB
-.AppleDesktop
-Network Trash Folder
-Temporary Items
-.apdisk
 
-# Xcode
+# ========================================
+# 2. 编译产物与缓存 (Build Artifacts & Cache)
+# ========================================
 build/
 DerivedData/
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata/
-*.xccheckout
-*.moved-aside
-*.xcuserstate
-*.xcscmblueprint
-*.xcworkspace
-!default.xcworkspace
-
-# Swift Package Manager
-.build/
-Packages/
-Package.pins
-Package.resolved
-*.xcodeproj
-
-# CocoaPods
-Pods/
-!Podfile.lock
-
-# Carthage
-Carthage/Build/
-Carthage/Checkouts/
-
-# SPM
-.swiftpm/
-
-# fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/**/*.png
-fastlane/test_output
-
-# Code Injection
-iOSInjectionProject/
-
-# Playgrounds
-timeline.xctimeline
-playground.xcworkspace
-
-# Archives
 *.ipa
 *.dSYM.zip
 *.dSYM
 *.app
 
-# IDE
+# ========================================
+# 3. IDE 与本地用户状态 (IDE & Local State)
+# 核心原则：只保留工程结构，忽略所有个人界面的视图状态、断点、历史记录
+# ========================================
+# Xcode 产生的用户特有配置
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+*.xcscmblueprint
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# 其他编辑器产生的缓存
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
-.vscode/
 
-# Environment
+# ========================================
+# 4. 包管理与依赖缓存 (Package Management)
+# ========================================
+# Swift Package Manager (SPM)
+.build/
+.swiftpm/
+Packages/
+# 注意：Package.resolved 必须提交（相当于 lock 文件），因此不要忽略它
+
+# CocoaPods
+Pods/
+# 注意：Podfile.lock 必须提交，所以只忽略 Pods 目录
+
+# Carthage
+Carthage/Build/
+
+# ========================================
+# 5. 运行时与运维配置 (Runtime & Ops)
+# ========================================
+# 环境变量（避免敏感凭证泄漏）
 .env
 .env.local
 .env.*.local
 
-# Logs
+# 日志
 *.log
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
