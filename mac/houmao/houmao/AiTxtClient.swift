@@ -111,7 +111,7 @@ struct AiTxtClient: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = attachments.isEmpty ? 60 : 120
+        request.timeoutInterval = 300
 
         // Build the user message content
         let content: ChatMessageContent
