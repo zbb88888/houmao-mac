@@ -1,49 +1,49 @@
-.PHONY: clean run build test install
+.PHONY: clean run build test install test-demo build-cli build-app
 
 # Project configuration
-PROJECT := mac/houmao/houmao.xcodeproj
-SCHEME := houmao
-CONFIGURATION := Debug
 APP_NAME := houmao
 
-# Clean: kill app + clear Xcode cache
+# Clean: kill app + clear build artifacts
 clean:
 	@echo "Closing old app..."
 	@pkill -9 $(APP_NAME) 2>/dev/null || true
-	@echo "Cleaning Xcode cache..."
-	@rm -rf ~/Library/Developer/Xcode/DerivedData
+	@echo "Cleaning Swift build artifacts..."
+	@swift package clean 2>/dev/null || true
+	@rm -rf .build
 	@echo "Clean complete"
 
-# Run: clean + open Xcode
-run: clean
-	@echo "Opening Xcode..."
-	@open $(PROJECT)
+# Run: open Package.swift in Xcode (recommended for macOS)
+run:
+	@echo "Opening Package.swift in Xcode..."
+	@open Package.swift
 
-# Build (for CI or command-line builds)
-build:
-	@echo "Building project..."
-	@xcodebuild -project $(PROJECT) \
-		-scheme $(SCHEME) \
-		-configuration $(CONFIGURATION) \
-		build
+# Build using Swift Package Manager (CLI)
+# This produces a command-line executable in .build/debug/houmao
+build-cli:
+	@echo "Building command-line version using SPM..."
+	@swift build
 
-# Build Release and install to /Applications
-install:
-	@echo "Building Release version..."
-	@xcodebuild -project $(PROJECT) \
-		-scheme $(SCHEME) \
-		-configuration Release \
-		clean build
-	@echo "Installing to /Applications..."
-	@sudo rm -rf /Applications/$(APP_NAME).app
-	@sudo cp -R ~/Library/Developer/Xcode/DerivedData/*/Build/Products/Release/$(APP_NAME).app /Applications/
-	@echo "Install complete! Launch from Spotlight or Applications folder"
-	@echo "Note: First launch requires Accessibility permission"
+# Build the macOS App bundle using xcodebuild (requires Xcode)
+# xcodebuild can resolve dependencies from Package.swift automatically.
+build-app:
+	@echo "Building macOS App bundle..."
+	@xcodebuild -scheme $(APP_NAME) -destination 'platform=macOS' build
+
+# Default build target
+build: build-cli
 
 # Run tests
 test:
-	@echo "Running tests..."
-	@xcodebuild -project $(PROJECT) \
-		-scheme $(SCHEME) \
-		-configuration $(CONFIGURATION) \
-		test
+	@echo "Running Swift tests..."
+	@swift test
+
+# Run demo tests (Python-based, for comparison)
+test-demo:
+	@echo "Running Python demo tests..."
+	@cd tests/openai_adapter && make test
+
+# Install instruction
+install:
+	@echo "To install the macOS application:"
+	@echo "1. Run 'make build-app' to build the .app bundle"
+	@echo "2. Alternatively, open Package.swift in Xcode and use 'Product -> Archive'."

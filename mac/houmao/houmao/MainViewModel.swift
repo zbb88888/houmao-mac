@@ -116,10 +116,10 @@ final class MainViewModel {
     }
 
     private func executeQuery(question: String, worker: Worker, workerName: String?, attachments: [Attachment]) {
-        let client = AiTxtClient(baseURL: worker.url, model: worker.model)
+        let service = LLMService(baseURL: worker.url)
 
         lastUserText = question
-        lastLLMReply = nil
+        lastLLMReply = ""
         lastWorkerName = workerName
         isLoading = true
         panel = .chat
@@ -133,13 +133,37 @@ final class MainViewModel {
         currentTask?.cancel()
         currentTask = Task {
             do {
-                let reply = try await client.ask(question: question, attachments: currentAttachments)
-                guard !Task.isCancelled else { return }
-                self.lastLLMReply = reply
+                let stream = service.stream(
+                    question: question,
+                    model: worker.model,
+                    attachments: currentAttachments
+                )
+
+                for try await delta in stream {
+                    guard !Task.isCancelled else { break }
+                    if self.isLoading {
+                        self.isLoading = false
+                    }
+                    self.lastLLMReply = (self.lastLLMReply ?? "") + delta
+                }
+
+                // Strip thinking process: drop everything up to and including the last </think>.
+                if let reply = self.lastLLMReply {
+                    let stripped = reply
+                        .replacingOccurrences(of: "^[\\s\\S]*</think>", with: "", options: .regularExpression)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !stripped.isEmpty {
+                        self.lastLLMReply = stripped
+                    }
+                }
             } catch is CancellationError {
                 // Task was cancelled
             } catch {
-                self.lastLLMReply = "Error: \(error.localizedDescription)"
+                if (self.lastLLMReply ?? "").isEmpty {
+                    self.lastLLMReply = "Error: \(error.localizedDescription)"
+                } else {
+                    self.lastLLMReply = (self.lastLLMReply ?? "") + "\n\n[Error: \(error.localizedDescription)]"
+                }
             }
             self.isLoading = false
         }
