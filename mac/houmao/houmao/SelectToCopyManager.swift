@@ -181,13 +181,11 @@ final class SelectToCopyManager: NSObject {
     private func performCopyAndCheck(pid: pid_t, appName: String,
                                       changeCountBefore: Int,
                                       savedItems: [[NSPasteboard.PasteboardType: Data]]) {
-        // 策略 1：向目标 PID 定向发送 Cmd+C（最精准）。
-        if !simulateCmdC(toPid: pid) {
-            // 策略 2：全局 post（兜底）。
-            if !simulateCmdC(toPid: nil) {
-                log("模拟 Cmd+C 完全失败")
-                return
-            }
+        // Electron 等多进程应用，postToPid 无法到达渲染进程，
+        // 使用 cghidEventTap 在 HID 层注入，等效于真实键盘。
+        if !simulateCmdC(toPid: nil) {
+            log("模拟 Cmd+C 完全失败")
+            return
         }
 
         // 轮询剪贴板，等待 App 写入。
@@ -234,9 +232,9 @@ final class SelectToCopyManager: NSObject {
             keyUp.postToPid(pid)
             log("Cmd+C 已发送至 pid=\(pid)")
         } else {
-            keyDown.post(tap: .cgSessionEventTap)
-            keyUp.post(tap: .cgSessionEventTap)
-            log("Cmd+C 已全局发送 (cgSessionEventTap)")
+            keyDown.post(tap: .cghidEventTap)
+            keyUp.post(tap: .cghidEventTap)
+            log("Cmd+C 已全局发送 (cghidEventTap)")
         }
 
         return true

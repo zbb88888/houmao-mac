@@ -43,10 +43,18 @@ final class AppSettings {
         }
     }
 
-    /// Get worker by name, or default worker if name is nil
+    /// Move a worker to the top (make it default).
+    func moveWorkerToTop(at index: Int) {
+        guard index > 0, index < workers.count else { return }
+        let worker = workers.remove(at: index)
+        workers.insert(worker, at: 0)
+    }
+
+    /// Get worker by name, or first worker if name is nil.
     func worker(named name: String?) -> Worker? {
-        workers.first {
-            name == nil ? $0.name.isEmpty : $0.name.caseInsensitiveCompare(name!) == .orderedSame
+        if let name {
+            return workers.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
         }
+        return workers.first
     }
 }

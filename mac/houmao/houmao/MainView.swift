@@ -52,6 +52,15 @@ struct MainView: View {
 
     private let cornerRadius: CGFloat = 12
 
+    /// Dynamic placeholder showing current default worker.
+    private var inputPlaceholder: String {
+        if let first = settings.workers.first {
+            let name = first.name.isEmpty ? first.model : first.name
+            return "Ask \(name)... (h for help)"
+        }
+        return "Add a worker in Settings (⌘,)"
+    }
+
     private let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd HH:mm"
@@ -86,7 +95,7 @@ struct MainView: View {
                 IMETextField(
                     text: $viewModel.inputText,
                     isFocused: $isInputFocused,
-                    placeholder: "zzz...",
+                    placeholder: inputPlaceholder,
                     font: .systemFont(ofSize: 18, weight: .medium),
                     onSubmit: { viewModel.submit() },
                     onUpArrow: viewModel.commandHistory.previous,
@@ -362,8 +371,10 @@ struct MainView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.secondary)
 
-                ForEach(settings.workers) { worker in
-                    helpRow(key: "@\(worker.name)", description: worker.url)
+                ForEach(Array(settings.workers.enumerated()), id: \.element.id) { index, worker in
+                    let label = worker.name.isEmpty ? worker.model : "@\(worker.name)"
+                    let suffix = index == 0 ? " (default)" : ""
+                    helpRow(key: label, description: worker.url + suffix)
                 }
             }
         }

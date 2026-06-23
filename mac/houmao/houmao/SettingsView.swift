@@ -86,12 +86,23 @@ struct SettingsView: View {
             Text("Workers")
                 .font(.headline)
 
-            ForEach(settings.workers) { worker in
+            ForEach(Array(settings.workers.enumerated()), id: \.element.id) { index, worker in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        let displayName = worker.name.isEmpty ? "Default (no @mention needed)" : worker.name
-                        Text(displayName)
-                            .font(.system(size: 13, weight: .medium))
+                        HStack(spacing: 4) {
+                            let displayName = worker.name.isEmpty ? worker.model : worker.name
+                            Text(displayName)
+                                .font(.system(size: 13, weight: .medium))
+                            if index == 0 {
+                                Text("default")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(Color.accentColor.opacity(0.7))
+                                    .cornerRadius(3)
+                            }
+                        }
                         Text(worker.url)
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
@@ -108,6 +119,15 @@ struct SettingsView: View {
                         workerError = ""
                     }
                     .buttonStyle(.borderless)
+                    if index > 0 {
+                        Button {
+                            settings.moveWorkerToTop(at: index)
+                        } label: {
+                            Image(systemName: "arrow.up.to.line")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Set as default")
+                    }
                     Button(role: .destructive) {
                         settings.workers.removeAll { $0.id == worker.id }
                     } label: {
@@ -120,10 +140,7 @@ struct SettingsView: View {
 
             if editingWorkerID != nil {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Leave name empty for default worker (no @mention needed)")
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
-                    TextField("Name (empty = default, or no spaces)", text: $workerName)
+                    TextField("Name (for @mention, or leave empty)", text: $workerName)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { saveWorker() }
                     TextField("URL (e.g. http://127.0.0.1:19060)", text: $workerURL)
@@ -216,7 +233,7 @@ struct SettingsView: View {
         }
 
         return isDuplicate
-            ? (name.isEmpty ? "A default worker already exists. Delete it first or use a name." : "A worker named \"\(name)\" already exists.")
+            ? "A worker named \"\(name.isEmpty ? "(unnamed)" : name)\" already exists."
             : nil
     }
 

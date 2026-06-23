@@ -93,13 +93,13 @@ final class MainViewModel {
             worker = w
             workerName = w.name
         } else {
-            // No @mention, use default worker
+            // No @mention, use first worker
             guard let w = AppSettings.shared.worker(named: nil) else {
-                showError("No default worker configured. Open Settings (⌘,) to add a worker with empty name.")
+                showError("No worker configured. Open Settings (⌘,) to add one.")
                 return
             }
             worker = w
-            workerName = nil
+            workerName = w.name.isEmpty ? nil : w.name
         }
 
         // Generate question
