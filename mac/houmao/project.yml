@@ -11,12 +11,16 @@ targets:
       base:
         DEVELOPMENT_TEAM: ""
         GENERATE_INFOPLIST_FILE: "YES"
+    dependencies: []
 
   houmaoTests:
     type: bundle.unit-test
     platform: macOS
     deploymentTarget: "26.0"
     sources: [houmaoTests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "YES"
     dependencies:
       - target: houmao
 
@@ -25,5 +29,8 @@ targets:
     platform: macOS
     deploymentTarget: "26.0"
     sources: [houmaoUITests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "YES"
     dependencies:
       - target: houmao

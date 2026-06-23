@@ -286,6 +286,15 @@ struct MainView: View {
             }
             .padding(.vertical, 8)
 
+            if historyViewModel.hasMore {
+                Button("Load More") {
+                    historyViewModel.loadMore()
+                }
+                .font(.system(size: 12))
+                .foregroundColor(.accentColor)
+                .padding(.top, 4)
+            }
+
             Button("Clear All") {
                 historyViewModel.clearAll()
             }
@@ -397,21 +406,49 @@ struct MainView: View {
             }
 
             if viewModel.isLoading {
-                HStack(alignment: .top, spacing: 8) {
-                    Text("A:")
-                        .font(.system(size: textSize, weight: .semibold))
-                        .foregroundColor(.secondary)
-                    ProgressView()
-                        .scaleEffect(0.6)
-                        .frame(width: 16, height: 16)
-                    Text("Thinking...")
-                        .font(.system(size: textSize))
-                        .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("A:")
+                            .font(.system(size: textSize, weight: .semibold))
+                            .foregroundColor(.secondary)
+                        if let partial = viewModel.lastLLMReply, partial.isEmpty {
+                            ProgressView()
+                                .scaleEffect(0.6)
+                                .frame(width: 16, height: 16)
+                            Text("Thinking...")
+                                .font(.system(size: textSize))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button(action: { viewModel.cancelRequest() }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Cancel request")
+                    }
+                    if let partial = viewModel.lastLLMReply, !partial.isEmpty {
+                        Text(renderMarkdown(partial))
+                            .font(.system(size: textSize))
+                            .textSelection(.enabled)
+                    }
                 }
             } else if let lastLLMReply = viewModel.lastLLMReply {
-                Text(makeAttributedText("A: ", lastLLMReply))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("A: ")
+                        .font(.system(size: textSize, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    Text(renderMarkdown(lastLLMReply))
+                        .font(.system(size: textSize))
+                        .textSelection(.enabled)
+                }
             }
         }
+    }
+
+    private func renderMarkdown(_ source: String) -> AttributedString {
+        (try? AttributedString(markdown: source, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(source)
     }
 
     private func makeAttributedText(_ label: String, _ content: String) -> AttributedString {

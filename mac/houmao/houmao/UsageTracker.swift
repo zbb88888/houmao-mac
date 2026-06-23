@@ -159,9 +159,10 @@ final class UsageTracker {
             var winRef: AnyObject?
             if AXUIElementCopyAttributeValue(
                 appElement, kAXFocusedWindowAttribute as CFString, &winRef
-            ) == .success, let winRef {
+            ) == .success, winRef != nil {
+                let winElement = winRef! as! AXUIElement
                 err = AXUIElementCopyAttributeValue(
-                    winRef as! AXUIElement, kAXFocusedUIElementAttribute as CFString, &focusedRef
+                    winElement, kAXFocusedUIElementAttribute as CFString, &focusedRef
                 )
                 axLog.debug("readFocusedText: focusedElement from window err=\(err.rawValue)")
             }
@@ -174,12 +175,12 @@ final class UsageTracker {
             axLog.debug("readFocusedText: focusedElement from systemWide err=\(err.rawValue)")
         }
 
-        guard err == .success, let focusedRef else {
+        guard err == .success, focusedRef != nil else {
             axLog.debug("readFocusedText: no focused element found")
             return nil
         }
 
-        let element = focusedRef as! AXUIElement
+        let element = focusedRef! as! AXUIElement
         AXUIElementSetMessagingTimeout(element, 0.5)
 
         var roleRef: AnyObject?

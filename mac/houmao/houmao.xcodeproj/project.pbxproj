@@ -14,6 +14,7 @@
 		51B22447BCA96ED141D2470F /* houmaoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */; };
 		66B77BCF21C91F327B06BB07 /* UsageTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DEA0EA2BAF153958FC236CB /* UsageTracker.swift */; };
 		720B6BF62E68556D13CB61E0 /* GlobalHotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E00EBE3D61489D710C85775 /* GlobalHotKeyManager.swift */; };
+		8C4AE05803D40E41CAC8831D /* SelectToCopyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 410FF4A6A10475DBEC89ECF4 /* SelectToCopyManager.swift */; };
 		9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */; };
 		9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31DADFF4D45E07705B344E48 /* MainViewModel.swift */; };
 		B22951764CED660C9E9BA1C7 /* Attachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E013A5D3FB90CCA58385B61 /* Attachment.swift */; };
@@ -49,6 +50,7 @@
 		2C9AEEE5D5E88D810CC2F4E7 /* houmaoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoApp.swift; sourceTree = "<group>"; };
 		2E013A5D3FB90CCA58385B61 /* Attachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attachment.swift; sourceTree = "<group>"; };
 		31DADFF4D45E07705B344E48 /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
+		410FF4A6A10475DBEC89ECF4 /* SelectToCopyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectToCopyManager.swift; sourceTree = "<group>"; };
 		5DEA0EA2BAF153958FC236CB /* UsageTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageTracker.swift; sourceTree = "<group>"; };
 		5FFE8C91E62BDDBEC4875FAC /* AiTxtClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiTxtClient.swift; sourceTree = "<group>"; };
 		6217DF1DFAFCB0989F9FC1EC /* houmaoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = houmaoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -119,6 +121,7 @@
 				CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */,
 				FD58C3AFB563B123BF6B396A /* MainView.swift */,
 				31DADFF4D45E07705B344E48 /* MainViewModel.swift */,
+				410FF4A6A10475DBEC89ECF4 /* SelectToCopyManager.swift */,
 				75259439A55CE9D1A9179843 /* SettingsView.swift */,
 				5DEA0EA2BAF153958FC236CB /* UsageTracker.swift */,
 			);
@@ -200,7 +203,6 @@
 				};
 			};
 			buildConfigurationList = 1CA4C505B8218E8374C6A493 /* Build configuration list for PBXProject "houmao" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -210,6 +212,7 @@
 			mainGroup = 7281214FAC24114FFF5CD1DB;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
+			productRefGroup = 444E935E4C485CFCE6BB81BF /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -246,6 +249,7 @@
 				9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */,
 				F91C0061C677A89D66AD3817 /* MainView.swift in Sources */,
 				9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */,
+				8C4AE05803D40E41CAC8831D /* SelectToCopyManager.swift in Sources */,
 				CAE8880B5D80A8AC100228C2 /* SettingsView.swift in Sources */,
 				66B77BCF21C91F327B06BB07 /* UsageTracker.swift in Sources */,
 				43269FE26BD3EC1A4D306903 /* houmaoApp.swift in Sources */,
@@ -290,6 +294,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -324,6 +329,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -341,6 +347,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -492,6 +499,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

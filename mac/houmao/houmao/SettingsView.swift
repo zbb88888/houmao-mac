@@ -63,6 +63,7 @@ struct SettingsKeyHandler: NSViewRepresentable {
 struct SettingsView: View {
     @AppStorage("showTimestamp") private var showTimestamp = false
     @AppStorage("showAppSwitch") private var showAppSwitch = false
+    @AppStorage("selectToCopyEnabled") private var selectToCopyEnabled = false
     private var settings = AppSettings.shared
 
     @State private var editingWorkerID: UUID?
@@ -75,6 +76,10 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle("Show timestamp", isOn: $showTimestamp)
             Toggle("Show app switch", isOn: $showAppSwitch)
+            Toggle("Select to copy", isOn: $selectToCopyEnabled)
+                .onChange(of: selectToCopyEnabled) { _, newValue in
+                    SelectToCopyManager.shared.isEnabled = newValue
+                }
 
             Divider()
 

@@ -20,8 +20,6 @@ final class GlobalHotKeyManager {
     private let rightOptionKeyCode: UInt16 = 61
 
     private init() {
-        checkAccessibilityPermission()
-
         // Monitor both local and global events
         setupLocalMonitor()
         setupGlobalMonitor()
@@ -61,11 +59,6 @@ final class GlobalHotKeyManager {
         } else if !isOptionPressed && optionKeyState {
             optionKeyState = false
         }
-    }
-
-    private func checkAccessibilityPermission() {
-        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        _ = AXIsProcessTrustedWithOptions(options)
     }
 
     private func toggleMainWindow() {

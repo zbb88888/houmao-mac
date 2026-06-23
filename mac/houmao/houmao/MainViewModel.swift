@@ -1,5 +1,8 @@
 import SwiftUI
 import Observation
+import os.log
+
+private let vmLog = Logger(subsystem: "com.houmao", category: "MainViewModel")
 
 enum Panel: Equatable {
     case none
@@ -19,6 +22,10 @@ final class MainViewModel {
     var lastWorkerName: String?
 
     var attachments: [Attachment] = []
+
+    /// Conversation history for multi-turn dialogue (max 20 messages).
+    private var conversationHistory: [ChatMessage] = []
+    private let maxHistoryMessages = 20
 
     private var currentTask: Task<Void, Never>?
     private(set) var usageTracker: UsageTracker?
@@ -133,16 +140,40 @@ final class MainViewModel {
         currentTask?.cancel()
         currentTask = Task {
             do {
-                let reply = try await client.ask(question: question, attachments: currentAttachments)
+                self.lastLLMReply = ""
+                let reply = try await client.askStream(
+                    question: question,
+                    attachments: currentAttachments,
+                    history: conversationHistory
+                ) { [weak self] token in
+                    Task { @MainActor in
+                        self?.lastLLMReply = (self?.lastLLMReply ?? "") + token
+                    }
+                }
                 guard !Task.isCancelled else { return }
                 self.lastLLMReply = reply
+                // Append to conversation history
+                self.conversationHistory.append(ChatMessage(role: "user", content: .text(question)))
+                self.conversationHistory.append(ChatMessage(role: "assistant", content: .text(reply)))
+                // Trim history to max size
+                if self.conversationHistory.count > self.maxHistoryMessages {
+                    self.conversationHistory.removeFirst(self.conversationHistory.count - self.maxHistoryMessages)
+                }
             } catch is CancellationError {
-                // Task was cancelled
+                vmLog.info("Request cancelled by user")
             } catch {
+                vmLog.error("Request failed: \(error.localizedDescription)")
                 self.lastLLMReply = "Error: \(error.localizedDescription)"
             }
             self.isLoading = false
         }
+    }
+
+    func cancelRequest() {
+        currentTask?.cancel()
+        currentTask = nil
+        isLoading = false
+        lastLLMReply = "Request cancelled."
     }
 
     func clearConversation() {
@@ -154,6 +185,7 @@ final class MainViewModel {
         panel = .none
         inputText = ""
         attachments = []
+        conversationHistory = []
         commandHistory.reset()
     }
 }

@@ -74,7 +74,8 @@ struct ChatResponse: Decodable {
 }
 
 struct ChatChoice: Decodable {
-    let message: ChatResponseMessage
+    let message: ChatResponseMessage?
+    let delta: ChatResponseMessage?
 }
 
 struct ChatResponseMessage: Decodable {
@@ -99,7 +100,7 @@ struct AiTxtClient: Sendable {
         self.model = model
     }
 
-    func ask(question: String, attachments: [Attachment]) async throws -> String {
+    func ask(question: String, attachments: [Attachment], history: [ChatMessage] = []) async throws -> String {
         let endpoint = baseURL.hasSuffix("/")
             ? "\(baseURL)v1/chat/completions"
             : "\(baseURL)/v1/chat/completions"
@@ -111,7 +112,7 @@ struct AiTxtClient: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 300
+        request.timeoutInterval = 120
 
         // Build the user message content
         let content: ChatMessageContent
@@ -133,7 +134,7 @@ struct AiTxtClient: Sendable {
 
         let body = ChatRequest(
             model: model,
-            messages: [ChatMessage(role: "user", content: content)],
+            messages: history + [ChatMessage(role: "user", content: content)],
             stream: false
         )
 
@@ -141,13 +142,18 @@ struct AiTxtClient: Sendable {
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            let msg = String(data: data, encoding: .utf8) ?? "Request failed"
-            throw ClientError.requestFailed(msg)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ClientError.requestFailed("No HTTP response received")
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            let truncated = body.count > 500 ? String(body.prefix(500)) + "..." : body
+            throw ClientError.requestFailed("HTTP \(httpResponse.statusCode): \(truncated)")
         }
 
         let chatResponse = try JSONDecoder().decode(ChatResponse.self, from: data)
-        let msg = chatResponse.choices.first?.message
+        let msg = chatResponse.choices.first?.message ?? chatResponse.choices.first?.delta
         let responseContent = msg?.content?.isEmpty == false ? msg?.content
             : msg?.reasoningContent
         guard let responseContent, !responseContent.isEmpty else {
@@ -161,5 +167,116 @@ struct AiTxtClient: Sendable {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         return stripped.isEmpty ? responseContent : stripped
+    }
+
+    // MARK: - Streaming
+
+    /// Stream chat completions via SSE. Calls `onToken` on each delta content chunk.
+    /// Returns the full assembled response after the stream completes.
+    func askStream(
+        question: String,
+        attachments: [Attachment],
+        history: [ChatMessage] = [],
+        onToken: @Sendable @escaping (String) -> Void
+    ) async throws -> String {
+        let endpoint = baseURL.hasSuffix("/")
+            ? "\(baseURL)v1/chat/completions"
+            : "\(baseURL)/v1/chat/completions"
+
+        guard let url = URL(string: endpoint) else {
+            throw ClientError.invalidURL(endpoint)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120
+
+        let content: ChatMessageContent
+        if attachments.isEmpty {
+            content = .text(question)
+        } else {
+            var parts: [ContentPart] = []
+            for att in attachments {
+                switch att.content {
+                case .image(_, let base64):
+                    parts.append(.image(url: "data:image/jpeg;base64,\(base64)"))
+                case .audio(_, let base64, let format):
+                    parts.append(.audio(data: base64, format: format))
+                }
+            }
+            parts.append(.text(question))
+            content = .parts(parts)
+        }
+
+        let body = ChatRequest(
+            model: model,
+            messages: history + [ChatMessage(role: "user", content: content)],
+            stream: true
+        )
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ClientError.requestFailed("No HTTP response received")
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            // Collect error body for diagnostics
+            var errorBody = ""
+            for try await line in bytes.lines {
+                errorBody += line
+                if errorBody.count > 500 { break }
+            }
+            let truncated = errorBody.count > 500 ? errorBody.prefix(500) + "..." : errorBody[...]
+            throw ClientError.requestFailed("HTTP \(httpResponse.statusCode): \(truncated)")
+        }
+
+        var fullResponse = ""
+        var insideThink = false
+
+        for try await line in bytes.lines {
+            guard !Task.isCancelled else { break }
+
+            guard line.hasPrefix("data: ") else { continue }
+            let payload = String(line.dropFirst(6))
+            if payload == "[DONE]" { break }
+
+            guard let chunkData = payload.data(using: .utf8),
+                  let chunk = try? JSONDecoder().decode(ChatResponse.self, from: chunkData),
+                  let delta = chunk.choices.first?.delta,
+                  let token = delta.content, !token.isEmpty
+            else { continue }
+
+            // Filter out <think>...</think> content in streaming
+            var remaining = token
+            while !remaining.isEmpty {
+                if insideThink {
+                    if let endRange = remaining.range(of: "</think>") {
+                        insideThink = false
+                        remaining = String(remaining[endRange.upperBound...])
+                    } else {
+                        break // Still inside think block, discard
+                    }
+                } else {
+                    if let startRange = remaining.range(of: "<think>") {
+                        let before = String(remaining[remaining.startIndex..<startRange.lowerBound])
+                        if !before.isEmpty {
+                            fullResponse += before
+                            onToken(before)
+                        }
+                        insideThink = true
+                        remaining = String(remaining[startRange.upperBound...])
+                    } else {
+                        fullResponse += remaining
+                        onToken(remaining)
+                        break
+                    }
+                }
+            }
+        }
+
+        let trimmed = fullResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? fullResponse : trimmed
     }
 }

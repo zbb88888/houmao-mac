@@ -1,4 +1,7 @@
 import Foundation
+import os.log
+
+private let storeLog = Logger(subsystem: "com.houmao", category: "HistoryStore")
 
 struct UsageRecord: Codable, Identifiable, Sendable {
     let id: UUID
@@ -48,15 +51,37 @@ actor HistoryStore {
         return all
     }
 
-    private func saveAll(_ records: [UsageRecord]) {
+    /// Load the most recent records with pagination support.
+    /// - Parameters:
+    ///   - limit: Maximum number of records to return.
+    ///   - offset: Number of records to skip from the end (newest first).
+    /// - Returns: Records sorted newest-first, up to `limit` count.
+    func loadRecent(limit: Int = 100, offset: Int = 0) -> [UsageRecord] {
+        var all = loadFromDisk()
+        all.append(contentsOf: pendingWrites)
+        // Sort newest first
+        all.sort { $0.timestamp > $1.timestamp }
+        let start = min(offset, all.count)
+        let end = min(start + limit, all.count)
+        return Array(all[start..<end])
+    }
+
+    /// Total number of records (cached + pending).
+    var totalCount: Int {
+        return (cachedRecords?.count ?? 0) + pendingWrites.count
+    }
+
+    private func saveAll(_ records: [UsageRecord]) -> Bool {
         do {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(records)
             try data.write(to: fileURL, options: .atomic)
             cachedRecords = records
+            return true
         } catch {
-            // Silent failure - history is non-critical
+            storeLog.error("Failed to save history: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -77,13 +102,16 @@ actor HistoryStore {
 
         let persisted = loadFromDisk()
         let all = persisted + pendingWrites
-        pendingWrites.removeAll()
-        saveAll(all)
+        if saveAll(all) {
+            pendingWrites.removeAll()
+        } else {
+            storeLog.warning("Flush failed, \(self.pendingWrites.count) records kept in pending queue")
+        }
     }
 
     func clearAll() {
         pendingWrites.removeAll()
         cachedRecords = []
-        saveAll([])
+        _ = saveAll([])
     }
 }

@@ -75,6 +75,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         hotKeyManager = GlobalHotKeyManager.shared
         Self.tracker?.start()
+
+        // Select-to-copy 默认关闭，仅在用户已手动开启且权限已授予时启动。
+        let selectToCopy = SelectToCopyManager.shared
+        if selectToCopy.isEnabled, AXIsProcessTrusted() {
+            selectToCopy.startMonitoring()
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
