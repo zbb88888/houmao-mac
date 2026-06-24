@@ -3,6 +3,8 @@ import AppKit
 extension Notification.Name {
     /// Posted when the main window is shown after being hidden.
     static let houmaoWindowDidShow = Notification.Name("houmaoWindowDidShow")
+    /// Posted when select-to-copy captures clipboard content.
+    static let houmaoClipboardCaptured = Notification.Name("houmaoClipboardCaptured")
 }
 
 /// Listens for double-tap Option key to show/hide main window.
@@ -63,14 +65,13 @@ final class GlobalHotKeyManager {
 
     private func toggleMainWindow() {
         DispatchQueue.main.async {
-            guard let mainWindow = NSApp.windows.first(where: { $0.title != "Settings" }) else { return }
+            guard let panel = AppDelegate.shared?.mainPanel else { return }
 
-            if mainWindow.isVisible {
-                mainWindow.orderOut(nil)
+            if panel.isVisible {
+                panel.orderOut(nil)
             } else {
                 NotificationCenter.default.post(name: .houmaoWindowDidShow, object: nil)
-                mainWindow.makeKeyAndOrderFront(nil)
-                NSApp.activate(ignoringOtherApps: true)
+                panel.makeKeyAndOrderFront(nil)
             }
         }
     }

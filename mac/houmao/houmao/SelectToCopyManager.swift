@@ -200,6 +200,13 @@ final class SelectToCopyManager: NSObject {
                 let copied = pb.string(forType: .string) ?? ""
                 if !copied.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     selectLog.info("\(self.tag) ✓ 已复制 \(copied.count) 字符（\(appName)，第 \(attempt) 次轮询）")
+                    // 弹出输入窗口并填入剪贴板内容
+                    DispatchQueue.main.async {
+                        if let panel = AppDelegate.shared?.mainPanel {
+                            panel.makeKeyAndOrderFront(nil)
+                        }
+                        NotificationCenter.default.post(name: .houmaoClipboardCaptured, object: nil)
+                    }
                     return
                 }
             }

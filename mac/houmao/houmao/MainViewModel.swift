@@ -23,10 +23,6 @@ final class MainViewModel {
 
     var attachments: [Attachment] = []
 
-    /// Conversation history for multi-turn dialogue (max 20 messages).
-    private var conversationHistory: [ChatMessage] = []
-    private let maxHistoryMessages = 20
-
     private var currentTask: Task<Void, Never>?
     private(set) var usageTracker: UsageTracker?
     let commandHistory = CommandHistory()
@@ -126,11 +122,12 @@ final class MainViewModel {
         lastLLMReply = nil
         lastModelName = resolved.provider.name
         isLoading = true
-        panel = .chat
 
         let currentAttachments = attachments
         self.attachments = []
         inputText = ""
+
+        panel = .chat
 
         usageTracker?.record(text: question)
 
@@ -141,7 +138,7 @@ final class MainViewModel {
                 let reply = try await client.askStream(
                     question: question,
                     attachments: currentAttachments,
-                    history: conversationHistory
+                    history: []
                 ) { [weak self] token in
                     Task { @MainActor in
                         self?.lastLLMReply = (self?.lastLLMReply ?? "") + token
@@ -149,13 +146,6 @@ final class MainViewModel {
                 }
                 guard !Task.isCancelled else { return }
                 self.lastLLMReply = reply
-                // Append to conversation history
-                self.conversationHistory.append(ChatMessage(role: "user", content: .text(question)))
-                self.conversationHistory.append(ChatMessage(role: "assistant", content: .text(reply)))
-                // Trim history to max size
-                if self.conversationHistory.count > self.maxHistoryMessages {
-                    self.conversationHistory.removeFirst(self.conversationHistory.count - self.maxHistoryMessages)
-                }
             } catch is CancellationError {
                 vmLog.info("Request cancelled by user")
             } catch {
@@ -173,16 +163,15 @@ final class MainViewModel {
         lastLLMReply = "Request cancelled."
     }
 
-    func clearConversation() {
+    func resetInput() {
         currentTask?.cancel()
         lastUserText = nil
         lastLLMReply = nil
         lastModelName = nil
         isLoading = false
-        panel = .none
         inputText = ""
         attachments = []
-        conversationHistory = []
+        panel = .none
         commandHistory.reset()
     }
 }

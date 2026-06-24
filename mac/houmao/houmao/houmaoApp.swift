@@ -3,92 +3,104 @@ import AppKit
 
 @main
 struct HoumaoApp: App {
-    @State private var mainViewModel: MainViewModel
-    @State private var historyViewModel: HistoryViewModel
-    @AppStorage("selectToCopyEnabled") private var copyOnSelection = false
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
-    init() {
-        let store = HistoryStore()
-        let tracker = UsageTracker(store: store)
-        let vm = MainViewModel(usageTracker: tracker)
-        _mainViewModel = State(wrappedValue: vm)
-        _historyViewModel = State(wrappedValue: HistoryViewModel(store: store))
-        AppDelegate.tracker = tracker
-    }
-
     var body: some Scene {
-        WindowGroup {
-            MainView()
-                .environment(mainViewModel)
-                .environment(historyViewModel)
-        }
-        .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
-        .commands {
-            CommandGroup(replacing: .newItem) { }
-
-            // Cmd+K: clear conversation
-            CommandGroup(after: .textEditing) {
-                Button("Clear Conversation") {
-                    mainViewModel.clearConversation()
-                }
-                .keyboardShortcut("k", modifiers: .command)
-            }
-
-            // Cmd+L: clear all history
-            CommandGroup(after: .textEditing) {
-                Button("Clear History") {
-                    historyViewModel.clearAll()
-                }
-                .keyboardShortcut("l", modifiers: .command)
-            }
-
-            // Edit menu: Copy on Selection (like iTerm2)
-            CommandGroup(after: .textEditing) {
-                Toggle("Copy on Selection", isOn: $copyOnSelection)
-                    .onChange(of: copyOnSelection) { _, newValue in
-                        SelectToCopyManager.shared.isEnabled = newValue
-                    }
-            }
-
-            // Cmd+B: toggle history
-            CommandGroup(after: .textEditing) {
-                Button("Toggle History") {
-                    mainViewModel.panel = (mainViewModel.panel == .history) ? .none : .history
-                }
-                .keyboardShortcut("b", modifiers: .command)
-            }
-
-            // Cmd+W: hide window (not quit)
-            CommandGroup(replacing: .saveItem) {
-                Button("Hide Window") {
-                    NSApplication.shared.keyWindow?.orderOut(nil)
-                }
-                .keyboardShortcut("w", modifiers: .command)
-            }
-        }
-
-        // Settings window
         Settings {
             SettingsView()
         }
     }
 }
 
+// MARK: - Floating Panel (accepts keyboard without activating app)
+
+class FloatingPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate {
+    static var shared: AppDelegate!
+
     private var hotKeyManager: GlobalHotKeyManager?
     static var tracker: UsageTracker?
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.regular)
-        hotKeyManager = GlobalHotKeyManager.shared
-        Self.tracker?.start()
+    private(set) var mainPanel: FloatingPanel!
+    private(set) var mainViewModel: MainViewModel!
+    private(set) var historyViewModel: HistoryViewModel!
+    private var shortcutMonitor: Any?
 
-        // Copy on Selection 默认关闭，仅在用户已手动开启且权限已授予时启动。
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.shared = self
+        NSApp.setActivationPolicy(.accessory)
+
+        let store = HistoryStore()
+        let tracker = UsageTracker(store: store)
+        Self.tracker = tracker
+
+        mainViewModel = MainViewModel(usageTracker: tracker)
+        historyViewModel = HistoryViewModel(store: store)
+
+        setupPanel()
+        setupShortcutMonitor()
+
+        hotKeyManager = GlobalHotKeyManager.shared
+        tracker.start()
+
         let selectToCopy = SelectToCopyManager.shared
         if selectToCopy.isEnabled, AXIsProcessTrusted() {
             selectToCopy.startMonitoring()
+        }
+    }
+
+    private func setupPanel() {
+        let panel = FloatingPanel(
+            contentRect: .zero,
+            styleMask: [.nonactivatingPanel, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isFloatingPanel = true
+        panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.popUpMenuWindow)))
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.titlebarAppearsTransparent = true
+        panel.titleVisibility = .hidden
+        panel.isMovableByWindowBackground = true
+        panel.hidesOnDeactivate = false
+        panel.becomesKeyOnlyIfNeeded = false
+
+        let mainView = MainView()
+            .environment(mainViewModel)
+            .environment(historyViewModel)
+        let controller = NSHostingController(rootView: mainView)
+        controller.sizingOptions = [.preferredContentSize]
+        panel.contentViewController = controller
+        panel.center()
+
+        self.mainPanel = panel
+    }
+
+    /// 本地键盘快捷键（替代菜单 .commands，accessory app 无菜单栏）。
+    private func setupShortcutMonitor() {
+        shortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command else { return event }
+
+            switch event.charactersIgnoringModifiers {
+            case "l":
+                self.historyViewModel.clearAll()
+                return nil
+            case "b":
+                self.mainViewModel.panel = (self.mainViewModel.panel == .history) ? .none : .history
+                return nil
+            case "w":
+                self.mainPanel?.orderOut(nil)
+                return nil
+            default:
+                return event
+            }
         }
     }
 
@@ -98,5 +110,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         hotKeyManager?.cleanup()
+        if let monitor = shortcutMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
     }
 }

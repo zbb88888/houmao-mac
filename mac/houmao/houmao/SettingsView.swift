@@ -70,10 +70,20 @@ struct SettingsView: View {
     @State private var providerModels = ""   // Comma-separated model IDs
     @State private var providerError = ""
 
+    /// 图标列固定宽度，保证竖向对齐
+    private let iconWidth: CGFloat = 20
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Providers")
-                .font(.headline)
+            HStack {
+                Button(action: { editingProviderID = UUID() }) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14))
+                }
+                .buttonStyle(.borderless)
+                .help("Add provider")
+                Spacer()
+            }
 
             ForEach(Array(settings.providers.enumerated()), id: \.element.id) { index, provider in
                 VStack(alignment: .leading, spacing: 4) {
@@ -90,28 +100,34 @@ struct SettingsView: View {
                                 .cornerRadius(3)
                         }
                         Spacer()
-                        Button("Edit") {
+                        if index > 0 {
+                            Button {
+                                settings.moveProviderToTop(at: index)
+                            } label: {
+                                Image(systemName: "arrow.up.to.line")
+                                    .frame(width: iconWidth)
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Set as default")
+                        }
+                        Button {
                             providerName = provider.name
                             providerURL = provider.apiHost
                             providerApiKey = provider.apiKey
                             providerModels = provider.models.joined(separator: ", ")
                             editingProviderID = provider.id
                             providerError = ""
+                        } label: {
+                            Image(systemName: "pencil")
+                                .frame(width: iconWidth)
                         }
                         .buttonStyle(.borderless)
-                        if index > 0 {
-                            Button {
-                                settings.moveProviderToTop(at: index)
-                            } label: {
-                                Image(systemName: "arrow.up.to.line")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Set as default")
-                        }
+                        .help("Edit")
                         Button(role: .destructive) {
                             settings.providers.removeAll { $0.id == provider.id }
                         } label: {
                             Image(systemName: "trash")
+                                .frame(width: iconWidth)
                         }
                         .buttonStyle(.borderless)
                     }
@@ -151,11 +167,6 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.top, 4)
-            } else {
-                Button(action: { editingProviderID = UUID() }) {
-                    Image(systemName: "plus")
-                }
-                .buttonStyle(.borderless)
             }
         }
         .toggleStyle(.checkbox)

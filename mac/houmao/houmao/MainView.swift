@@ -8,7 +8,7 @@ struct VisualEffectBackground: NSViewRepresentable {
     let blendingMode: NSVisualEffectView.BlendingMode
 
     func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = VisualEffectBackgroundView()
+        let view = NSVisualEffectView()
         view.material = material
         view.blendingMode = blendingMode
         view.state = .active
@@ -16,27 +16,6 @@ struct VisualEffectBackground: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
-}
-
-private class VisualEffectBackgroundView: NSVisualEffectView {
-    private var isWindowConfigured = false
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        guard let window = window, !isWindowConfigured else { return }
-        isWindowConfigured = true
-        window.isOpaque = false
-        window.backgroundColor = .clear
-        window.hasShadow = false
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
-        window.styleMask.insert(.fullSizeContentView)
-        window.styleMask.remove([.closable, .miniaturizable, .resizable])
-        window.standardWindowButton(.closeButton)?.isHidden = true
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        window.standardWindowButton(.zoomButton)?.isHidden = true
-    }
 }
 
 // MARK: - Main View
@@ -162,7 +141,16 @@ struct MainView: View {
             isInputFocused = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .houmaoWindowDidShow)) { _ in
-            viewModel.clearConversation()
+            viewModel.resetInput()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInputFocused = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .houmaoClipboardCaptured)) { _ in
+            if let text = NSPasteboard.general.string(forType: .string),
+               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                viewModel.inputText = text
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 isInputFocused = true
             }
@@ -340,7 +328,6 @@ struct MainView: View {
 
             helpRow(key: "Double Option", description: "Show / Hide window")
             helpRow(key: "Esc", description: "Hide window")
-            helpRow(key: "Cmd + K", description: "Clear conversation")
             helpRow(key: "Cmd + B", description: "Toggle usage history")
             helpRow(key: "Cmd + L", description: "Clear all history")
             helpRow(key: "Cmd + W", description: "Hide window")
