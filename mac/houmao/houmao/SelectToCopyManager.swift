@@ -71,18 +71,21 @@ final class SelectToCopyManager: NSObject {
     var isEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: Self.enabledKey) }
         set {
-            UserDefaults.standard.set(newValue, forKey: Self.enabledKey)
             if newValue {
                 if AXIsProcessTrusted() {
+                    UserDefaults.standard.set(true, forKey: Self.enabledKey)
                     startMonitoring()
                 } else {
-                    log("辅助功能权限未授予，打开系统设置")
+                    // 未授权：保持 false，打开系统设置，轮询等待授权。
+                    UserDefaults.standard.set(false, forKey: Self.enabledKey)
+                    log("辅助功能权限未授予，打开系统设置，等待授权")
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                         NSWorkspace.shared.open(url)
                     }
                     startPermissionPolling()
                 }
             } else {
+                UserDefaults.standard.set(false, forKey: Self.enabledKey)
                 stopMonitoring()
                 permissionPollTimer?.invalidate()
                 permissionPollTimer = nil
@@ -90,13 +93,14 @@ final class SelectToCopyManager: NSObject {
         }
     }
 
-    /// 轮询 AXIsProcessTrusted()，授权后自动启动监听。
+    /// 轮询 AXIsProcessTrusted()，授权后自动设为 true 并启动监听。
     private func startPermissionPolling() {
         permissionPollTimer?.invalidate()
         permissionPollTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] timer in
             if AXIsProcessTrusted() {
                 timer.invalidate()
                 self?.permissionPollTimer = nil
+                UserDefaults.standard.set(true, forKey: Self.enabledKey)
                 self?.startMonitoring()
                 self?.log("辅助功能权限已授予，监听已自动启动")
             }

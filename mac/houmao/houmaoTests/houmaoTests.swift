@@ -93,45 +93,53 @@ struct CommandHistoryTests {
     }
 }
 
-// MARK: - Worker Mention Parsing Tests
+// MARK: - Model Resolution Tests
 
-struct WorkerParsingTests {
+struct ModelResolutionTests {
 
-    @Test func parseWorkerMention() {
-        // Test via submit behavior — verify worker name extraction
-        // We test the internal logic indirectly through AppSettings.worker(named:)
+    @Test func resolveModel() {
         let settings = AppSettings.shared
 
-        // worker(named: nil) should find worker with empty name
-        // worker(named: "test") should find worker named "test"
-        // With no workers configured, both return nil
-        let savedWorkers = settings.workers
-        defer { settings.workers = savedWorkers }
+        let savedProviders = settings.providers
+        defer { settings.providers = savedProviders }
 
-        settings.workers = []
-        #expect(settings.worker(named: nil) == nil)
-        #expect(settings.worker(named: "test") == nil)
+        settings.providers = []
+        #expect(settings.resolveModel(named: nil) == nil)
+        #expect(settings.resolveModel(named: "gpt-4o") == nil)
 
-        settings.workers = [
-            Worker(name: "", url: "http://localhost:8080", model: "test-model"),
-            Worker(name: "gpt", url: "http://api.openai.com", model: "gpt-4"),
+        settings.providers = [
+            Provider(name: "Local", apiHost: "http://localhost:8080", models: ["test-model"]),
+            Provider(name: "OpenAI", apiHost: "https://api.openai.com", apiKey: "sk-xxx", models: ["gpt-4o", "gpt-4o-mini"]),
         ]
 
-        let defaultWorker = settings.worker(named: nil)
-        #expect(defaultWorker != nil)
-        #expect(defaultWorker?.name == "")
-        #expect(defaultWorker?.url == "http://localhost:8080")
+        // Default: first provider's first model
+        let defaultModel = settings.resolveModel(named: nil)
+        #expect(defaultModel != nil)
+        #expect(defaultModel?.model == "test-model")
+        #expect(defaultModel?.provider.name == "Local")
 
-        let namedWorker = settings.worker(named: "gpt")
-        #expect(namedWorker != nil)
-        #expect(namedWorker?.name == "gpt")
+        // Find by provider alias (name)
+        let byAlias = settings.resolveModel(named: "OpenAI")
+        #expect(byAlias != nil)
+        #expect(byAlias?.model == "gpt-4o")
+        #expect(byAlias?.provider.name == "OpenAI")
 
-        // Case-insensitive
-        let upperWorker = settings.worker(named: "GPT")
-        #expect(upperWorker != nil)
+        // Provider alias is case-insensitive
+        let byAliasUpper = settings.resolveModel(named: "openai")
+        #expect(byAliasUpper != nil)
+        #expect(byAliasUpper?.provider.name == "OpenAI")
+
+        // Find by model name (fallback)
+        let gpt4oMini = settings.resolveModel(named: "gpt-4o-mini")
+        #expect(gpt4oMini != nil)
+        #expect(gpt4oMini?.provider.name == "OpenAI")
+
+        // Case-insensitive model match
+        let upper = settings.resolveModel(named: "GPT-4O")
+        #expect(upper != nil)
 
         // Non-existent
-        #expect(settings.worker(named: "nonexistent") == nil)
+        #expect(settings.resolveModel(named: "nonexistent") == nil)
     }
 }
 

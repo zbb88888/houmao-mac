@@ -94,10 +94,20 @@ struct ChatResponseMessage: Decodable {
 struct AiTxtClient: Sendable {
     let baseURL: String
     let model: String
+    let apiKey: String
 
-    init(baseURL: String, model: String = Worker.defaultModel) {
-        self.baseURL = baseURL
+    init(baseURL: String, model: String, apiKey: String = "") {
+        var cleaned = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip any combination of /v1, /chat/completions the user may have included
+        for suffix in ["/v1/chat/completions/", "/v1/chat/completions", "/v1/", "/v1"] {
+            if cleaned.hasSuffix(suffix) {
+                cleaned = String(cleaned.dropLast(suffix.count))
+                break
+            }
+        }
+        self.baseURL = cleaned
         self.model = model
+        self.apiKey = apiKey
     }
 
     func ask(question: String, attachments: [Attachment], history: [ChatMessage] = []) async throws -> String {
@@ -112,6 +122,9 @@ struct AiTxtClient: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
         request.timeoutInterval = 120
 
         // Build the user message content
@@ -190,6 +203,9 @@ struct AiTxtClient: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
         request.timeoutInterval = 120
 
         let content: ChatMessageContent

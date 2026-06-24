@@ -61,129 +61,120 @@ struct SettingsKeyHandler: NSViewRepresentable {
 // MARK: - Settings View
 
 struct SettingsView: View {
-    @AppStorage("showTimestamp") private var showTimestamp = false
-    @AppStorage("showAppSwitch") private var showAppSwitch = false
-    @AppStorage("selectToCopyEnabled") private var selectToCopyEnabled = false
     private var settings = AppSettings.shared
 
-    @State private var editingWorkerID: UUID?
-    @State private var workerName = ""
-    @State private var workerURL = ""
-    @State private var workerModel = Worker.defaultModel
-    @State private var workerError = ""
+    @State private var editingProviderID: UUID?
+    @State private var providerName = ""
+    @State private var providerURL = ""
+    @State private var providerApiKey = ""
+    @State private var providerModels = ""   // Comma-separated model IDs
+    @State private var providerError = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Toggle("Show timestamp", isOn: $showTimestamp)
-            Toggle("Show app switch", isOn: $showAppSwitch)
-            Toggle("Select to copy", isOn: $selectToCopyEnabled)
-                .onChange(of: selectToCopyEnabled) { _, newValue in
-                    SelectToCopyManager.shared.isEnabled = newValue
-                }
-
-            Divider()
-
-            Text("Workers")
+            Text("Providers")
                 .font(.headline)
 
-            ForEach(Array(settings.workers.enumerated()), id: \.element.id) { index, worker in
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
-                            let displayName = worker.name.isEmpty ? worker.model : worker.name
-                            Text(displayName)
-                                .font(.system(size: 13, weight: .medium))
-                            if index == 0 {
-                                Text("default")
-                                    .font(.system(size: 9, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 1)
-                                    .background(Color.accentColor.opacity(0.7))
-                                    .cornerRadius(3)
-                            }
+            ForEach(Array(settings.providers.enumerated()), id: \.element.id) { index, provider in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(provider.name)
+                            .font(.system(size: 13, weight: .semibold))
+                        if index == 0 {
+                            Text("default")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(Color.accentColor.opacity(0.7))
+                                .cornerRadius(3)
                         }
-                        Text(worker.url)
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                        Text("Model: \(worker.model)")
-                            .font(.system(size: 10))
-                            .foregroundColor(.secondary.opacity(0.8))
-                    }
-                    Spacer()
-                    Button("Edit") {
-                        workerName = worker.name
-                        workerURL = worker.url
-                        workerModel = worker.model
-                        editingWorkerID = worker.id
-                        workerError = ""
-                    }
-                    .buttonStyle(.borderless)
-                    if index > 0 {
-                        Button {
-                            settings.moveWorkerToTop(at: index)
-                        } label: {
-                            Image(systemName: "arrow.up.to.line")
+                        Spacer()
+                        Button("Edit") {
+                            providerName = provider.name
+                            providerURL = provider.apiHost
+                            providerApiKey = provider.apiKey
+                            providerModels = provider.models.joined(separator: ", ")
+                            editingProviderID = provider.id
+                            providerError = ""
                         }
                         .buttonStyle(.borderless)
-                        .help("Set as default")
+                        if index > 0 {
+                            Button {
+                                settings.moveProviderToTop(at: index)
+                            } label: {
+                                Image(systemName: "arrow.up.to.line")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Set as default")
+                        }
+                        Button(role: .destructive) {
+                            settings.providers.removeAll { $0.id == provider.id }
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
                     }
-                    Button(role: .destructive) {
-                        settings.workers.removeAll { $0.id == worker.id }
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                    .buttonStyle(.borderless)
+                    Text(provider.models.joined(separator: ", "))
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
-                .padding(.vertical, 2)
+                .padding(8)
+                .background(Color.primary.opacity(0.04))
+                .cornerRadius(6)
             }
 
-            if editingWorkerID != nil {
+            if editingProviderID != nil {
                 VStack(alignment: .leading, spacing: 6) {
-                    TextField("Name (for @mention, or leave empty)", text: $workerName)
+                    TextField("Name * (e.g. OpenAI, DeepSeek, Local)", text: $providerName)
                         .textFieldStyle(.roundedBorder)
-                        .onSubmit { saveWorker() }
-                    TextField("URL (e.g. http://127.0.0.1:19060)", text: $workerURL)
+                        .onSubmit { saveProvider() }
+                    TextField("URL * (e.g. https://api.openai.com)", text: $providerURL)
                         .textFieldStyle(.roundedBorder)
-                        .onSubmit { saveWorker() }
-                    TextField("Model (e.g. minicpm-o-4.5, gpt-4)", text: $workerModel)
+                        .onSubmit { saveProvider() }
+                    TextField("Models * (comma-separated, e.g. gpt-4o, gpt-4o-mini)", text: $providerModels)
                         .textFieldStyle(.roundedBorder)
-                        .onSubmit { saveWorker() }
-                    if !workerError.isEmpty {
-                        Text(workerError)
+                        .onSubmit { saveProvider() }
+                    SecureField("API Key (optional)", text: $providerApiKey)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { saveProvider() }
+                    if !providerError.isEmpty {
+                        Text(providerError)
                             .font(.system(size: 11))
                             .foregroundColor(.red)
                     }
                     HStack {
-                        Button("Save") { saveWorker() }
+                        Button("Save") { saveProvider() }
                         Button("Cancel") { resetForm() }
                     }
                 }
                 .padding(.top, 4)
             } else {
-                Button(action: { editingWorkerID = UUID() }) {
+                Button(action: { editingProviderID = UUID() }) {
                     Image(systemName: "plus")
                 }
                 .buttonStyle(.borderless)
             }
         }
         .toggleStyle(.checkbox)
-        .padding(20)
-        .frame(width: 340, alignment: .leading)
+        .padding(24)
+        .frame(width: 480, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
         .navigationTitle("")
         .background(
             SettingsKeyHandler(
                 onEscape: {
-                    if editingWorkerID != nil {
+                    if editingProviderID != nil {
                         resetForm()
                     } else {
                         NSApp.keyWindow?.close()
                     }
                 },
                 onReturn: {
-                    if editingWorkerID != nil {
-                        saveWorker()
+                    if editingProviderID != nil {
+                        saveProvider()
                     } else {
                         NSApp.keyWindow?.close()
                     }
@@ -192,56 +183,58 @@ struct SettingsView: View {
         )
     }
 
-    private func saveWorker() {
-        let name = workerName.trimmingCharacters(in: .whitespaces)
-        let url = workerURL.trimmingCharacters(in: .whitespaces)
-        let model = workerModel.trimmingCharacters(in: .whitespaces)
+    private func saveProvider() {
+        let name = providerName.trimmingCharacters(in: .whitespacesAndNewlines)
+        var url = providerURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip trailing path components the user may have pasted
+        for suffix in ["/v1/chat/completions/", "/v1/chat/completions", "/v1/", "/v1"] {
+            if url.hasSuffix(suffix) {
+                url = String(url.dropLast(suffix.count))
+                break
+            }
+        }
+        let apiKey = providerApiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let models = providerModels
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
 
         // Validate
-        if let error = validateWorker(name: name, url: url, model: model) {
-            workerError = error
+        if let error = validateProvider(name: name, url: url, models: models) {
+            providerError = error
             return
         }
 
         // Save or update
-        if let id = editingWorkerID,
-           let i = settings.workers.firstIndex(where: { $0.id == id }) {
-            settings.workers[i] = Worker(id: id, name: name, url: url, model: model)
+        if let id = editingProviderID,
+           let i = settings.providers.firstIndex(where: { $0.id == id }) {
+            settings.providers[i] = Provider(id: id, name: name, apiHost: url, apiKey: apiKey, models: models)
         } else {
-            settings.workers.append(Worker(name: name, url: url, model: model))
+            settings.providers.append(Provider(name: name, apiHost: url, apiKey: apiKey, models: models))
         }
         resetForm()
     }
 
-    private func validateWorker(name: String, url: String, model: String) -> String? {
-        // Check required fields
+    private func validateProvider(name: String, url: String, models: [String]) -> String? {
+        guard !name.isEmpty else { return "Name is required." }
         guard !url.isEmpty else { return "URL is required." }
-        guard !model.isEmpty else { return "Model is required." }
-
-        // Check URL validity
+        guard !models.isEmpty else { return "At least one model is required." }
         guard URL(string: url) != nil else { return "Invalid URL." }
 
-        // Check name format
-        guard name.isEmpty || !name.contains(where: \.isWhitespace) else {
-            return "Name cannot contain spaces."
+        // Check duplicate provider name
+        let isDuplicate = settings.providers.contains { provider in
+            provider.id != editingProviderID &&
+            provider.name.caseInsensitiveCompare(name) == .orderedSame
         }
-
-        // Check duplicates
-        let isDuplicate = settings.workers.contains { worker in
-            worker.id != editingWorkerID &&
-            (name.isEmpty ? worker.name.isEmpty : worker.name.caseInsensitiveCompare(name) == .orderedSame)
-        }
-
-        return isDuplicate
-            ? "A worker named \"\(name.isEmpty ? "(unnamed)" : name)\" already exists."
-            : nil
+        return isDuplicate ? "A provider named \"\(name)\" already exists." : nil
     }
 
     private func resetForm() {
-        workerName = ""
-        workerURL = ""
-        workerModel = Worker.defaultModel
-        workerError = ""
-        editingWorkerID = nil
+        providerName = ""
+        providerURL = ""
+        providerApiKey = ""
+        providerModels = ""
+        providerError = ""
+        editingProviderID = nil
     }
 }

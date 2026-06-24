@@ -47,18 +47,15 @@ struct MainView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isInputFocused: Bool = false
     private var settings = AppSettings.shared
-    @AppStorage("showTimestamp") private var showTimestamp = false
-    @AppStorage("showAppSwitch") private var showAppSwitch = false
 
     private let cornerRadius: CGFloat = 12
 
-    /// Dynamic placeholder showing current default worker.
+    /// Dynamic placeholder showing current default provider.
     private var inputPlaceholder: String {
-        if let first = settings.workers.first {
-            let name = first.name.isEmpty ? first.model : first.name
-            return "Ask \(name)... (h for help)"
+        if let resolved = settings.resolveModel(named: nil) {
+            return "Ask \(resolved.provider.name)... (h for help)"
         }
-        return "Add a worker in Settings (⌘,)"
+        return "Add a provider in Settings (⌘,)"
     }
 
     private let dateFormatter: DateFormatter = {
@@ -284,12 +281,8 @@ struct MainView: View {
                 .padding(.top, 16)
                 .frame(maxWidth: .infinity, alignment: .center)
         } else {
-            let filtered = showAppSwitch
-                ? historyViewModel.records
-                : historyViewModel.records.filter { !$0.text.hasPrefix("[Switch]") }
-
             LazyVStack(alignment: .leading, spacing: 6) {
-                ForEach(filtered) { record in
+                ForEach(historyViewModel.records) { record in
                     recordRow(record)
                 }
             }
@@ -316,11 +309,9 @@ struct MainView: View {
     private func recordRow(_ record: UsageRecord) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                if showTimestamp {
-                    Text(dateFormatter.string(from: record.timestamp))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                }
+                Text(dateFormatter.string(from: record.timestamp))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
                 Text(record.appName)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary.opacity(0.7))
@@ -362,19 +353,18 @@ struct MainView: View {
 
             helpRow(key: "h", description: "Show this help")
             helpRow(key: "b", description: "Toggle usage history")
-            helpRow(key: "@name msg", description: "Send message to a worker")
+            helpRow(key: "@name msg", description: "Use provider alias or model name")
 
-            if !settings.workers.isEmpty {
+            if !settings.providers.isEmpty {
                 Divider().overlay(dividerColor).padding(.vertical, 4)
 
-                Text("Workers")
+                Text("Providers")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.secondary)
 
-                ForEach(Array(settings.workers.enumerated()), id: \.element.id) { index, worker in
-                    let label = worker.name.isEmpty ? worker.model : "@\(worker.name)"
+                ForEach(Array(settings.providers.enumerated()), id: \.element.id) { index, provider in
                     let suffix = index == 0 ? " (default)" : ""
-                    helpRow(key: label, description: worker.url + suffix)
+                    helpRow(key: "@\(provider.name)", description: provider.models.joined(separator: ", ") + suffix)
                 }
             }
         }
@@ -402,8 +392,8 @@ struct MainView: View {
     @ViewBuilder
     private var chatContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let lastWorkerName = viewModel.lastWorkerName {
-                Text("@\(lastWorkerName)")
+            if let modelName = viewModel.lastModelName {
+                Text(modelName)
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundColor(.white)
                     .padding(.horizontal, 6)

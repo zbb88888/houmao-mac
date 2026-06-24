@@ -19,7 +19,7 @@ final class MainViewModel {
     var lastLLMReply: String?
     var isLoading: Bool = false
     var panel: Panel = .none
-    var lastWorkerName: String?
+    var lastModelName: String?
 
     var attachments: [Attachment] = []
 
@@ -53,9 +53,9 @@ final class MainViewModel {
         attachments.removeAll { $0.id == id }
     }
 
-    /// Parse `@workerName message` from input. Returns (workerName, actualMessage) or nil.
-    /// Supports `@worker some question` and `@worker` alone (for attachment-only use).
-    private func parseWorkerMention(_ text: String) -> (name: String, message: String)? {
+    /// Parse `@model message` from input. Returns (modelName, actualMessage) or nil.
+    /// Supports `@model some question` and `@model` alone (for attachment-only use).
+    private func parseModelMention(_ text: String) -> (name: String, message: String)? {
         guard text.hasPrefix("@") else { return nil }
         let parts = text.dropFirst().split(maxSplits: 1, whereSeparator: \.isWhitespace)
         guard let name = parts.first, !name.isEmpty else { return nil }
@@ -79,27 +79,24 @@ final class MainViewModel {
             return
         }
 
-        // Determine worker and question
-        let mention = parseWorkerMention(trimmed)
-        let worker: Worker
-        let workerName: String?
+        // Determine model and question
+        let mention = parseModelMention(trimmed)
+        let resolved: ResolvedModel
 
         if let mention = mention {
-            // Has @mention
-            guard let w = AppSettings.shared.worker(named: mention.name) else {
-                showError("Worker \"\(mention.name)\" not found. Add it in Settings → Workers.")
+            // Has @mention → resolve model by name
+            guard let r = AppSettings.shared.resolveModel(named: mention.name) else {
+                showError("Model \"\(mention.name)\" not found. Add it in Settings → Providers.")
                 return
             }
-            worker = w
-            workerName = w.name
+            resolved = r
         } else {
-            // No @mention, use first worker
-            guard let w = AppSettings.shared.worker(named: nil) else {
-                showError("No worker configured. Open Settings (⌘,) to add one.")
+            // No @mention → use default model
+            guard let r = AppSettings.shared.resolveModel(named: nil) else {
+                showError("No provider configured. Open Settings (⌘,) to add one.")
                 return
             }
-            worker = w
-            workerName = w.name.isEmpty ? nil : w.name
+            resolved = r
         }
 
         // Generate question
@@ -112,7 +109,7 @@ final class MainViewModel {
             question = trimmed.isEmpty ? "Describe this." : trimmed
         }
 
-        executeQuery(question: question, worker: worker, workerName: workerName, attachments: attachments)
+        executeQuery(question: question, resolved: resolved, attachments: attachments)
     }
 
     private func showError(_ message: String) {
@@ -122,12 +119,12 @@ final class MainViewModel {
         inputText = ""
     }
 
-    private func executeQuery(question: String, worker: Worker, workerName: String?, attachments: [Attachment]) {
-        let client = AiTxtClient(baseURL: worker.url, model: worker.model)
+    private func executeQuery(question: String, resolved: ResolvedModel, attachments: [Attachment]) {
+        let client = AiTxtClient(baseURL: resolved.provider.apiHost, model: resolved.model, apiKey: resolved.provider.apiKey)
 
         lastUserText = question
         lastLLMReply = nil
-        lastWorkerName = workerName
+        lastModelName = resolved.provider.name
         isLoading = true
         panel = .chat
 
@@ -180,7 +177,7 @@ final class MainViewModel {
         currentTask?.cancel()
         lastUserText = nil
         lastLLMReply = nil
-        lastWorkerName = nil
+        lastModelName = nil
         isLoading = false
         panel = .none
         inputText = ""

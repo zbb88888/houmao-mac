@@ -5,6 +5,7 @@ import AppKit
 struct HoumaoApp: App {
     @State private var mainViewModel: MainViewModel
     @State private var historyViewModel: HistoryViewModel
+    @AppStorage("selectToCopyEnabled") private var copyOnSelection = false
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
@@ -33,6 +34,14 @@ struct HoumaoApp: App {
                     mainViewModel.clearConversation()
                 }
                 .keyboardShortcut("k", modifiers: .command)
+            }
+
+            // Edit menu: Copy on Selection (like iTerm2)
+            CommandGroup(after: .textEditing) {
+                Toggle("Copy on Selection", isOn: $copyOnSelection)
+                    .onChange(of: copyOnSelection) { _, newValue in
+                        SelectToCopyManager.shared.isEnabled = newValue
+                    }
             }
 
             // Cmd+B: toggle history
@@ -76,7 +85,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeyManager = GlobalHotKeyManager.shared
         Self.tracker?.start()
 
-        // Select-to-copy 默认关闭，仅在用户已手动开启且权限已授予时启动。
+        // Copy on Selection 默认关闭，仅在用户已手动开启且权限已授予时启动。
         let selectToCopy = SelectToCopyManager.shared
         if selectToCopy.isEnabled, AXIsProcessTrusted() {
             selectToCopy.startMonitoring()
