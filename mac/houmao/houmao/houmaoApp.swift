@@ -36,6 +36,14 @@ struct HoumaoApp: App {
                 .keyboardShortcut("k", modifiers: .command)
             }
 
+            // Cmd+L: clear all history
+            CommandGroup(after: .textEditing) {
+                Button("Clear History") {
+                    historyViewModel.clearAll()
+                }
+                .keyboardShortcut("l", modifiers: .command)
+            }
+
             // Edit menu: Copy on Selection (like iTerm2)
             CommandGroup(after: .textEditing) {
                 Toggle("Copy on Selection", isOn: $copyOnSelection)
@@ -50,14 +58,6 @@ struct HoumaoApp: App {
                     mainViewModel.panel = (mainViewModel.panel == .history) ? .none : .history
                 }
                 .keyboardShortcut("b", modifiers: .command)
-            }
-
-            // Cmd+L: clear all history
-            CommandGroup(after: .textEditing) {
-                Button("Clear History") {
-                    historyViewModel.clearAll()
-                }
-                .keyboardShortcut("l", modifiers: .command)
             }
 
             // Cmd+W: hide window (not quit)
