@@ -97,20 +97,14 @@ struct AiTxtClient: Sendable {
     let apiKey: String
 
     init(baseURL: String, model: String, apiKey: String = "") {
-        var cleaned = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Strip any combination of /v1, /chat/completions the user may have included
-        for suffix in ["/v1/chat/completions/", "/v1/chat/completions", "/v1/", "/v1"] {
-            if cleaned.hasSuffix(suffix) {
-                cleaned = String(cleaned.dropLast(suffix.count))
-                break
-            }
-        }
-        self.baseURL = cleaned
+        self.baseURL = baseURL
         self.model = model
         self.apiKey = apiKey
     }
 
-    func ask(question: String, attachments: [Attachment], history: [ChatMessage] = []) async throws -> String {
+    // MARK: - Shared helpers
+
+    private func buildRequest(stream: Bool, question: String, attachments: [Attachment], history: [ChatMessage]) throws -> URLRequest {
         let endpoint = baseURL.hasSuffix("/")
             ? "\(baseURL)v1/chat/completions"
             : "\(baseURL)/v1/chat/completions"
@@ -127,7 +121,6 @@ struct AiTxtClient: Sendable {
         }
         request.timeoutInterval = 120
 
-        // Build the user message content
         let content: ChatMessageContent
         if attachments.isEmpty {
             content = .text(question)
@@ -148,10 +141,16 @@ struct AiTxtClient: Sendable {
         let body = ChatRequest(
             model: model,
             messages: history + [ChatMessage(role: "user", content: content)],
-            stream: false
+            stream: stream
         )
-
         request.httpBody = try JSONEncoder().encode(body)
+        return request
+    }
+
+    // MARK: - Non-streaming
+
+    func ask(question: String, attachments: [Attachment], history: [ChatMessage] = []) async throws -> String {
+        let request = try buildRequest(stream: false, question: question, attachments: attachments, history: history)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -192,45 +191,7 @@ struct AiTxtClient: Sendable {
         history: [ChatMessage] = [],
         onToken: @Sendable @escaping (String) -> Void
     ) async throws -> String {
-        let endpoint = baseURL.hasSuffix("/")
-            ? "\(baseURL)v1/chat/completions"
-            : "\(baseURL)/v1/chat/completions"
-
-        guard let url = URL(string: endpoint) else {
-            throw ClientError.invalidURL(endpoint)
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !apiKey.isEmpty {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
-        request.timeoutInterval = 120
-
-        let content: ChatMessageContent
-        if attachments.isEmpty {
-            content = .text(question)
-        } else {
-            var parts: [ContentPart] = []
-            for att in attachments {
-                switch att.content {
-                case .image(_, let base64):
-                    parts.append(.image(url: "data:image/jpeg;base64,\(base64)"))
-                case .audio(_, let base64, let format):
-                    parts.append(.audio(data: base64, format: format))
-                }
-            }
-            parts.append(.text(question))
-            content = .parts(parts)
-        }
-
-        let body = ChatRequest(
-            model: model,
-            messages: history + [ChatMessage(role: "user", content: content)],
-            stream: true
-        )
-        request.httpBody = try JSONEncoder().encode(body)
+        let request = try buildRequest(stream: true, question: question, attachments: attachments, history: history)
 
         let (bytes, response) = try await URLSession.shared.bytes(for: request)
 
@@ -238,7 +199,6 @@ struct AiTxtClient: Sendable {
             throw ClientError.requestFailed("No HTTP response received")
         }
         guard (200...299).contains(httpResponse.statusCode) else {
-            // Collect error body for diagnostics
             var errorBody = ""
             for try await line in bytes.lines {
                 errorBody += line

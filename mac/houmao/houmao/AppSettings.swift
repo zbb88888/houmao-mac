@@ -12,18 +12,37 @@ struct Provider: Codable, Identifiable, Equatable {
     init(id: UUID = UUID(), name: String, apiHost: String, apiKey: String = "", models: [String]) {
         self.id = id
         self.name = name
-        self.apiHost = apiHost
+        self.apiHost = Provider.cleanURL(apiHost)
         self.apiKey = apiKey
         self.models = models
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(UUID.self, forKey: .id)
+        self.name = try c.decode(String.self, forKey: .name)
+        self.apiHost = Provider.cleanURL(try c.decode(String.self, forKey: .apiHost))
+        self.apiKey = try c.decodeIfPresent(String.self, forKey: .apiKey) ?? ""
+        self.models = try c.decode([String].self, forKey: .models)
+    }
+
+    /// Strip /v1, /v1/chat/completions suffixes users often paste by mistake.
+    static func cleanURL(_ raw: String) -> String {
+        var url = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        for suffix in ["/v1/chat/completions/", "/v1/chat/completions", "/v1/", "/v1"] {
+            if url.hasSuffix(suffix) {
+                url = String(url.dropLast(suffix.count))
+                break
+            }
+        }
+        return url
     }
 }
 
 /// Resolved model reference for a query.
 struct ResolvedModel {
     let provider: Provider
-    let model: String       // The model ID
-    /// Display label: model name or provider:model if needed.
-    var displayName: String { model }
+    let model: String
 }
 
 /// Provider list stored in UserDefaults.
@@ -84,16 +103,4 @@ final class AppSettings {
         return ResolvedModel(provider: provider, model: model)
     }
 
-    /// All model names across all providers (for help page).
-    var allModels: [(provider: Provider, model: String, isDefault: Bool)] {
-        var result: [(Provider, String, Bool)] = []
-        var isFirst = true
-        for provider in providers {
-            for model in provider.models {
-                result.append((provider, model, isFirst))
-                isFirst = false
-            }
-        }
-        return result
-    }
 }

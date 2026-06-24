@@ -185,14 +185,7 @@ struct SettingsView: View {
 
     private func saveProvider() {
         let name = providerName.trimmingCharacters(in: .whitespacesAndNewlines)
-        var url = providerURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Strip trailing path components the user may have pasted
-        for suffix in ["/v1/chat/completions/", "/v1/chat/completions", "/v1/", "/v1"] {
-            if url.hasSuffix(suffix) {
-                url = String(url.dropLast(suffix.count))
-                break
-            }
-        }
+        let url = providerURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let apiKey = providerApiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let models = providerModels
             .split(separator: ",")
