@@ -37,6 +37,7 @@ install:
 	@echo "Installing to /Applications..."
 	@sudo rm -rf /Applications/$(APP_NAME).app
 	@sudo cp -R ~/Library/Developer/Xcode/DerivedData/*/Build/Products/Release/$(APP_NAME).app /Applications/
+	@rm -rf ~/Library/Developer/Xcode/DerivedData/$(APP_NAME)-*
 	@echo "Install complete! Launch from Spotlight or Applications folder"
 	@echo "Note: First launch requires Accessibility permission"
 
