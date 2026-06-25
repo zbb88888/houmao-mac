@@ -29,6 +29,12 @@ struct MainView: View {
 
     private let cornerRadius: CGFloat = 12
 
+    private var panelWidth: CGFloat {
+        let screenWidth = NSScreen.main?.visibleFrame.width ?? 1440
+        let availableWidth = max(320, screenWidth - 120)
+        return min(1280, availableWidth)
+    }
+
     /// Dynamic placeholder showing current default provider.
     private var inputPlaceholder: String {
         if let resolved = settings.resolveModel(named: nil) {
@@ -88,7 +94,7 @@ struct MainView: View {
             }
             .padding(.leading, 24)
             .padding(.trailing, 16)
-            .frame(height: 56)
+            .frame(height: 112)
 
             // Attachment strip
             if !viewModel.attachments.isEmpty {
@@ -119,11 +125,11 @@ struct MainView: View {
                     .padding(.vertical, 16)
                     .textSelection(.enabled)
                 }
-                .frame(maxHeight: 400)
+                .frame(maxHeight: 800)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
-        .frame(width: 680)
+        .frame(width: panelWidth)
         .background(
             VisualEffectBackground(material: .popover, blendingMode: .behindWindow)
         )
@@ -142,13 +148,7 @@ struct MainView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .houmaoWindowDidShow)) { _ in
             viewModel.resetInput()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                isInputFocused = true
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .houmaoClipboardCaptured)) { _ in
-            if let text = NSPasteboard.general.string(forType: .string),
-               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let text = SelectToCopyManager.shared.recentCapturedText(maxAge: 5) {
                 viewModel.inputText = text
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {

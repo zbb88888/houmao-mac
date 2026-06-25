@@ -63,7 +63,7 @@ struct SettingsKeyHandler: NSViewRepresentable {
 struct SettingsView: View {
     private var settings = AppSettings.shared
 
-    @AppStorage("selectToCopyEnabled") private var copyOnSelection = false
+    @State private var copyOnSelection = false
 
     @State private var editingProviderID: UUID?
     @State private var providerName = ""
@@ -80,6 +80,12 @@ struct SettingsView: View {
             Toggle("Copy on Selection", isOn: $copyOnSelection)
                 .onChange(of: copyOnSelection) { _, newValue in
                     SelectToCopyManager.shared.isEnabled = newValue
+                }
+                .onAppear {
+                    copyOnSelection = SelectToCopyManager.shared.isEnabled
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .houmaoSelectToCopyAuthorizationDidChange)) { _ in
+                    copyOnSelection = SelectToCopyManager.shared.isEnabled
                 }
 
             Divider()

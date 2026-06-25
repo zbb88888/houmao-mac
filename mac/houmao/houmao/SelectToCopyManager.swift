@@ -5,6 +5,10 @@ import Carbon.HIToolbox
 
 private let selectLog = Logger(subsystem: "com.houmao", category: "SelectToCopy")
 
+extension Notification.Name {
+    static let houmaoSelectToCopyAuthorizationDidChange = Notification.Name("houmaoSelectToCopyAuthorizationDidChange")
+}
+
 /// 划选即复制：监听全局鼠标拖拽，检测到选取后模拟 Cmd+C 将选中文本写入剪贴板。
 ///
 /// ## 实现策略（参考 iboob / Maccy 等开源项目）
@@ -46,6 +50,10 @@ final class SelectToCopyManager: NSObject {
         qos: .userInitiated
     )
 
+    private let captureLock = NSLock()
+    private var lastCapturedText: String?
+    private var lastCapturedAt: Date?
+
     // MARK: - UserDefaults 键
 
     private static let enabledKey = "selectToCopyEnabled"
@@ -69,14 +77,14 @@ final class SelectToCopyManager: NSObject {
     private var permissionPollTimer: Timer?
 
     var isEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: Self.enabledKey) }
+        get { UserDefaults.standard.bool(forKey: Self.enabledKey) && AXIsProcessTrusted() }
         set {
             if newValue {
                 if AXIsProcessTrusted() {
                     UserDefaults.standard.set(true, forKey: Self.enabledKey)
                     startMonitoring()
                 } else {
-                    // 未授权：保持 false，打开系统设置，轮询等待授权。
+                    // 未授权：不持久化启用状态，仅打开系统设置并轮询本次授权结果。
                     UserDefaults.standard.set(false, forKey: Self.enabledKey)
                     log("辅助功能权限未授予，打开系统设置，等待授权")
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
@@ -93,6 +101,19 @@ final class SelectToCopyManager: NSObject {
         }
     }
 
+    func refreshAuthorizationState() {
+        guard isEnabled else {
+            stopMonitoring()
+            return
+        }
+
+        if AXIsProcessTrusted() {
+            startMonitoring()
+        } else {
+            startPermissionPolling()
+        }
+    }
+
     /// 轮询 AXIsProcessTrusted()，授权后自动设为 true 并启动监听。
     private func startPermissionPolling() {
         permissionPollTimer?.invalidate()
@@ -102,14 +123,39 @@ final class SelectToCopyManager: NSObject {
                 self?.permissionPollTimer = nil
                 UserDefaults.standard.set(true, forKey: Self.enabledKey)
                 self?.startMonitoring()
+                NotificationCenter.default.post(name: .houmaoSelectToCopyAuthorizationDidChange, object: nil)
                 self?.log("辅助功能权限已授予，监听已自动启动")
             }
         }
     }
 
+    func recentCapturedText(maxAge: TimeInterval) -> String? {
+        captureLock.lock()
+        defer { captureLock.unlock() }
+
+        guard let lastCapturedText,
+              let lastCapturedAt,
+              Date().timeIntervalSince(lastCapturedAt) <= maxAge else {
+            return nil
+        }
+        return lastCapturedText
+    }
+
+    private func recordCapturedText(_ text: String) {
+        captureLock.lock()
+        lastCapturedText = text
+        lastCapturedAt = Date()
+        captureLock.unlock()
+    }
+
     func startMonitoring() {
         guard isEnabled else {
             log("功能已禁用，不启动监听")
+            return
+        }
+        guard AXIsProcessTrusted() else {
+            log("辅助功能权限未授予，不启动监听")
+            startPermissionPolling()
             return
         }
         guard mouseDownMonitor == nil else {
@@ -199,14 +245,8 @@ final class SelectToCopyManager: NSObject {
             if pb.changeCount != changeCountBefore {
                 let copied = pb.string(forType: .string) ?? ""
                 if !copied.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    recordCapturedText(copied)
                     selectLog.info("\(self.tag) ✓ 已复制 \(copied.count) 字符（\(appName)，第 \(attempt) 次轮询）")
-                    // 弹出输入窗口并填入剪贴板内容
-                    DispatchQueue.main.async {
-                        if let panel = AppDelegate.shared?.mainPanel {
-                            panel.makeKeyAndOrderFront(nil)
-                        }
-                        NotificationCenter.default.post(name: .houmaoClipboardCaptured, object: nil)
-                    }
                     return
                 }
             }
