@@ -63,6 +63,8 @@ struct SettingsKeyHandler: NSViewRepresentable {
 struct SettingsView: View {
     private var settings = AppSettings.shared
 
+    @AppStorage("selectToCopyEnabled") private var copyOnSelection = false
+
     @State private var editingProviderID: UUID?
     @State private var providerName = ""
     @State private var providerURL = ""
@@ -75,6 +77,13 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Toggle("Copy on Selection", isOn: $copyOnSelection)
+                .onChange(of: copyOnSelection) { _, newValue in
+                    SelectToCopyManager.shared.isEnabled = newValue
+                }
+
+            Divider()
+
             HStack {
                 Button(action: { editingProviderID = UUID() }) {
                     Image(systemName: "plus")
