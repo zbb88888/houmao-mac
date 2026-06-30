@@ -1,5 +1,48 @@
-# houmao-mac
+# Houmao
 
+Houmao is a macOS assistant for fragmented, high-frequency work snippets.
+
+It focuses on tasks that people can usually finish manually within one minute,
+but that happen often enough to be worth streamlining: quick information lookup,
+translation, summarization, rewriting, extracting action items, and turning copied
+content into lightweight notes.
+
+Houmao is intentionally not positioned as a replacement for long-running
+professional workflows. Long coding sessions, complex project management,
+research pipelines, document authoring, and heavy automation generally deserve
+dedicated tools. Houmao is designed for the small gaps between those tools.
+
+## Product Positioning
+
+Houmao helps with:
+
+- quick translation and rewriting of selected text
+- short information retrieval and clarification
+- summarizing clipboard or selected content
+- extracting titles, tags, TODOs, and key points
+- saving useful fragments into a notes directory
+- lightweight knowledge capture from daily reading and communication
+
+Houmao avoids becoming:
+
+- a full IDE agent
+- a general desktop automation platform
+- a long-running workflow orchestrator
+- a replacement for specialized note-taking, research, or project management apps
+
+## Interaction Model
+
+The intended interaction is small and explicit:
+
+```text
+select or copy a fragment
+ -> invoke Houmao
+ -> ask for a focused action
+ -> get a concise result or saved artifact
+```
+
+The design goal is to keep the user in flow: Houmao should reduce friction for
+fragmented tasks without taking over the whole workflow.
 
 ## image
 
