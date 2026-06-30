@@ -128,10 +128,10 @@ struct AiTxtClient: Sendable {
             var parts: [ContentPart] = []
             for att in attachments {
                 switch att.content {
-                case .image(_, let base64):
-                    parts.append(.image(url: "data:image/jpeg;base64,\(base64)"))
-                case .audio(_, let base64, let format):
-                    parts.append(.audio(data: base64, format: format))
+                case .image:
+                    parts.append(.image(url: "data:image/jpeg;base64,\(att.base64)"))
+                case .audio(_, _, let format):
+                    parts.append(.audio(data: att.base64, format: format))
                 }
             }
             parts.append(.text(question))

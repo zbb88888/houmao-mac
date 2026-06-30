@@ -3,6 +3,16 @@ import AppKit
 extension Notification.Name {
     /// Posted when the main window is shown after being hidden.
     static let houmaoWindowDidShow = Notification.Name("houmaoWindowDidShow")
+    /// Posted by the view model when chat mode is entered (via `/chat` or the
+    /// automatic upgrade after the 3rd one-shot turn) so the app can hide the
+    /// minimal input box and open the standalone, resizable chat window.
+    static let houmaoEnterChatWindow = Notification.Name("houmaoEnterChatWindow")
+    /// Posted by the view model when chat mode is exited so the app can close
+    /// the standalone chat window.
+    static let houmaoExitChatWindow = Notification.Name("houmaoExitChatWindow")
+    /// Posted by the app after the standalone chat window becomes visible so the
+    /// chat input can grab keyboard focus.
+    static let houmaoChatWindowDidShow = Notification.Name("houmaoChatWindowDidShow")
 }
 
 /// Listens for double-tap Option key to show/hide main window.

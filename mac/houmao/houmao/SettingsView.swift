@@ -139,7 +139,7 @@ struct SettingsView: View {
                         .buttonStyle(.borderless)
                         .help("Edit")
                         Button(role: .destructive) {
-                            settings.providers.removeAll { $0.id == provider.id }
+                            settings.removeProvider(id: provider.id)
                         } label: {
                             Image(systemName: "trash")
                                 .frame(width: iconWidth)

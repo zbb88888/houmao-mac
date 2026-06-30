@@ -69,9 +69,54 @@ struct MainView: View {
     }
 
     var body: some View {
-        @Bindable var viewModel = viewModel
+        compactLayout
+        .background(
+            VisualEffectBackground(material: .popover, blendingMode: .behindWindow)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(borderColor, lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.3), radius: 40, y: 12)
+        .padding(40)
+        .onExitCommand {
+            NSApplication.shared.keyWindow?.orderOut(nil)
+        }
+        .onAppear {
+            isInputFocused = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .houmaoWindowDidShow)) { _ in
+            viewModel.resetInput()
+            if let text = SelectToCopyManager.shared.recentCapturedText(maxAge: 5) {
+                viewModel.inputText = text
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInputFocused = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInputFocused = true
+            }
+        }
+        .onChange(of: viewModel.panel) {
+            if viewModel.panel == .history {
+                historyViewModel.load()
+            }
+            if viewModel.panel == .none {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isInputFocused = true
+                }
+            }
+        }
+    }
 
-        VStack(spacing: 0) {
+    // MARK: - Compact layout (minimal input box + result panel)
+
+    private var compactLayout: some View {
+        @Bindable var viewModel = viewModel
+        return VStack(spacing: 0) {
             // Search bar
             HStack(spacing: 8) {
                 IMETextField(
@@ -115,7 +160,7 @@ struct MainView: View {
                         case .history:
                             historyContent
                         case .chat:
-                            chatContent
+                            singleTurnContent
                         case .none:
                             EmptyView()
                         }
@@ -130,46 +175,6 @@ struct MainView: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .frame(width: panelWidth)
-        .background(
-            VisualEffectBackground(material: .popover, blendingMode: .behindWindow)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(borderColor, lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.3), radius: 40, y: 12)
-        .padding(40)
-        .onExitCommand {
-            NSApplication.shared.keyWindow?.orderOut(nil)
-        }
-        .onAppear {
-            isInputFocused = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .houmaoWindowDidShow)) { _ in
-            viewModel.resetInput()
-            if let text = SelectToCopyManager.shared.recentCapturedText(maxAge: 5) {
-                viewModel.inputText = text
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                isInputFocused = true
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                isInputFocused = true
-            }
-        }
-        .onChange(of: viewModel.panel) {
-            if viewModel.panel == .history {
-                historyViewModel.load()
-            }
-            if viewModel.panel == .none {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    isInputFocused = true
-                }
-            }
-        }
     }
 
     // MARK: - File picker
@@ -219,12 +224,14 @@ struct MainView: View {
     @ViewBuilder
     private func attachmentThumbnail(_ att: Attachment) -> some View {
         switch att.content {
-        case .image(let nsImage, _):
-            Image(nsImage: nsImage)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 48, height: 48)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+        case .image:
+            if let nsImage = att.nsImage {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
         case .audio(let name, _, _):
             VStack(spacing: 4) {
                 Image(systemName: "waveform")
@@ -340,6 +347,7 @@ struct MainView: View {
 
             helpRow(key: "h", description: "Show this help")
             helpRow(key: "b", description: "Toggle usage history")
+            helpRow(key: "/chat", description: "Toggle chat (multi-turn) mode")
             helpRow(key: "@name msg", description: "Use provider alias or model name")
 
             if !settings.providers.isEmpty {
@@ -376,8 +384,10 @@ struct MainView: View {
 
     private let textSize: CGFloat = 13
 
+    // MARK: Single-turn result
+
     @ViewBuilder
-    private var chatContent: some View {
+    private var singleTurnContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let modelName = viewModel.lastModelName {
                 Text(modelName)
