@@ -27,6 +27,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     static var tracker: UsageTracker?
 
     private(set) var mainPanel: FloatingPanel!
+    /// Held for the whole process lifetime; closing it drops the single-instance flock.
+    private var lockFileDescriptor: Int32 = -1
     private var settingsPanel: FloatingPanel?
     private(set) var mainViewModel: MainViewModel!
     private(set) var historyViewModel: HistoryViewModel!
@@ -98,6 +100,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .environment(historyViewModel)
         let controller = NSHostingController(rootView: mainView)
         controller.sizingOptions = [.preferredContentSize]
+        // Disable safe-area tracking: combined with `.fullSizeContentView` and a
+        // dynamic content height it otherwise feeds an infinite Update-Constraints
+        // pass that crashes the panel (NSGenericException). A borderless floating
+        // panel has no visible safe-area inset, so this is purely a loop breaker.
+        controller.safeAreaRegions = []
         panel.contentViewController = controller
         center(panel, on: screenContainingMouse())
 
@@ -166,10 +173,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func showChatWindow() {
-        // Exactly one surface is ever visible: hide the input box and settings.
-        mainPanel?.orderOut(nil)
-        settingsPanel?.orderOut(nil)
-
+        // The chat window is an independent singleton; showing it leaves the
+        // input box and settings panel as-is.
         let window = chatWindow ?? makeChatWindow()
         chatWindow = window
 
@@ -193,15 +198,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func showMainPanel() {
-        // Exactly one surface is ever visible: summoning the minimal box hides
-        // the standalone chat window and the settings panel. resetInput (on
+        // Each surface is an independent singleton; summoning the minimal box
+        // leaves the chat window and settings panel as-is. resetInput (on
         // houmaoWindowDidShow) clears the chat-mode flag.
-        if chatWindow?.isVisible == true {
-            chatWindow?.orderOut(nil)
-        }
-        if settingsPanel?.isVisible == true {
-            settingsPanel?.orderOut(nil)
-        }
         NotificationCenter.default.post(name: .houmaoWindowDidShow, object: nil)
         center(mainPanel, on: screenContainingMouse())
         mainPanel.makeKeyAndOrderFront(nil)
@@ -272,12 +271,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// 打开设置面板（FloatingPanel，可覆盖全屏应用）。
     private func openSettings() {
-        // Exactly one surface is ever visible: hide the input box and chat.
-        mainPanel?.orderOut(nil)
-        if chatWindow?.isVisible == true {
-            chatWindow?.orderOut(nil)
-        }
-
+        // The settings panel is an independent singleton; showing it leaves the
+        // input box and chat window as-is.
         if settingsPanel == nil {
             let panel = FloatingPanel(
                 contentRect: .zero,
@@ -295,6 +290,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
             let controller = NSHostingController(rootView: SettingsView())
             controller.sizingOptions = [.preferredContentSize]
+            controller.safeAreaRegions = []
             panel.contentViewController = controller
             panel.center()
 
@@ -319,24 +315,40 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return true
         }
 
+        // Atomic, kernel-level mutex: the first instance grabs an exclusive
+        // advisory lock on a per-user lockfile; a concurrent second launch gets
+        // EWOULDBLOCK immediately, so there is no check-then-act race like the
+        // old NSRunningApplication scan. The lock is released automatically when
+        // the fd closes on normal exit or crash, so there is no stale-lock file
+        // to clean up. The fd is held for the whole process lifetime via
+        // `lockFileDescriptor` — closing it would drop the lock.
         let bundleID = Bundle.main.bundleIdentifier ?? "cn.com.houmao.houmao"
-        let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-            .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
+        let lockPath = (NSTemporaryDirectory() as NSString)
+            .appendingPathComponent("\(bundleID).singleton.lock")
+        let fd = open(lockPath, O_CREAT | O_RDWR, 0o600)
+        guard fd >= 0 else {
+            // Lockfile could not be opened (unexpected). Degrade to allowing the
+            // launch rather than blocking the app entirely.
+            return true
+        }
 
-        guard others.isEmpty else {
-            // Hand off to the already-running instance, then bow out.
+        if flock(fd, LOCK_EX | LOCK_NB) != 0 {
+            // Another instance already holds the lock: ping it to surface the
+            // box, drop our fd, and bow out.
+            close(fd)
             DistributedNotificationCenter.default().postNotificationName(
                 Self.activateExistingNotification,
                 object: nil,
                 userInfo: nil,
                 deliverImmediately: true
             )
-            others.first?.activate()
             NSApp.terminate(nil)
             return false
         }
 
-        // Primary instance: a later launch will ping us to surface the box.
+        // Primary instance: keep the fd open for the process lifetime and let a
+        // later launch ping us to surface the box.
+        lockFileDescriptor = fd
         activateObserver = DistributedNotificationCenter.default().addObserver(
             forName: Self.activateExistingNotification,
             object: nil,
