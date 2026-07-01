@@ -320,6 +320,16 @@ flowchart TB
 - **理由**：(1) 碎片任务助手定位下，绝大多数聊天是一次性的，默认持久化只会堆垃圾；(2) 「单次聊天 = 一个文件」比增量数据库更直观、易迁移，与目录映射的「只新增」语义天然契合；(3) 把写盘收敛到收藏动作，I/O 与隐私边界清晰。
 - **影响**：聊天关闭即丢弃；退出方式复用面板显隐（双击 Option / `⌘W`），无需独立持久化 UI。
 
+### ADR-7：改为标准 app（`.regular`），聊天窗为主 UI，输入框为快捷唤起
+
+- **决策**：形态从「`.accessory` 后台热键工具（无 Dock 图标、无主窗、仅靠全局热键）」改为**标准前台 app**（`NSApp.setActivationPolicy(.regular)`）：聊天窗作为主 UI 窗口、启动即呈现，临时输入框保留为可随时唤起的浮动快捷入口。
+- **背景**：`.accessory` 下 `make install` 后 Dock/任务栏无任何图标，`Settings…` 也不在应用菜单的惯例位置，用户「找不到 app」。经确认，所有使用场景都能在标准 app 形态下满足，遂拍板标准化。
+- **相较之前非标准形态的优势**：
+  1. **快捷唤醒随时对话的使用方式不变** —— 全局热键唤起浮动输入框（`FloatingPanel`，非激活、`popUpMenuWindow` 层级）保持原样，轻量即时交互零损失。
+  2. **对话框成为主 UI** —— 聊天窗（标准可缩放 `NSWindow`）启动即展示、点 Dock 图标可重新唤起（`applicationShouldHandleReopen`），承载多会话主界面；关窗仅隐藏、app 驻留（`applicationShouldTerminateAfterLastWindowClosed → false`），热键仍可用。
+  3. **设置与任务栏显示标准化** —— Dock 出现图标、进 ⌘-Tab、菜单栏常显；`Settings…`（⌘,）落到应用菜单 `About` 之下、`Services` 之上的原生位置，全局可用。
+- **影响**：`.accessory → .regular`；`applicationDidFinishLaunching` 末尾 `showChatWindow()`；新增 `applicationShouldHandleReopen`；应用菜单插入标准 `Settings…` 项。单实例（flock）、窗口单例、全局热键均不受影响。安装后需重新 `make install` 覆盖旧的 accessory 版本方能生效。
+
 ---
 
 ## 6. 关键决策（已拍板 Q1–Q4）

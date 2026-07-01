@@ -56,7 +56,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard acquireSingleInstanceLock() else { return }
 
         Self.shared = self
-        NSApp.setActivationPolicy(.accessory)
+        NSApp.setActivationPolicy(.regular)
 
         let store = HistoryStore()
         let tracker = UsageTracker(store: store)
@@ -68,12 +68,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupPanel()
         setupShortcutMonitor()
         setupChatWindowObservers()
+        setupAppMenu()
 
         hotKeyManager = GlobalHotKeyManager.shared
         tracker.start()
 
         let selectToCopy = SelectToCopyManager.shared
         selectToCopy.refreshAuthorizationState()
+
+        // The chat window is the app's main UI window; present it on launch.
+        showChatWindow()
     }
 
     private func setupPanel() {
@@ -258,9 +262,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         keyWindow.orderOut(nil)
                     }
                     return true
-                case (",", _), (_, 43): // 43 = physical comma key
-                    self.openSettings()
-                    return true
                 default:
                     return false
                 }
@@ -270,6 +271,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     /// 打开设置面板（FloatingPanel，可覆盖全屏应用）。
+    /// Adds the conventional "Settings…" item to the application (App-name)
+    /// menu, matching every native macOS app, so ⌘, works app-wide while
+    /// houmao is frontmost — not only when one of its windows is key.
+    private func setupAppMenu() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self,
+                  let appMenu = NSApp.mainMenu?.items.first?.submenu else { return }
+            // Idempotent: never insert the item twice.
+            guard appMenu.indexOfItem(withTarget: self,
+                                      andAction: #selector(self.openSettingsMenuAction)) < 0 else { return }
+            let item = NSMenuItem(title: "Settings…",
+                                  action: #selector(self.openSettingsMenuAction),
+                                  keyEquivalent: ",")
+            item.target = self
+            // macOS convention: About / --- / Settings… / --- / Services.
+            let index = min(2, appMenu.numberOfItems)
+            appMenu.insertItem(item, at: index)
+            appMenu.insertItem(.separator(), at: index + 1)
+        }
+    }
+
+    @objc private func openSettingsMenuAction() {
+        openSettings()
+    }
+
     private func openSettings() {
         // The settings panel is an independent singleton; showing it leaves the
         // input box and chat window as-is.
@@ -362,6 +388,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // Standard-app behavior: clicking the Dock icon (or otherwise reopening)
+        // brings the chat window — the app's main UI — back to the front.
+        if !flag {
+            showChatWindow()
+        }
+        return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {
