@@ -24,26 +24,19 @@ struct ChatView: View {
         colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.06)
     }
 
-    private var sidebarBackground: Color {
-        colorScheme == .dark ? Color.white.opacity(0.03) : Color.black.opacity(0.03)
-    }
-
     var body: some View {
-        HStack(spacing: 0) {
-            conversationSidebar
+        VStack(spacing: 0) {
+            chatHeader
             Divider().overlay(dividerColor)
-            VStack(spacing: 0) {
-                chatHeader
-                Divider().overlay(dividerColor)
-                chatMessageList
-                Divider().overlay(dividerColor)
-                chatInputBar
-            }
+            chatMessageList
+            Divider().overlay(dividerColor)
+            chatInputBar
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             VisualEffectBackground(material: .windowBackground, blendingMode: .behindWindow)
         )
+        .onExitCommand { viewModel.exitChatMode() }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 isInputFocused = true
@@ -56,75 +49,18 @@ struct ChatView: View {
         }
     }
 
-    // MARK: - Conversation sidebar (Chatbox/WeChat-style history)
-
-    private var conversationSidebar: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Chats")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.secondary)
-                Spacer()
-                Button(action: { viewModel.chatStore.newConversation() }) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 13))
-                        .foregroundColor(.accentColor)
-                }
-                .buttonStyle(.plain)
-                .help("New chat")
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-
-            Divider().overlay(dividerColor)
-
-            ScrollView {
-                LazyVStack(spacing: 2) {
-                    ForEach(viewModel.chatStore.conversations) { convo in
-                        conversationRow(convo)
-                    }
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 8)
-            }
-        }
-        .frame(width: 220)
-        .background(sidebarBackground)
-    }
-
-    private func conversationRow(_ convo: Conversation) -> some View {
-        let isCurrent = convo.id == viewModel.chatStore.currentID
-        return HStack(spacing: 6) {
-            Image(systemName: "bubble.left")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
-            Text(convo.title.isEmpty ? "New Chat" : convo.title)
-                .font(.system(size: 13))
-                .lineLimit(1)
-                .foregroundColor(.primary)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 7)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(isCurrent ? Color.accentColor.opacity(0.18) : Color.clear)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture { viewModel.chatStore.select(convo.id) }
-        .contextMenu {
-            Button("Delete", role: .destructive) {
-                viewModel.chatStore.deleteConversation(convo.id)
-            }
-        }
-    }
-
     // MARK: - Header
 
     private var chatHeader: some View {
         HStack(spacing: 8) {
-            Text("Chat")
-                .font(.system(size: 14, weight: .semibold))
+            Button(action: { viewModel.renewChat() }) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Renew")
+
             if let modelName = viewModel.lastModelName {
                 modelBadge(modelName)
             }
@@ -135,7 +71,7 @@ struct ChatView: View {
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.plain)
-            .help("Exit chat (/chat)")
+            .help("Close")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
@@ -178,7 +114,7 @@ struct ChatView: View {
             Text("Start a conversation")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundColor(.secondary)
-            Text("⏎ send · ⇧⏎ newline · /chat to exit")
+            Text("⏎ send · ⇧⏎ newline")
                 .font(.system(size: 11))
                 .foregroundColor(.secondary.opacity(0.7))
         }
@@ -213,7 +149,10 @@ struct ChatView: View {
                     measuredHeight: $chatInputHeight,
                     font: .systemFont(ofSize: 15),
                     maxHeight: 120,
-                    onSubmit: { viewModel.sendChatTurn() }
+                    onSubmit: { viewModel.sendChatTurn() },
+                    onUpArrow: viewModel.commandHistory.previous,
+                    onDownArrow: viewModel.commandHistory.next,
+                    onEscape: { viewModel.exitChatMode() }
                 )
                 .frame(height: chatInputHeight)
                 .padding(.horizontal, 6)

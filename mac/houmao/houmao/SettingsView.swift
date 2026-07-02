@@ -65,6 +65,7 @@ struct SettingsView: View {
 
     @State private var copyOnSelection = false
     @State private var reposRoot = ""
+    @State private var editingReposRoot = false
 
     @State private var editingProviderID: UUID?
     @State private var providerName = ""
@@ -91,21 +92,54 @@ struct SettingsView: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("代码仓库根目录")
-                    .font(.system(size: 12, weight: .medium))
-                Text("用于 /issue 按 URL 自动定位本地仓库（<根>/<repo>）")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                HStack {
-                    TextField("如 ~/code", text: $reposRoot)
-                        .textFieldStyle(.roundedBorder)
-                        .onChange(of: reposRoot) { _, newValue in
-                            settings.reposRoot = newValue
+            // code dir — provider-style row: shows the saved path with a pencil
+            // to edit and a magnifier to pick a folder (saved on selection).
+            VStack(alignment: .leading, spacing: 6) {
+                if editingReposRoot {
+                    HStack {
+                        TextField("~/code", text: $reposRoot)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit { saveReposRoot() }
+                        Button { chooseReposRoot() } label: {
+                            Image(systemName: "magnifyingglass").frame(width: iconWidth)
                         }
-                    Button("选择…") { chooseReposRoot() }
+                        .buttonStyle(.borderless)
+                        .help("Browse")
+                        Button("Save") { saveReposRoot() }
+                        Button("Cancel") {
+                            reposRoot = settings.reposRoot
+                            editingReposRoot = false
+                        }
+                    }
+                } else {
+                    HStack {
+                        Text("code dir")
+                            .font(.system(size: 13, weight: .semibold))
+                        Spacer()
+                        Button { chooseReposRoot() } label: {
+                            Image(systemName: "magnifyingglass").frame(width: iconWidth)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Browse")
+                        Button {
+                            reposRoot = settings.reposRoot
+                            editingReposRoot = true
+                        } label: {
+                            Image(systemName: "pencil").frame(width: iconWidth)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Edit")
+                    }
+                    Text(settings.reposRoot.isEmpty ? "未设置" : settings.reposRoot)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
             }
+            .padding(8)
+            .background(Color.primary.opacity(0.04))
+            .cornerRadius(6)
             .onAppear { reposRoot = settings.reposRoot }
 
             Divider()
@@ -212,14 +246,19 @@ struct SettingsView: View {
         .background(
             SettingsKeyHandler(
                 onEscape: {
-                    if editingProviderID != nil {
+                    if editingReposRoot {
+                        reposRoot = settings.reposRoot
+                        editingReposRoot = false
+                    } else if editingProviderID != nil {
                         resetForm()
                     } else {
                         NSApp.keyWindow?.close()
                     }
                 },
                 onReturn: {
-                    if editingProviderID != nil {
+                    if editingReposRoot {
+                        saveReposRoot()
+                    } else if editingProviderID != nil {
                         saveProvider()
                     } else {
                         NSApp.keyWindow?.close()
@@ -285,6 +324,12 @@ struct SettingsView: View {
         if panel.runModal() == .OK, let url = panel.url {
             reposRoot = url.path
             settings.reposRoot = url.path
+            editingReposRoot = false
         }
+    }
+
+    private func saveReposRoot() {
+        settings.reposRoot = reposRoot.trimmingCharacters(in: .whitespacesAndNewlines)
+        editingReposRoot = false
     }
 }

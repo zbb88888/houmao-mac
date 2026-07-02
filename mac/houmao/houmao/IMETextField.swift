@@ -126,6 +126,9 @@ struct ChatInputField: NSViewRepresentable {
     var font: NSFont = .systemFont(ofSize: 15)
     var maxHeight: CGFloat = 120
     var onSubmit: (() -> Void)?
+    var onUpArrow: (() -> String?)?
+    var onDownArrow: (() -> String?)?
+    var onEscape: (() -> Void)?
 
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSTextView.scrollableTextView()
@@ -156,6 +159,9 @@ struct ChatInputField: NSViewRepresentable {
         }
 
         context.coordinator.onSubmit = onSubmit
+        context.coordinator.onUpArrow = onUpArrow
+        context.coordinator.onDownArrow = onDownArrow
+        context.coordinator.onEscape = onEscape
         context.coordinator.recomputeHeight()
 
         if isFocused, let window = textView.window, window.firstResponder !== textView {
@@ -180,6 +186,9 @@ struct ChatInputField: NSViewRepresentable {
         let maxHeight: CGFloat
         let font: NSFont
         var onSubmit: (() -> Void)?
+        var onUpArrow: (() -> String?)?
+        var onDownArrow: (() -> String?)?
+        var onEscape: (() -> Void)?
         weak var textView: NSTextView?
 
         init(
@@ -224,17 +233,59 @@ struct ChatInputField: NSViewRepresentable {
         }
 
         func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-            guard commandSelector == #selector(NSResponder.insertNewline(_:)) else { return false }
-            // Never submit/insert while an IME candidate is being composed.
-            guard !textView.hasMarkedText() else { return false }
-
-            let shiftHeld = NSApp.currentEvent?.modifierFlags.contains(.shift) ?? false
-            if shiftHeld {
-                textView.insertNewlineIgnoringFieldEditor(nil)
+            switch commandSelector {
+            case #selector(NSResponder.insertNewline(_:)):
+                // Never submit/insert while an IME candidate is being composed.
+                guard !textView.hasMarkedText() else { return false }
+                let shiftHeld = NSApp.currentEvent?.modifierFlags.contains(.shift) ?? false
+                if shiftHeld {
+                    textView.insertNewlineIgnoringFieldEditor(nil)
+                    return true
+                }
+                text.wrappedValue = textView.string
+                onSubmit?()
                 return true
+
+            case #selector(NSResponder.moveUp(_:)):
+                // Recall history only at the first line; otherwise move the caret.
+                guard caretOnFirstLine(textView) else { return false }
+                return recallHistory(onUpArrow, into: textView)
+
+            case #selector(NSResponder.moveDown(_:)):
+                guard caretOnLastLine(textView) else { return false }
+                return recallHistory(onDownArrow, into: textView)
+
+            case #selector(NSResponder.cancelOperation(_:)):
+                // Esc closes the window, but let the IME cancel composition first.
+                guard !textView.hasMarkedText() else { return false }
+                onEscape?()
+                return true
+
+            default:
+                return false
             }
-            text.wrappedValue = textView.string
-            onSubmit?()
+        }
+
+        private func caretOnFirstLine(_ tv: NSTextView) -> Bool {
+            let s = tv.string as NSString
+            let loc = min(tv.selectedRange().location, s.length)
+            return !s.substring(to: loc).contains("\n")
+        }
+
+        private func caretOnLastLine(_ tv: NSTextView) -> Bool {
+            let s = tv.string as NSString
+            let r = tv.selectedRange()
+            let loc = min(r.location + r.length, s.length)
+            return !s.substring(from: loc).contains("\n")
+        }
+
+        private func recallHistory(_ handler: (() -> String?)?, into tv: NSTextView) -> Bool {
+            guard let handler else { return false }
+            guard let recalled = handler() else { return true }
+            text.wrappedValue = recalled
+            tv.string = recalled
+            tv.setSelectedRange(NSRange(location: (recalled as NSString).length, length: 0))
+            recomputeHeight()
             return true
         }
     }

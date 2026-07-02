@@ -348,7 +348,19 @@ struct MainView: View {
             helpRow(key: "h", description: "Show this help")
             helpRow(key: "b", description: "Toggle usage history")
             helpRow(key: "/chat", description: "Toggle chat (multi-turn) mode")
+            helpRow(key: "/issue url", description: "Analyze a GitHub issue with local code")
+            helpRow(key: "/pr url", description: "Review a GitHub PR diff with local code")
             helpRow(key: "@name msg", description: "Use provider alias or model name")
+
+            Divider().overlay(dividerColor).padding(.vertical, 4)
+
+            Text("Settings")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.secondary)
+
+            helpRow(key: "code dir", description: "Local repo root; /issue & /pr locate <code dir>/<repo>")
+            helpRow(key: "Copy on Selection", description: "Auto-copy selected text to clipboard (needs Accessibility)")
+            helpRow(key: "Providers", description: "Add OpenAI-compatible providers in Settings (⌘,); first is default")
 
             if !settings.providers.isEmpty {
                 Divider().overlay(dividerColor).padding(.vertical, 4)

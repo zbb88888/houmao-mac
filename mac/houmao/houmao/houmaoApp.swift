@@ -41,6 +41,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
     private var exitChatObserver: NSObjectProtocol?
+    private var chatStatusObserver: NSObjectProtocol?
 
     /// Standalone, resizable / full-screen-capable chat window (office-style).
     /// Distinct from the floating minimal input box; shares the view model so
@@ -138,6 +139,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         ) { [weak self] _ in
             self?.hideChatWindow()
         }
+        chatStatusObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoChatStatusChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            let status = (note.object as? String) ?? "houmao"
+            self?.chatWindow?.title = status.isEmpty ? "houmao" : status
+        }
     }
 
     /// Lazily build the standalone chat window: a standard titled window that is
@@ -161,11 +170,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "猛毛 Chat"
+        window.title = "houmao"
         window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
+        // Title is used as a status line (topic / tool progress), so keep it visible.
+        window.titleVisibility = .visible
         window.isMovableByWindowBackground = false
-        window.collectionBehavior = [.fullScreenPrimary, .canJoinAllSpaces]
+        window.collectionBehavior = [.fullScreenPrimary]
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 720, height: 460)
         window.delegate = self
@@ -355,6 +365,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = exitChatObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = chatStatusObserver {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = activateObserver {

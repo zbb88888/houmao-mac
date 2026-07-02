@@ -69,6 +69,13 @@ final class ChatStore {
         return newConversation()
     }
 
+    /// Discard everything and start a single fresh conversation ("renew").
+    func reset() {
+        conversations = []
+        currentID = nil
+        newConversation()
+    }
+
     func select(_ id: UUID) {
         guard conversations.contains(where: { $0.id == id }) else { return }
         currentID = id

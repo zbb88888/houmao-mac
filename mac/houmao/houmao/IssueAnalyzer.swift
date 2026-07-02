@@ -36,10 +36,18 @@ struct IssueAnalyzer {
         (NSHomeDirectory() as NSString).appendingPathComponent("houmao/client-tools/bin/ghia")
     }
 
+    /// A streamed event from `ghia`: fine-grained progress (from stderr) or a
+    /// chunk of the analysis summary (from stdout).
+    enum Event: Sendable {
+        case progress(String)
+        case content(String)
+    }
+
     /// Stream the analysis of an issue/PR URL against a local repository. `ghia`
-    /// prints its summary token-by-token, which we surface as an async sequence
-    /// of chunks. `mode` is `issue` or `pr` (the latter also reviews the diff).
-    func stream(url: String, repoPath: String, mode: String) -> AsyncThrowingStream<String, Error> {
+    /// prints its summary token-by-token on stdout (→ `.content`) and phase
+    /// progress on stderr as `::progress::…` lines (→ `.progress`). `mode` is
+    /// `issue` or `pr` (the latter also reviews the diff).
+    func stream(url: String, repoPath: String, mode: String) -> AsyncThrowingStream<Event, Error> {
         AsyncThrowingStream { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 guard FileManager.default.isExecutableFile(atPath: config.binaryPath) else {
@@ -59,10 +67,10 @@ struct IssueAnalyzer {
                 env["OPENAI_MODEL"] = config.model
                 process.environment = env
 
-                let stdout = Pipe()
-                let stderr = Pipe()
-                process.standardOutput = stdout
-                process.standardError = stderr
+                let outPipe = Pipe()
+                let errPipe = Pipe()
+                process.standardOutput = outPipe
+                process.standardError = errPipe
 
                 do {
                     try process.run()
@@ -71,21 +79,48 @@ struct IssueAnalyzer {
                     return
                 }
 
-                // Yield stdout chunks as ghia streams tokens.
-                let handle = stdout.fileHandleForReading
+                // Read stderr incrementally on its own queue: `::progress::` lines
+                // are surfaced as progress events, anything else is error text.
+                let errSink = ErrorSink()
+                let group = DispatchGroup()
+                group.enter()
+                DispatchQueue.global(qos: .utility).async {
+                    let handle = errPipe.fileHandleForReading
+                    var buffer = ""
+                    func flush(_ line: String) {
+                        if line.hasPrefix("::progress::") {
+                            continuation.yield(.progress(String(line.dropFirst("::progress::".count))))
+                        } else if !line.isEmpty {
+                            errSink.append(line + "\n")
+                        }
+                    }
+                    while true {
+                        let data = handle.availableData
+                        if data.isEmpty { break }
+                        buffer += String(data: data, encoding: .utf8) ?? ""
+                        while let nl = buffer.firstIndex(of: "\n") {
+                            flush(String(buffer[..<nl]))
+                            buffer = String(buffer[buffer.index(after: nl)...])
+                        }
+                    }
+                    if !buffer.isEmpty { flush(buffer) }
+                    group.leave()
+                }
+
+                // Stream stdout content as ghia emits tokens.
+                let outHandle = outPipe.fileHandleForReading
                 while true {
-                    let data = handle.availableData
+                    let data = outHandle.availableData
                     if data.isEmpty { break } // EOF
                     if let s = String(data: data, encoding: .utf8), !s.isEmpty {
-                        continuation.yield(s)
+                        continuation.yield(.content(s))
                     }
                 }
                 process.waitUntilExit()
+                group.wait()
 
                 if process.terminationStatus != 0 {
-                    let errData = stderr.fileHandleForReading.readDataToEndOfFile()
-                    let msg = (String(data: errData, encoding: .utf8) ?? "")
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    let msg = errSink.value.trimmingCharacters(in: .whitespacesAndNewlines)
                     continuation.finish(throwing: AnalyzerError.failed("ghia 退出码 \(process.terminationStatus)：\(msg)"))
                 } else {
                     continuation.finish()
@@ -93,4 +128,12 @@ struct IssueAnalyzer {
             }
         }
     }
+}
+
+/// Thread-safe accumulator for subprocess stderr error text.
+private final class ErrorSink: @unchecked Sendable {
+    private let lock = NSLock()
+    private var text = ""
+    func append(_ s: String) { lock.lock(); text += s; lock.unlock() }
+    var value: String { lock.lock(); defer { lock.unlock() }; return text }
 }

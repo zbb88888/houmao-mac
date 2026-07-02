@@ -285,7 +285,14 @@ final class MainViewModel {
         }
 
         guard let repoPath = AppSettings.shared.resolveRepoPath(owner: owner, repo: repo) else {
-            appendIssueTurn(command: text, reply: "未找到本地仓库 \(repo)。请在设置（⌘,）里配置「代码仓库根目录」（其下应有 \(repo) 目录）。")
+            let root = AppSettings.shared.reposRoot.trimmingCharacters(in: .whitespaces)
+            let reply: String
+            if root.isEmpty {
+                reply = "尚未设置 code dir。请在设置（⌘,）配置 code dir（存放本地仓库的根目录），之后 /issue、/pr 会自动在 <code dir>/\(repo) 定位。"
+            } else {
+                reply = "code dir 已设为「\(root)」，但其下没找到仓库 \(repo)。请确认已 clone 到 \(root)/\(repo)（或 \(root)/\(owner)/\(repo)）。"
+            }
+            appendIssueTurn(command: text, reply: reply)
             return
         }
 
@@ -311,19 +318,45 @@ final class MainViewModel {
             model: resolved.model
         ))
 
+        postChatStatus(mode == "pr" ? "审阅 PR：\(repo)" : "分析 issue：\(repo)")
+
         currentTask?.cancel()
         currentTask = Task {
             do {
-                for try await chunk in analyzer.stream(url: url, repoPath: repoPath, mode: mode) {
+                for try await event in analyzer.stream(url: url, repoPath: repoPath, mode: mode) {
                     if Task.isCancelled { break }
-                    chatStore.appendToken(assistantID, chunk)
+                    switch event {
+                    case .progress(let p): postChatStatus(p)
+                    case .content(let c): chatStore.appendToken(assistantID, c)
+                    }
                 }
             } catch {
                 chatStore.appendToken(assistantID, "\n\n分析失败：\(error.localizedDescription)")
             }
             chatStore.finish(assistantID)
             isLoading = false
+            postChatStatus(idleStatus())
         }
+    }
+
+    // MARK: - Chat window status (drives the title bar)
+
+    private func postChatStatus(_ status: String) {
+        NotificationCenter.default.post(name: .houmaoChatStatusChanged, object: status)
+    }
+
+    private func idleStatus() -> String {
+        let topic = chatStore.current?.title ?? ""
+        return topic.isEmpty ? "houmao" : topic
+    }
+
+    /// Discard the whole conversation and start fresh (the chat “renew” button).
+    func renewChat() {
+        currentTask?.cancel()
+        isLoading = false
+        inputText = ""
+        chatStore.reset()
+        postChatStatus(idleStatus())
     }
 
     /// Render a `/issue` command and an immediate (non-LLM) reply as one chat
@@ -386,22 +419,34 @@ final class MainViewModel {
     /// Run one conversational turn: append the user message, stream the
     /// assistant reply into the session, and feed prior turns back as history.
     private func executeChatTurn(_ text: String) {
-        guard let resolved = AppSettings.shared.resolveModel(named: nil) else {
-            showError("No provider configured. Open Settings (⌘,) to add one.")
+        // Support `@name msg` to pick a provider/model, just like the minimal box.
+        let mention = parseModelMention(text)
+        let question = (mention?.message.isEmpty == false) ? mention!.message : text
+
+        guard let resolved = AppSettings.shared.resolveModel(named: mention?.name) else {
+            let msg = mention?.name == nil
+                ? "No provider configured. Open Settings (⌘,) to add one."
+                : "Model \"\(mention!.name)\" not found. Add it in Settings → Providers."
+            chatStore.appendUser(question)
+            let id = chatStore.startAssistant(streaming: false)
+            chatStore.updateText(id, msg)
+            chatStore.finish(id)
+            inputText = ""
             return
         }
 
         // Snapshot history BEFORE appending the new user turn.
         let priorHistory = toChatMessages(chatStore.historyMessages)
-        chatStore.appendUser(text)
+        chatStore.appendUser(question)
         let assistantID = chatStore.startAssistant(streaming: true)
 
         lastModelName = resolved.provider.name
         isLoading = true
         inputText = ""
         panel = .chat
+        postChatStatus("生成回复中…")
 
-        usageTracker?.record(text: text)
+        usageTracker?.record(text: question)
 
         let client = AiTxtClient(
             baseURL: resolved.provider.apiHost,
@@ -413,7 +458,7 @@ final class MainViewModel {
         currentTask = Task {
             do {
                 let reply = try await client.askStream(
-                    question: text,
+                    question: question,
                     attachments: [],
                     history: priorHistory
                 ) { [weak self] token in
@@ -431,6 +476,7 @@ final class MainViewModel {
             }
             chatStore.finish(assistantID)
             isLoading = false
+            postChatStatus(idleStatus())
         }
     }
 
