@@ -2,9 +2,12 @@ import Testing
 import Foundation
 @testable import houmao
 
-/// Covers `/chat` mode toggling on `MainViewModel`. These assertions exercise
-/// only the pure state machine — no network or provider resolution is hit
-/// because the `/chat` command short-circuits before any LLM call.
+/// Covers `/chat` handling on `MainViewModel`. There is no persistent chat
+/// "mode" flag anymore: `/chat` from the minimal box simply opens the standalone
+/// chat window (`panel == .chat` + enter notification), and closing it collapses
+/// the panel. These assertions exercise only the pure state machine — no network
+/// or provider resolution is hit because `/chat` short-circuits before any LLM
+/// call.
 @MainActor
 struct ChatModeTests {
     private func makeVM() -> MainViewModel {
@@ -14,24 +17,21 @@ struct ChatModeTests {
         return MainViewModel(chatStore: store)
     }
 
-    @Test func slashChatEntersChatMode() {
+    @Test func slashChatOpensChatWindow() {
         let vm = makeVM()
         vm.inputText = "/chat"
         vm.submit()
 
-        #expect(vm.isChatMode == true)
         #expect(vm.panel == .chat)
         #expect(vm.inputText == "")
     }
 
-    @Test func slashChatTwiceExits() {
+    @Test func exitChatModeCollapsesPanel() {
         let vm = makeVM()
         vm.inputText = "/chat"
         vm.submit()
-        vm.inputText = "/chat"
-        vm.submit()
+        vm.exitChatMode()
 
-        #expect(vm.isChatMode == false)
         #expect(vm.panel == .none)
     }
 
@@ -40,19 +40,19 @@ struct ChatModeTests {
         vm.inputText = "/Chat"
         vm.submit()
 
-        #expect(vm.isChatMode == true)
+        #expect(vm.panel == .chat)
     }
 
-    @Test func enteringChatModeEnsuresCurrentConversation() {
+    @Test func openingChatWindowEnsuresCurrentConversation() {
         let vm = makeVM()
         vm.inputText = "/chat"
         vm.submit()
 
-        // Entering chat must surface a usable conversation (continued or fresh).
+        // Opening the chat window must surface a usable conversation.
         #expect(vm.chatStore.current != nil)
     }
 
-    @Test func resetInputLeavesChatModeButKeepsStore() {
+    @Test func resetInputCollapsesPanelButKeepsStore() {
         let vm = makeVM()
         vm.inputText = "/chat"
         vm.submit()
@@ -61,7 +61,6 @@ struct ChatModeTests {
         vm.resetInput()
 
         // The minimal box collapses, but the persistent store is untouched.
-        #expect(vm.isChatMode == false)
         #expect(vm.panel == .none)
         #expect(vm.chatStore.messages.isEmpty == false)
     }

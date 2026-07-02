@@ -178,7 +178,7 @@ $translate                        翻译剪贴板内容
 
 - ✅ [Message.swift](../mac/houmao/houmao/Core/Chat/Message.swift)：`Identifiable/Equatable/Sendable/Codable`，`Role`=user/assistant/system，`isStreaming`。
 - ✅ [ChatStore.swift](../mac/houmao/houmao/Core/Chat/ChatStore.swift)：`@MainActor @Observable` 多会话容器，流式 token 累积、`historyMessages` 过滤；[Conversation.swift](../mac/houmao/houmao/Core/Chat/Conversation.swift) + [ConversationStore.swift](../mac/houmao/houmao/Core/Chat/ConversationStore.swift) 负责 JSON 持久化。
-- ✅ macOS `/chat` 模式切换 + 多轮上下文（`MainViewModel.toggleChatMode/executeChatTurn`，历史回传 `AiTxtClient`，流式写入 `ChatStore`）。
+- ✅ macOS `/chat` 打开独立聊天窗 + 多轮上下文（`MainViewModel.openChatWindow/sendChatTurn/executeChatTurn`，历史回传 `AiTxtClient`，流式写入 `ChatStore`；窗口可见即状态，无 `isChatMode` 标志）。
 - ✅ 标准聊天窗口 UI（头像气泡 / 多行输入 `ChatInputField` / 发送键 / `TypingIndicator` / 空状态），抽为独立 [ChatView.swift](../mac/houmao/houmao/ChatView.swift)，设计规范见 [chat-ui-design.md](chat-ui-design.md)。
 - ✅ 极简框一次性问答 → 第 3 次提交自动升级到标准办公窗口（`oneShotTurns` 计数 + `autoUpgradeToChat` 迁移前几轮上下文）。
 - ✅ 聊天窗口为独立标准 `NSWindow`（可缩放 / 原生全屏，不继承极简框悬浮属性），见 [houmaoApp.swift](../mac/houmao/houmao/houmaoApp.swift) `chatWindow`。

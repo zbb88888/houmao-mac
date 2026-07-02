@@ -111,7 +111,7 @@ oneShotTurns:[(Q1,A1),(Q2,A2)]  ──迁移──▶  ChatStore:[user Q1, assis
 | 气泡底色 | 用户 accentColor + 白字；助手 暗 `white 10%` / 亮 `black 6%` + 主色字 |
 | 内边距 | 水平 12 / 垂直 9 |
 | 行间距 | 消息间 16pt |
-| 富文本 | `renderMarkdown`（inline markdown） + `textSelection` 可选中 |
+| 富文本 | 助手：`MarkdownView` 块级渲染（标题/列表/围栏代码块+复制/引用/表格/分隔线，内联委托 `MarkdownParser.inlineAttributed`）；用户：纯文本。均 `textSelection` 可选中 |
 | 流式占位 | `TypingIndicator`：三点 6×6，0.32s 轮播，激活 1.0 / 其余 0.3 透明度 |
 | 自动滚动 | `ScrollViewReader` 锚底部 `houmao-chat-bottom`；消息数或末条文本变化时 `easeOut(0.15)` 滚到底 |
 

@@ -427,7 +427,7 @@ struct MainView: View {
                         .help("Cancel request")
                     }
                     if let partial = viewModel.lastLLMReply, !partial.isEmpty {
-                        Text(renderMarkdown(partial))
+                        Text(MarkdownParser.inlineAttributed(partial, size: textSize))
                             .font(.system(size: textSize))
                             .textSelection(.enabled)
                     }
@@ -437,16 +437,12 @@ struct MainView: View {
                     Text("A: ")
                         .font(.system(size: textSize, weight: .semibold))
                         .foregroundColor(.secondary)
-                    Text(renderMarkdown(lastLLMReply))
+                    Text(MarkdownParser.inlineAttributed(lastLLMReply, size: textSize))
                         .font(.system(size: textSize))
                         .textSelection(.enabled)
                 }
             }
         }
-    }
-
-    private func renderMarkdown(_ source: String) -> AttributedString {
-        (try? AttributedString(markdown: source, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(source)
     }
 
     private func makeAttributedText(_ label: String, _ content: String) -> AttributedString {

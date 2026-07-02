@@ -38,7 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// Standalone, resizable / full-screen-capable chat window (office-style).
     /// Distinct from the floating minimal input box; shares the view model so
-    /// the chat session and mode flag stay in sync.
+    /// the chat session stays in sync.
     private var chatWindow: NSWindow?
 
     /// Cross-process "activate the existing instance" notification, used to keep
@@ -115,9 +115,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         self.mainPanel = panel
     }
 
-    /// Open / close the standalone chat window in response to the view model
-    /// entering or leaving chat mode (via `/chat` or the auto-upgrade after the
-    /// 3rd one-shot turn).
+    /// Show / hide the standalone chat window in response to the
+    /// `.houmaoEnterChatWindow` / `.houmaoExitChatWindow` notifications the view
+    /// model posts (from `/chat`, the auto-upgrade, or the in-view exit button).
     private func setupChatWindowObservers() {
         enterChatObserver = NotificationCenter.default.addObserver(
             forName: .houmaoEnterChatWindow,
@@ -167,7 +167,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let chatView = ChatView()
             .environment(mainViewModel)
-            .environment(historyViewModel)
         // A standard resizable window must NOT use preferredContentSize sizing,
         // otherwise it would collapse to the content's intrinsic size and fight
         // the user's manual resize / full-screen.
@@ -193,18 +192,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: NSWindowDelegate
 
-    /// Closing the chat window's title-bar button leaves chat mode rather than
-    /// destroying the window, so the shared view model state stays consistent.
+    /// The title-bar close button hides the chat window instead of destroying it
+    /// (this is a standard, always-resident app), and clears the shared
+    /// view-model input state.
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard sender == chatWindow else { return true }
+        hideChatWindow()
         mainViewModel.exitChatMode()
         return false
     }
 
     func showMainPanel() {
         // Each surface is an independent singleton; summoning the minimal box
-        // leaves the chat window and settings panel as-is. resetInput (on
-        // houmaoWindowDidShow) clears the chat-mode flag.
+        // leaves the chat window and settings panel as-is.
         NotificationCenter.default.post(name: .houmaoWindowDidShow, object: nil)
         center(mainPanel, on: screenContainingMouse())
         mainPanel.makeKeyAndOrderFront(nil)
@@ -231,7 +231,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.setFrameOrigin(origin)
     }
 
-    /// 本地键盘快捷键（替代菜单 .commands，accessory app 无菜单栏）。
+    /// 应用内键盘快捷键：⌘L 清空历史、⌘B 切换历史面板、⌘W 关闭当前面板。
+    /// （⌘, 打开设置由标准应用菜单项处理，见 setupAppMenu。）
     private func setupShortcutMonitor() {
         shortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
@@ -270,7 +271,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    /// 打开设置面板（FloatingPanel，可覆盖全屏应用）。
     /// Adds the conventional "Settings…" item to the application (App-name)
     /// menu, matching every native macOS app, so ⌘, works app-wide while
     /// houmao is frontmost — not only when one of its windows is key.
@@ -326,14 +326,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         settingsPanel?.makeKeyAndOrderFront(nil)
     }
 
-    /// Acquire the process-level single-instance lock. Returns false (and asks
-    /// this process to terminate) when another instance of the same bundle is
-    /// already running; otherwise registers the cross-process activation
-    /// listener and returns true.
-    ///
-    /// Pure runtime enforcement (no `LSMultipleInstancesProhibited` needed):
-    /// `NSRunningApplication` alone guarantees uniqueness; the distributed
-    /// notification is only the "re-open surfaces the existing instance" nicety.
+    /// Acquire the process-level single-instance lock via an exclusive advisory
+    /// `flock` on a per-user lockfile. Returns false (and terminates this
+    /// process) when another instance already holds the lock; otherwise keeps
+    /// the fd open for the process lifetime, registers the cross-process
+    /// activation listener, and returns true.
     private func acquireSingleInstanceLock() -> Bool {
         // Under XCTest the app boots as the unit-test host; the lock must not
         // terminate that host (it would abort the suite), so bypass it there.

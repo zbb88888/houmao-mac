@@ -22,9 +22,6 @@ final class MainViewModel {
     var panel: Panel = .none
     var lastModelName: String?
 
-    /// Whether `/chat` multi-turn conversation mode is active.
-    var isChatMode: Bool = false
-
     var attachments: [Attachment] = []
 
     private var currentTask: Task<Void, Never>?
@@ -100,19 +97,12 @@ final class MainViewModel {
             commandHistory.add(trimmed)
         }
 
-        // `/chat` toggles multi-turn chat mode. Exit reuses panel show/hide
-        // (double-Option / ⌘W), identical to the minimal input box (ADR-6).
+        // `/chat` from the minimal box just opens the standalone chat window.
+        // The box itself stays a one-shot surface; conversational turns happen
+        // in the chat window (whichever window is up is the surface in use).
         if trimmed.lowercased() == "/chat" {
             inputText = ""
-            toggleChatMode()
-            return
-        }
-
-        // In chat mode every text submission is a conversational turn.
-        if isChatMode {
-            if !trimmed.isEmpty {
-                executeChatTurn(trimmed)
-            }
+            openChatWindow()
             return
         }
 
@@ -227,23 +217,29 @@ final class MainViewModel {
         }
     }
 
-    /// Toggle `/chat` multi-turn mode. Entering opens the chat window on the
-    /// most recent conversation (or a fresh one if none); leaving collapses it.
+    /// Open the standalone chat window on the most recent conversation (or a
+    /// fresh one). The chat window is a self-contained surface — presenting it
+    /// IS the state, so there is no persistent "chat mode" flag to keep in sync.
     /// The persisted conversations are never discarded here.
-    private func toggleChatMode() {
-        isChatMode.toggle()
-        if isChatMode {
-            chatStore.ensureCurrent()
-            oneShotTurns.removeAll()
-            lastUserText = nil
-            lastLLMReply = nil
-            lastModelName = nil
-            panel = .chat
-            NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
-        } else {
-            panel = .none
-            NotificationCenter.default.post(name: .houmaoExitChatWindow, object: nil)
-        }
+    func openChatWindow() {
+        chatStore.ensureCurrent()
+        oneShotTurns.removeAll()
+        lastUserText = nil
+        lastLLMReply = nil
+        lastModelName = nil
+        panel = .chat
+        NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
+    }
+
+    /// Submit from the standalone chat window. This surface is always a
+    /// multi-turn conversation, so route straight to a chat turn — the visible
+    /// window is the source of truth, no mode flag required.
+    func sendChatTurn() {
+        let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        commandHistory.add(trimmed)
+        chatStore.ensureCurrent()
+        executeChatTurn(trimmed)
     }
 
     /// Auto-upgrade the one-shot input box into the standalone chat window:
@@ -251,7 +247,6 @@ final class MainViewModel {
     /// open the chat window, then run the triggering submission as its first
     /// chat turn.
     private func autoUpgradeToChat(initialText: String) {
-        isChatMode = true
         var seed: [Message] = []
         for turn in oneShotTurns {
             seed.append(Message(role: .user, text: turn.user))
@@ -264,11 +259,10 @@ final class MainViewModel {
         executeChatTurn(initialText)
     }
 
-    /// Leave chat mode (used by the in-panel exit button). Mirrors the `/chat`
-    /// toggle's exit branch so both routes behave identically.
+    /// Dismiss the standalone chat window (in-panel ✕ button / title-bar close).
+    /// There is no mode flag to clear — hiding the window is the whole
+    /// operation; the persisted conversations are untouched.
     func exitChatMode() {
-        guard isChatMode else { return }
-        isChatMode = false
         panel = .none
         inputText = ""
         oneShotTurns.removeAll()
@@ -388,7 +382,6 @@ final class MainViewModel {
         inputText = ""
         attachments = []
         panel = .none
-        isChatMode = false
         oneShotTurns.removeAll()
         commandHistory.reset()
     }

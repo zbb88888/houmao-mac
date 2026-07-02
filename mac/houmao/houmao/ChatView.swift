@@ -213,7 +213,7 @@ struct ChatView: View {
                     measuredHeight: $chatInputHeight,
                     font: .systemFont(ofSize: 15),
                     maxHeight: 120,
-                    onSubmit: { viewModel.submit() }
+                    onSubmit: { viewModel.sendChatTurn() }
                 )
                 .frame(height: chatInputHeight)
                 .padding(.horizontal, 6)
@@ -227,7 +227,7 @@ struct ChatView: View {
                 if viewModel.isLoading {
                     viewModel.cancelRequest()
                 } else {
-                    viewModel.submit()
+                    viewModel.sendChatTurn()
                 }
             }) {
                 Image(systemName: viewModel.isLoading ? "stop.circle.fill" : "arrow.up.circle.fill")
@@ -269,11 +269,17 @@ struct ChatView: View {
             Group {
                 if message.text.isEmpty && message.isStreaming {
                     TypingIndicator()
-                } else {
-                    Text(renderMarkdown(message.text))
+                } else if isUser {
+                    // User text is shown as typed (plain, selectable) — block
+                    // Markdown decorations would clash with the accent bubble.
+                    Text(message.text)
                         .font(.system(size: 14))
                         .textSelection(.enabled)
-                        .foregroundColor(isUser ? .white : .primary)
+                        .foregroundColor(.white)
+                } else {
+                    // Assistant replies get full block-level Markdown rendering.
+                    MarkdownView(text: message.text, baseFontSize: 14)
+                        .foregroundColor(.primary)
                 }
             }
             .padding(.horizontal, 12)
@@ -298,10 +304,6 @@ struct ChatView: View {
                 .foregroundColor(isUser ? .primary : .white)
         }
         .frame(width: 30, height: 30)
-    }
-
-    private func renderMarkdown(_ source: String) -> AttributedString {
-        (try? AttributedString(markdown: source, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(source)
     }
 }
 
