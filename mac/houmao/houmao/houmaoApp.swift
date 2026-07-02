@@ -6,10 +6,17 @@ struct HoumaoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        // Settings 面板由 AppDelegate.openSettings() 通过 FloatingPanel 管理，
-        // 此处保留空 WindowGroup 满足 SwiftUI App 至少一个 Scene 的要求。
+        // Windows (chat / minimal box) are AppKit-driven via AppDelegate; the
+        // empty, suppressed WindowGroup only satisfies SwiftUI's "≥ 1 scene"
+        // requirement. The Settings scene gives the standard "Settings…" app-menu
+        // item (⌘,) for free, at the conventional macOS location — no manual
+        // NSMenuItem wiring (which SwiftUI would rebuild away).
         WindowGroup { EmptyView() }
             .defaultLaunchBehavior(.suppressed)
+
+        Settings {
+            SettingsView()
+        }
     }
 }
 
@@ -29,7 +36,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private(set) var mainPanel: FloatingPanel!
     /// Held for the whole process lifetime; closing it drops the single-instance flock.
     private var lockFileDescriptor: Int32 = -1
-    private var settingsPanel: FloatingPanel?
     private(set) var mainViewModel: MainViewModel!
     private(set) var historyViewModel: HistoryViewModel!
     private var shortcutMonitor: Any?
@@ -68,7 +74,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupPanel()
         setupShortcutMonitor()
         setupChatWindowObservers()
-        setupAppMenu()
 
         hotKeyManager = GlobalHotKeyManager.shared
         tracker.start()
@@ -177,7 +182,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func showChatWindow() {
         // The chat window is an independent singleton; showing it leaves the
-        // input box and settings panel as-is.
+        // input box as-is.
         let window = chatWindow ?? makeChatWindow()
         chatWindow = window
 
@@ -204,7 +209,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func showMainPanel() {
         // Each surface is an independent singleton; summoning the minimal box
-        // leaves the chat window and settings panel as-is.
+        // leaves the chat window as-is.
         NotificationCenter.default.post(name: .houmaoWindowDidShow, object: nil)
         center(mainPanel, on: screenContainingMouse())
         mainPanel.makeKeyAndOrderFront(nil)
@@ -269,61 +274,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             return swallow ? nil : event
         }
-    }
-
-    /// Adds the conventional "Settings…" item to the application (App-name)
-    /// menu, matching every native macOS app, so ⌘, works app-wide while
-    /// houmao is frontmost — not only when one of its windows is key.
-    private func setupAppMenu() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self,
-                  let appMenu = NSApp.mainMenu?.items.first?.submenu else { return }
-            // Idempotent: never insert the item twice.
-            guard appMenu.indexOfItem(withTarget: self,
-                                      andAction: #selector(self.openSettingsMenuAction)) < 0 else { return }
-            let item = NSMenuItem(title: "Settings…",
-                                  action: #selector(self.openSettingsMenuAction),
-                                  keyEquivalent: ",")
-            item.target = self
-            // macOS convention: About / --- / Settings… / --- / Services.
-            let index = min(2, appMenu.numberOfItems)
-            appMenu.insertItem(item, at: index)
-            appMenu.insertItem(.separator(), at: index + 1)
-        }
-    }
-
-    @objc private func openSettingsMenuAction() {
-        openSettings()
-    }
-
-    private func openSettings() {
-        // The settings panel is an independent singleton; showing it leaves the
-        // input box and chat window as-is.
-        if settingsPanel == nil {
-            let panel = FloatingPanel(
-                contentRect: .zero,
-                styleMask: [.nonactivatingPanel, .titled, .closable, .fullSizeContentView],
-                backing: .buffered,
-                defer: false
-            )
-            panel.isFloatingPanel = true
-            panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.popUpMenuWindow)))
-            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-            panel.hidesOnDeactivate = false
-            panel.becomesKeyOnlyIfNeeded = false
-            panel.isReleasedWhenClosed = false
-            panel.title = "Settings"
-
-            let controller = NSHostingController(rootView: SettingsView())
-            controller.sizingOptions = [.preferredContentSize]
-            controller.safeAreaRegions = []
-            panel.contentViewController = controller
-            panel.center()
-
-            settingsPanel = panel
-        }
-
-        settingsPanel?.makeKeyAndOrderFront(nil)
     }
 
     /// Acquire the process-level single-instance lock via an exclusive advisory
