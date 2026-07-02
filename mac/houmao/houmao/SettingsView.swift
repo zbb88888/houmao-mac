@@ -64,6 +64,7 @@ struct SettingsView: View {
     private var settings = AppSettings.shared
 
     @State private var copyOnSelection = false
+    @State private var reposRoot = ""
 
     @State private var editingProviderID: UUID?
     @State private var providerName = ""
@@ -87,6 +88,25 @@ struct SettingsView: View {
                 .onReceive(NotificationCenter.default.publisher(for: .houmaoSelectToCopyAuthorizationDidChange)) { _ in
                     copyOnSelection = SelectToCopyManager.shared.isEnabled
                 }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("代码仓库根目录")
+                    .font(.system(size: 12, weight: .medium))
+                Text("用于 /issue 按 URL 自动定位本地仓库（<根>/<repo>）")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                HStack {
+                    TextField("如 ~/code", text: $reposRoot)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: reposRoot) { _, newValue in
+                            settings.reposRoot = newValue
+                        }
+                    Button("选择…") { chooseReposRoot() }
+                }
+            }
+            .onAppear { reposRoot = settings.reposRoot }
 
             Divider()
 
@@ -255,5 +275,16 @@ struct SettingsView: View {
         providerModels = ""
         providerError = ""
         editingProviderID = nil
+    }
+
+    private func chooseReposRoot() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        if panel.runModal() == .OK, let url = panel.url {
+            reposRoot = url.path
+            settings.reposRoot = url.path
+        }
     }
 }

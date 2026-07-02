@@ -106,6 +106,15 @@ final class MainViewModel {
             return
         }
 
+        // `/issue <url>` / `/pr <url>` analyze a GitHub issue or PR against a
+        // local repo (external `ghia`), rendered as a conversation in the chat
+        // window. `/pr` additionally reviews the diff.
+        if let mode = analysisMode(trimmed) {
+            inputText = ""
+            analyzeCommand(trimmed, mode: mode)
+            return
+        }
+
         // Check commands (only when no media attached)
         if !hasAttachments, let target = commands[trimmed.lowercased()] {
             inputText = ""
@@ -238,8 +247,108 @@ final class MainViewModel {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         commandHistory.add(trimmed)
+        if let mode = analysisMode(trimmed) {
+            inputText = ""
+            analyzeCommand(trimmed, mode: mode)
+            return
+        }
         chatStore.ensureCurrent()
         executeChatTurn(trimmed)
+    }
+
+    // MARK: - /issue and /pr commands
+
+    /// Returns the ghia analysis mode for a command line, or nil if it isn't one.
+    private func analysisMode(_ text: String) -> String? {
+        let lower = text.lowercased()
+        if lower == "/issue" || lower.hasPrefix("/issue ") { return "issue" }
+        if lower == "/pr" || lower.hasPrefix("/pr ") { return "pr" }
+        return nil
+    }
+
+    /// Parse `/issue <url>` or `/pr <url>` and analyze it against the local
+    /// repository (auto-located under the configured repos root) via the
+    /// external `ghia` tool, rendered as a chat turn. `/pr` reviews the diff.
+    func analyzeCommand(_ text: String, mode: String) {
+        let tokens = text.split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)
+        let cmd = tokens.first ?? "/issue"
+        guard tokens.count >= 2 else {
+            let kind = mode == "pr" ? "PR" : "issue"
+            appendIssueTurn(command: text, reply: "用法：\(cmd) <github-\(kind)-URL>")
+            return
+        }
+        let url = tokens[1]
+
+        guard let (owner, repo) = parseGitHubOwnerRepo(url) else {
+            appendIssueTurn(command: text, reply: "无法识别 issue/PR URL：\(url)")
+            return
+        }
+
+        guard let repoPath = AppSettings.shared.resolveRepoPath(owner: owner, repo: repo) else {
+            appendIssueTurn(command: text, reply: "未找到本地仓库 \(repo)。请在设置（⌘,）里配置「代码仓库根目录」（其下应有 \(repo) 目录）。")
+            return
+        }
+
+        guard let resolved = AppSettings.shared.resolveModel(named: nil) else {
+            appendIssueTurn(command: text, reply: "未配置 provider，请先在设置（⌘,）中添加。")
+            return
+        }
+
+        chatStore.ensureCurrent()
+        panel = .chat
+        NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
+
+        chatStore.appendUser(text)
+        let assistantID = chatStore.startAssistant(streaming: true)
+        lastModelName = resolved.provider.name
+        isLoading = true
+        inputText = ""
+
+        let analyzer = IssueAnalyzer(config: .init(
+            binaryPath: IssueAnalyzer.defaultBinaryPath,
+            apiKey: resolved.provider.apiKey,
+            baseURL: resolved.provider.apiHost + "/v1",
+            model: resolved.model
+        ))
+
+        currentTask?.cancel()
+        currentTask = Task {
+            do {
+                for try await chunk in analyzer.stream(url: url, repoPath: repoPath, mode: mode) {
+                    if Task.isCancelled { break }
+                    chatStore.appendToken(assistantID, chunk)
+                }
+            } catch {
+                chatStore.appendToken(assistantID, "\n\n分析失败：\(error.localizedDescription)")
+            }
+            chatStore.finish(assistantID)
+            isLoading = false
+        }
+    }
+
+    /// Render a `/issue` command and an immediate (non-LLM) reply as one chat
+    /// turn, e.g. usage or configuration errors.
+    private func appendIssueTurn(command: String, reply: String) {
+        chatStore.ensureCurrent()
+        panel = .chat
+        NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
+        chatStore.appendUser(command)
+        let id = chatStore.startAssistant(streaming: false)
+        chatStore.updateText(id, reply)
+        chatStore.finish(id)
+        inputText = ""
+    }
+
+    /// Extract (owner, repo) from a GitHub issue/PR URL; nil if it doesn't match.
+    private func parseGitHubOwnerRepo(_ url: String) -> (owner: String, repo: String)? {
+        let pattern = #"github\.com/([^/]+)/([^/]+)/(?:issues|pull)/\d+"#
+        guard let re = try? NSRegularExpression(pattern: pattern),
+              let m = re.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)),
+              let ownerRange = Range(m.range(at: 1), in: url),
+              let repoRange = Range(m.range(at: 2), in: url) else {
+            return nil
+        }
+        return (String(url[ownerRange]), String(url[repoRange]))
     }
 
     /// Auto-upgrade the one-shot input box into the standalone chat window:

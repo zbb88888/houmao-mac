@@ -1,0 +1,96 @@
+import Foundation
+
+/// Runs the external `ghia` (GitHub Issue Analyzer) binary as a subprocess and
+/// returns its Markdown analysis.
+///
+/// A GUI app inherits a minimal `PATH` and none of the shell's environment, so
+/// we (1) augment `PATH` for the Homebrew locations `ghia` needs to find its own
+/// `gh` / `rg` dependencies, and (2) pass the LLM provider config explicitly via
+/// `OPENAI_*` so `ghia` reuses houmao's configured provider.
+struct IssueAnalyzer {
+    struct Config {
+        var binaryPath: String
+        var apiKey: String
+        var baseURL: String // OpenAI-compatible base, including the `/v1` suffix.
+        var model: String
+    }
+
+    enum AnalyzerError: LocalizedError {
+        case binaryNotFound(String)
+        case failed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .binaryNotFound(let path):
+                return "找不到 ghia 可执行文件：\(path)。请先在 client-tools 里 `make build`。"
+            case .failed(let message):
+                return message
+            }
+        }
+    }
+
+    let config: Config
+
+    /// Default install location of the `ghia` binary (client-tools `make build`).
+    static var defaultBinaryPath: String {
+        (NSHomeDirectory() as NSString).appendingPathComponent("houmao/client-tools/bin/ghia")
+    }
+
+    /// Stream the analysis of an issue/PR URL against a local repository. `ghia`
+    /// prints its summary token-by-token, which we surface as an async sequence
+    /// of chunks. `mode` is `issue` or `pr` (the latter also reviews the diff).
+    func stream(url: String, repoPath: String, mode: String) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                guard FileManager.default.isExecutableFile(atPath: config.binaryPath) else {
+                    continuation.finish(throwing: AnalyzerError.binaryNotFound(config.binaryPath))
+                    return
+                }
+
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: config.binaryPath)
+                process.arguments = ["-url", url, "-repo", repoPath, "-mode", mode, "-timeout", "240s"]
+
+                var env = ProcessInfo.processInfo.environment
+                let brewPaths = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+                env["PATH"] = env["PATH"].map { "\(brewPaths):\($0)" } ?? brewPaths
+                env["OPENAI_API_KEY"] = config.apiKey
+                env["OPENAI_BASE_URL"] = config.baseURL
+                env["OPENAI_MODEL"] = config.model
+                process.environment = env
+
+                let stdout = Pipe()
+                let stderr = Pipe()
+                process.standardOutput = stdout
+                process.standardError = stderr
+
+                do {
+                    try process.run()
+                } catch {
+                    continuation.finish(throwing: error)
+                    return
+                }
+
+                // Yield stdout chunks as ghia streams tokens.
+                let handle = stdout.fileHandleForReading
+                while true {
+                    let data = handle.availableData
+                    if data.isEmpty { break } // EOF
+                    if let s = String(data: data, encoding: .utf8), !s.isEmpty {
+                        continuation.yield(s)
+                    }
+                }
+                process.waitUntilExit()
+
+                if process.terminationStatus != 0 {
+                    let errData = stderr.fileHandleForReading.readDataToEndOfFile()
+                    let msg = (String(data: errData, encoding: .utf8) ?? "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    continuation.finish(throwing: AnalyzerError.failed("ghia 退出码 \(process.terminationStatus)：\(msg)"))
+                } else {
+                    continuation.finish()
+                }
+            }
+        }
+    }
+}

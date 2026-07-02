@@ -69,6 +69,12 @@ final class AppSettings {
         didSet { saveProviders() }
     }
 
+    /// Root directory under which local clones live, used to auto-locate a repo
+    /// for `/issue` (so the URL alone is enough). Persisted to UserDefaults.
+    var reposRoot: String {
+        didSet { UserDefaults.standard.set(reposRoot, forKey: "reposRoot") }
+    }
+
     private init() {
         if let data = UserDefaults.standard.data(forKey: "providers"),
            let decoded = try? JSONDecoder().decode([Provider].self, from: data) {
@@ -76,10 +82,27 @@ final class AppSettings {
         } else {
             self.providers = []
         }
+        self.reposRoot = UserDefaults.standard.string(forKey: "reposRoot") ?? ""
         // Clean up legacy keys from previous versions
         UserDefaults.standard.removeObject(forKey: "workers")
         // Hydrate API keys from the Keychain (and migrate legacy plaintext keys).
         loadAPIKeys()
+    }
+
+    /// Resolve a local repository path for `owner/repo` under `reposRoot`,
+    /// trying `<root>/<repo>` then `<root>/<owner>/<repo>`. Returns nil when
+    /// `reposRoot` is unset or no matching directory exists.
+    func resolveRepoPath(owner: String, repo: String) -> String? {
+        let root = (reposRoot as NSString).expandingTildeInPath
+        guard !root.isEmpty else { return nil }
+        let fm = FileManager.default
+        for candidate in ["\(root)/\(repo)", "\(root)/\(owner)/\(repo)"] {
+            var isDir: ObjCBool = false
+            if fm.fileExists(atPath: candidate, isDirectory: &isDir), isDir.boolValue {
+                return candidate
+            }
+        }
+        return nil
     }
 
     /// Fill each provider's `apiKey` from the Keychain. If a provider still

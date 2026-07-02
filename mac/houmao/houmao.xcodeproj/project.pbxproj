@@ -29,6 +29,7 @@
 		86152D287A639E44D19E8D75 /* HistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F2FF595A63FBBFCE32E347 /* HistoryViewModel.swift */; };
 		8C4AE05803D40E41CAC8831D /* SelectToCopyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 410FF4A6A10475DBEC89ECF4 /* SelectToCopyManager.swift */; };
 		8E10C6E4356EA19E054822D8 /* CommandHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F4B902B3D042810487E0B2F /* CommandHistory.swift */; };
+		8F1FEBBA064AF43072562A25 /* IssueAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 862143F6F82F5ABC375AD59C /* IssueAnalyzer.swift */; };
 		9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */; };
 		9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31DADFF4D45E07705B344E48 /* MainViewModel.swift */; };
 		A3C3D1FF66B9D838943E282F /* PipelineRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A46DDBD2FAFB7BCD7D2052 /* PipelineRunner.swift */; };
@@ -87,6 +88,7 @@
 		75259439A55CE9D1A9179843 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		76274726958AE5C36B6AC0B5 /* Attachment+AppKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Attachment+AppKit.swift"; sourceTree = "<group>"; };
 		8482DAE51378989DE1B24152 /* houmaoUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		862143F6F82F5ABC375AD59C /* IssueAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueAnalyzer.swift; sourceTree = "<group>"; };
 		866890AB80CBCD0C2B1C2E96 /* ConversationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStore.swift; sourceTree = "<group>"; };
 		8AB2D08692D6137AFEE6BF4A /* houmao.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = houmao.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoTests.swift; sourceTree = "<group>"; };
@@ -195,6 +197,7 @@
 				6E00EBE3D61489D710C85775 /* GlobalHotKeyManager.swift */,
 				2C9AEEE5D5E88D810CC2F4E7 /* houmaoApp.swift */,
 				CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */,
+				862143F6F82F5ABC375AD59C /* IssueAnalyzer.swift */,
 				FD58C3AFB563B123BF6B396A /* MainView.swift */,
 				31DADFF4D45E07705B344E48 /* MainViewModel.swift */,
 				5BF08A509F2FFE9FEE779D39 /* MarkdownView.swift */,
@@ -331,6 +334,7 @@
 				03EC79C73AD3CEA674FB1445 /* HistoryStore.swift in Sources */,
 				86152D287A639E44D19E8D75 /* HistoryViewModel.swift in Sources */,
 				9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */,
+				8F1FEBBA064AF43072562A25 /* IssueAnalyzer.swift in Sources */,
 				4DC903D4DC0CF422B37647D4 /* KeychainStore.swift in Sources */,
 				F91C0061C677A89D66AD3817 /* MainView.swift in Sources */,
 				9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */,
