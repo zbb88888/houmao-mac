@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 // MARK: - Standard chat window content
 //
@@ -35,8 +34,6 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            chatHeader
-            Divider().overlay(theme.divider)
             chatMessageList
             Divider().overlay(theme.divider)
             chatInputBar
@@ -63,35 +60,6 @@ struct ChatView: View {
             }
         }
         .preferredColorScheme(.light)
-    }
-
-    // MARK: - Header
-
-    private var chatHeader: some View {
-        HStack(spacing: 8) {
-            Button(action: { viewModel.renewChat() }) {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 14))
-                    .foregroundColor(theme.textSecondary)
-            }
-            .buttonStyle(.plain)
-            .help("Renew")
-
-            if let modelName = viewModel.lastModelName {
-                modelBadge(modelName)
-                contextRing
-            }
-            Spacer()
-            Button(action: { viewModel.exitChatMode() }) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 15))
-                    .foregroundColor(theme.textSecondary)
-            }
-            .buttonStyle(.plain)
-            .help("Close")
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
     }
 
     // MARK: - Message list
@@ -149,8 +117,16 @@ struct ChatView: View {
 
     private var chatInputBar: some View {
         @Bindable var viewModel = viewModel
-        let canSend = !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return HStack(alignment: .bottom, spacing: 10) {
+            // Left: display-only status (model + context-usage ring).
+            if let modelName = viewModel.lastModelName {
+                HStack(spacing: 8) {
+                    modelBadge(modelName)
+                    contextRing
+                }
+                .padding(.bottom, 8)
+            }
+
             ZStack(alignment: .topLeading) {
                 if viewModel.inputText.isEmpty {
                     Text("Message...  ( ⏎ send · ⇧⏎ newline )")
@@ -179,20 +155,27 @@ struct ChatView: View {
             .background(theme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-            Button(action: {
+            // Right: stop (only while generating) + new-conversation. There is no
+            // submit button — Enter sends (⇧⏎ inserts a newline).
+            HStack(spacing: 10) {
                 if viewModel.isLoading {
-                    viewModel.cancelRequest()
-                } else {
-                    viewModel.sendChatTurn()
+                    Button(action: { viewModel.cancelRequest() }) {
+                        Image(systemName: "stop.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(theme.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Stop")
                 }
-            }) {
-                Image(systemName: viewModel.isLoading ? "stop.circle.fill" : "arrow.up.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundColor((canSend || viewModel.isLoading) ? theme.accent : theme.textSecondary.opacity(0.4))
+                Button(action: { viewModel.renewChat() }) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 16))
+                        .foregroundColor(theme.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .help("新对话")
             }
-            .buttonStyle(.plain)
-            .disabled(!canSend && !viewModel.isLoading)
-            .help(viewModel.isLoading ? "Stop" : "Send")
+            .padding(.bottom, 8)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)

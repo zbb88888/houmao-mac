@@ -202,7 +202,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func hideChatWindow() {
-        chatWindow?.orderOut(nil)
+        guard let window = chatWindow else { return }
+        guard window.styleMask.contains(.fullScreen) else {
+            window.orderOut(nil)
+            return
+        }
+        // `orderOut` on a full-screen window leaves an empty black Space. Exit
+        // full screen first, then hide once the transition finishes.
+        var token: NSObjectProtocol?
+        token = NotificationCenter.default.addObserver(
+            forName: NSWindow.didExitFullScreenNotification, object: window, queue: .main
+        ) { _ in
+            window.orderOut(nil)
+            if let token { NotificationCenter.default.removeObserver(token) }
+        }
+        window.toggleFullScreen(nil)
     }
 
     // MARK: NSWindowDelegate
