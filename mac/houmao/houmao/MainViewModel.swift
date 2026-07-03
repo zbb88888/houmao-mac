@@ -573,6 +573,7 @@ final class MainViewModel {
                 let reply = try await client.askStream(
                     question: sentQuestion,
                     attachments: [],
+                    // 聊天框：多轮对话，回放全部历史（见 docs/ui-design.md §4）。
                     history: priorHistory
                 ) { [weak self] token in
                     Task { @MainActor in
@@ -593,6 +594,10 @@ final class MainViewModel {
         }
     }
 
+    /// One-shot query from the 临时对话框 (minimal input box): a brand-new
+    /// exchange every time, sent with no history (see docs/ui-design.md §4).
+    /// The reply is kept in `oneShotTurns` only to seed a fresh chat conversation
+    /// if the box later upgrades to the chat window.
     private func executeQuery(question: String, resolved: ResolvedModel, attachments: [Attachment]) {
         let client = AiTxtClient(baseURL: resolved.provider.apiHost, model: resolved.model, apiKey: resolved.provider.apiKey)
 
@@ -616,6 +621,7 @@ final class MainViewModel {
                 let reply = try await client.askStream(
                     question: question,
                     attachments: currentAttachments,
+                    // 临时对话框：每次都是全新对话，不带历史（见 docs/ui-design.md §4）。
                     history: []
                 ) { [weak self] token in
                     Task { @MainActor in
