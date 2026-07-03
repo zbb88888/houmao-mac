@@ -155,8 +155,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func makeChatWindow() -> NSWindow {
         let screen = screenContainingMouse()
         let visible = screen.visibleFrame
-        let width = min(1040, max(760, visible.width * 0.6))
-        let height = min(760, max(480, visible.height * 0.8))
+        let width = min(1600, max(900, visible.width * 0.9))
+        let height = min(1080, max(560, visible.height * 0.85))
         let rect = NSRect(
             x: visible.midX - width / 2,
             y: visible.midY - height / 2,

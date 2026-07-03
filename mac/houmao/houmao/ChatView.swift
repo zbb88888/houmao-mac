@@ -93,7 +93,7 @@ struct ChatView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 18)
-                .frame(maxWidth: 920, alignment: .center)
+                .frame(maxWidth: 1100, alignment: .center)
                 .frame(maxWidth: .infinity)
             }
             .onChange(of: viewModel.chatStore.messages.count) {
