@@ -301,7 +301,10 @@ final class MainViewModel {
             return
         }
 
-        chatStore.ensureCurrent()
+        // Each analysis starts a fresh conversation: different PRs/issues use a
+        // brand-new session so context stays small (local LLM window is limited)
+        // and follow-up chat only carries this analysis.
+        chatStore.newConversation()
         panel = .chat
         NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
 
@@ -405,6 +408,7 @@ final class MainViewModel {
     /// There is no mode flag to clear — hiding the window is the whole
     /// operation; the persisted conversations are untouched.
     func exitChatMode() {
+        currentTask?.cancel()
         panel = .none
         inputText = ""
         oneShotTurns.removeAll()

@@ -49,29 +49,35 @@ struct IssueAnalyzer {
     /// `issue` or `pr` (the latter also reviews the diff).
     func stream(url: String, repoPath: String, mode: String) -> AsyncThrowingStream<Event, Error> {
         AsyncThrowingStream { continuation in
+            guard FileManager.default.isExecutableFile(atPath: config.binaryPath) else {
+                continuation.finish(throwing: AnalyzerError.binaryNotFound(config.binaryPath))
+                return
+            }
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: config.binaryPath)
+            process.arguments = ["-url", url, "-repo", repoPath, "-mode", mode, "-timeout", "480s"]
+
+            var env = ProcessInfo.processInfo.environment
+            let brewPaths = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+            env["PATH"] = env["PATH"].map { "\(brewPaths):\($0)" } ?? brewPaths
+            env["OPENAI_API_KEY"] = config.apiKey
+            env["OPENAI_BASE_URL"] = config.baseURL
+            env["OPENAI_MODEL"] = config.model
+            process.environment = env
+
+            let outPipe = Pipe()
+            let errPipe = Pipe()
+            process.standardOutput = outPipe
+            process.standardError = errPipe
+
+            // Cancelling the consuming task (window close / renew / a new command)
+            // terminates the ghia subprocess so it stops burning compute.
+            continuation.onTermination = { _ in
+                if process.isRunning { process.terminate() }
+            }
+
             DispatchQueue.global(qos: .userInitiated).async {
-                guard FileManager.default.isExecutableFile(atPath: config.binaryPath) else {
-                    continuation.finish(throwing: AnalyzerError.binaryNotFound(config.binaryPath))
-                    return
-                }
-
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: config.binaryPath)
-                process.arguments = ["-url", url, "-repo", repoPath, "-mode", mode, "-timeout", "240s"]
-
-                var env = ProcessInfo.processInfo.environment
-                let brewPaths = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
-                env["PATH"] = env["PATH"].map { "\(brewPaths):\($0)" } ?? brewPaths
-                env["OPENAI_API_KEY"] = config.apiKey
-                env["OPENAI_BASE_URL"] = config.baseURL
-                env["OPENAI_MODEL"] = config.model
-                process.environment = env
-
-                let outPipe = Pipe()
-                let errPipe = Pipe()
-                process.standardOutput = outPipe
-                process.standardError = errPipe
-
                 do {
                     try process.run()
                 } catch {
@@ -119,7 +125,7 @@ struct IssueAnalyzer {
                 process.waitUntilExit()
                 group.wait()
 
-                if process.terminationStatus != 0 {
+                if process.terminationStatus != 0 && process.terminationReason == .exit {
                     let msg = errSink.value.trimmingCharacters(in: .whitespacesAndNewlines)
                     continuation.finish(throwing: AnalyzerError.failed("ghia 退出码 \(process.terminationStatus)：\(msg)"))
                 } else {
