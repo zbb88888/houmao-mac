@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 // MARK: - Standard chat window content
 //
@@ -128,14 +129,6 @@ struct ChatView: View {
             }
 
             ZStack(alignment: .topLeading) {
-                if viewModel.inputText.isEmpty {
-                    Text("Message...  ( ⏎ send · ⇧⏎ newline )")
-                        .font(.system(size: 15))
-                        .foregroundColor(theme.textSecondary.opacity(0.8))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 8)
-                        .allowsHitTesting(false)
-                }
                 ChatInputField(
                     text: $viewModel.inputText,
                     isFocused: $isInputFocused,
@@ -257,6 +250,11 @@ struct ChatView: View {
             .padding(.vertical, 9)
             .background(isUser ? theme.accent : theme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .contextMenu {
+                if !message.text.isEmpty {
+                    Button("复制") { copyToPasteboard(message.text) }
+                }
+            }
 
             if isUser {
                 chatAvatar(isUser: true)
@@ -275,6 +273,11 @@ struct ChatView: View {
                 .foregroundColor(isUser ? theme.textPrimary : theme.onAccent)
         }
         .frame(width: 30, height: 30)
+    }
+
+    private func copyToPasteboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 }
 

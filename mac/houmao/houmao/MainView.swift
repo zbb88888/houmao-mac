@@ -35,14 +35,6 @@ struct MainView: View {
         return min(1280, availableWidth)
     }
 
-    /// Dynamic placeholder showing current default provider.
-    private var inputPlaceholder: String {
-        if let resolved = settings.resolveModel(named: nil) {
-            return "Ask \(resolved.provider.name)... (h for help)"
-        }
-        return "Add a provider in Settings (⌘,)"
-    }
-
     private let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd HH:mm"
@@ -122,7 +114,7 @@ struct MainView: View {
                 IMETextField(
                     text: $viewModel.inputText,
                     isFocused: $isInputFocused,
-                    placeholder: inputPlaceholder,
+                    placeholder: "",
                     font: .systemFont(ofSize: 18, weight: .medium),
                     onSubmit: { viewModel.submit() },
                     onUpArrow: viewModel.commandHistory.previous,
