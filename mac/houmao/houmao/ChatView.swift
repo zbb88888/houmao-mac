@@ -10,31 +10,45 @@ import AppKit
 
 struct ChatView: View {
     @Environment(MainViewModel.self) private var viewModel
-    @Environment(\.colorScheme) private var colorScheme
     @State private var isInputFocused: Bool = false
     @State private var chatInputHeight: CGFloat = 34
+    @State private var windowSize: CGSize = .zero
 
     private let chatBottomAnchor = "houmao-chat-bottom"
 
-    private var dividerColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.06)
+    private var theme: Theme { AppTheme.current }
+
+    /// Golden-ratio adaptive cap for the input box: it grows with content up to
+    /// the minor golden segment (≈0.382) of the window height, so a filled input
+    /// leaves the major segment (≈0.618) for messages. Falls back to 132 before
+    /// the window height is measured.
+    private var inputMaxHeight: CGFloat {
+        windowSize.height > 0 ? windowSize.height * 0.382 : 132
     }
 
-    private var bubbleBackground: Color {
-        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.06)
+    /// Golden-ratio width for the input bar: the major segment (≈0.618) of the
+    /// window width, centered, leaving symmetric ≈0.191 dim margins on each side.
+    /// Falls back to 920 before the window width is measured.
+    private var inputMaxWidth: CGFloat {
+        windowSize.width > 0 ? windowSize.width * 0.618 : 920
     }
 
     var body: some View {
         VStack(spacing: 0) {
             chatHeader
-            Divider().overlay(dividerColor)
+            Divider().overlay(theme.divider)
             chatMessageList
-            Divider().overlay(dividerColor)
+            Divider().overlay(theme.divider)
             chatInputBar
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.background)
         .background(
-            VisualEffectBackground(material: .windowBackground, blendingMode: .behindWindow)
+            GeometryReader { proxy in
+                Color.clear.onChange(of: proxy.size, initial: true) { _, size in
+                    windowSize = size
+                }
+            }
         )
         .onExitCommand { viewModel.exitChatMode() }
         .onAppear {
@@ -48,6 +62,7 @@ struct ChatView: View {
                 isInputFocused = true
             }
         }
+        .preferredColorScheme(.light)
     }
 
     // MARK: - Header
@@ -57,7 +72,7 @@ struct ChatView: View {
             Button(action: { viewModel.renewChat() }) {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 14))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.textSecondary)
             }
             .buttonStyle(.plain)
             .help("Renew")
@@ -70,7 +85,7 @@ struct ChatView: View {
             Button(action: { viewModel.exitChatMode() }) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 15))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.textSecondary)
             }
             .buttonStyle(.plain)
             .help("Close")
@@ -112,13 +127,13 @@ struct ChatView: View {
         VStack(spacing: 10) {
             Image(systemName: "bubble.left.and.bubble.right")
                 .font(.system(size: 34))
-                .foregroundColor(.secondary.opacity(0.45))
+                .foregroundColor(theme.textSecondary.opacity(0.45))
             Text("Start a conversation")
                 .font(.system(size: 15, weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.textSecondary)
             Text("⏎ send · ⇧⏎ newline")
                 .font(.system(size: 11))
-                .foregroundColor(.secondary.opacity(0.7))
+                .foregroundColor(theme.textSecondary.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 96)
@@ -140,7 +155,7 @@ struct ChatView: View {
                 if viewModel.inputText.isEmpty {
                     Text("Message...  ( ⏎ send · ⇧⏎ newline )")
                         .font(.system(size: 15))
-                        .foregroundColor(.secondary.opacity(0.8))
+                        .foregroundColor(theme.textSecondary.opacity(0.8))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 8)
                         .allowsHitTesting(false)
@@ -150,7 +165,7 @@ struct ChatView: View {
                     isFocused: $isInputFocused,
                     measuredHeight: $chatInputHeight,
                     font: .systemFont(ofSize: 15),
-                    maxHeight: 120,
+                    maxHeight: inputMaxHeight,
                     onSubmit: { viewModel.sendChatTurn() },
                     onUpArrow: viewModel.commandHistory.previous,
                     onDownArrow: viewModel.commandHistory.next,
@@ -161,7 +176,7 @@ struct ChatView: View {
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
-            .background(bubbleBackground)
+            .background(theme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
             Button(action: {
@@ -173,7 +188,7 @@ struct ChatView: View {
             }) {
                 Image(systemName: viewModel.isLoading ? "stop.circle.fill" : "arrow.up.circle.fill")
                     .font(.system(size: 28))
-                    .foregroundColor((canSend || viewModel.isLoading) ? .accentColor : .secondary.opacity(0.4))
+                    .foregroundColor((canSend || viewModel.isLoading) ? theme.accent : theme.textSecondary.opacity(0.4))
             }
             .buttonStyle(.plain)
             .disabled(!canSend && !viewModel.isLoading)
@@ -181,7 +196,7 @@ struct ChatView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
-        .frame(maxWidth: 920)
+        .frame(maxWidth: inputMaxWidth)
         .frame(maxWidth: .infinity)
     }
 
@@ -190,10 +205,10 @@ struct ChatView: View {
     private func modelBadge(_ name: String) -> some View {
         Text(name)
             .font(.system(size: 11, weight: .medium, design: .monospaced))
-            .foregroundColor(.white)
+            .foregroundColor(theme.onAccent)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Color.accentColor.opacity(0.7))
+            .background(theme.accent.opacity(0.7))
             .cornerRadius(4)
     }
 
@@ -206,7 +221,7 @@ struct ChatView: View {
         let fraction = window > 0 ? min(1.0, Double(used) / Double(window)) : 0
         return ZStack {
             Circle()
-                .stroke(Color.secondary.opacity(0.25), lineWidth: 2)
+                .stroke(theme.divider, lineWidth: 2)
             if window > 0 {
                 Circle()
                     .trim(from: 0, to: fraction)
@@ -248,16 +263,16 @@ struct ChatView: View {
                     Text(message.text)
                         .font(.system(size: 14))
                         .textSelection(.enabled)
-                        .foregroundColor(.white)
+                        .foregroundColor(theme.onAccent)
                 } else {
                     // Assistant replies get full block-level Markdown rendering.
                     MarkdownView(text: message.text, baseFontSize: 14)
-                        .foregroundColor(.primary)
+                        .foregroundColor(theme.textPrimary)
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
-            .background(isUser ? Color.accentColor : bubbleBackground)
+            .background(isUser ? theme.accent : theme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             if isUser {
@@ -271,10 +286,10 @@ struct ChatView: View {
     private func chatAvatar(isUser: Bool) -> some View {
         ZStack {
             Circle()
-                .fill(isUser ? Color.secondary.opacity(0.25) : Color.accentColor)
+                .fill(isUser ? theme.divider : theme.accent)
             Image(systemName: isUser ? "person.fill" : "sparkles")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(isUser ? .primary : .white)
+                .foregroundColor(isUser ? theme.textPrimary : theme.onAccent)
         }
         .frame(width: 30, height: 30)
     }
