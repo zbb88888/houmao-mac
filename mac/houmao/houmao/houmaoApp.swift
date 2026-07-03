@@ -48,6 +48,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// the chat session stays in sync.
     private var chatWindow: NSWindow?
 
+    /// One-shot observer used to defer hiding a full-screen chat window until the
+    /// exit-full-screen transition completes.
+    private var fsExitObserver: NSObjectProtocol?
+
     /// Cross-process "activate the existing instance" notification, used to keep
     /// the app to a single running instance (process-level singleton).
     private static let activateExistingNotification = Notification.Name("cn.com.houmao.activateExisting")
@@ -209,12 +213,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         // `orderOut` on a full-screen window leaves an empty black Space. Exit
         // full screen first, then hide once the transition finishes.
-        var token: NSObjectProtocol?
-        token = NotificationCenter.default.addObserver(
+        if let obs = fsExitObserver {
+            NotificationCenter.default.removeObserver(obs)
+        }
+        fsExitObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didExitFullScreenNotification, object: window, queue: .main
-        ) { _ in
+        ) { [weak self] _ in
             window.orderOut(nil)
-            if let token { NotificationCenter.default.removeObserver(token) }
+            guard let self, let obs = self.fsExitObserver else { return }
+            NotificationCenter.default.removeObserver(obs)
+            self.fsExitObserver = nil
         }
         window.toggleFullScreen(nil)
     }
