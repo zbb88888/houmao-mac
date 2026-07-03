@@ -38,6 +38,10 @@ install:
 	@sudo rm -rf /Applications/$(APP_NAME).app
 	@sudo cp -R ~/Library/Developer/Xcode/DerivedData/*/Build/Products/Release/$(APP_NAME).app /Applications/
 	@rm -rf ~/Library/Developer/Xcode/DerivedData/$(APP_NAME)-*
+	@echo "Clearing ghia result cache (/tmp/houmao)..."
+	@rm -rf /tmp/houmao
+	@echo "Stopping old instance (if running)..."
+	@pkill -9 $(APP_NAME) 2>/dev/null || true
 	@echo "Install complete! Launch from Spotlight or Applications folder"
 	@echo "Note: First launch requires Accessibility permission"
 
