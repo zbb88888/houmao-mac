@@ -64,10 +64,14 @@ final class MainViewModel {
     /// Registry of `$action` pipeline steps (translate/summarize/save).
     let actionRegistry = ActionRegistry()
 
-    /// Single-letter commands that toggle panels.
+    /// Single-letter commands that toggle panels. Slash aliases (`/h`, `/b`)
+    /// are accepted too, for consistency with `/chat` `/issue` `/pr`.
     private let commands: [String: Panel] = [
         "b": .history,
         "h": .help,
+        "/b": .history,
+        "/h": .help,
+        "/help": .help,
     ]
 
     init(usageTracker: UsageTracker? = nil, chatStore: ChatStore? = nil) {
@@ -265,6 +269,17 @@ final class MainViewModel {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         commandHistory.add(trimmed)
+        // `/h` shows the brief help doc directly (never sent to the LLM);
+        // `/h <question>` sends the question + detailed doc to the LLM.
+        if isHelpCommand(trimmed) {
+            appendIssueTurn(command: trimmed, reply: Self.helpBrief)
+            return
+        }
+        if let q = helpQuestion(trimmed) {
+            chatStore.ensureCurrent()
+            executeChatTurn(q, context: Self.helpDetailed)
+            return
+        }
         if let mode = analysisMode(trimmed) {
             inputText = ""
             analyzeCommand(trimmed, mode: mode)
@@ -273,6 +288,72 @@ final class MainViewModel {
         chatStore.ensureCurrent()
         executeChatTurn(trimmed)
     }
+
+    /// True for the bare help command (no follow-up question).
+    private func isHelpCommand(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        return lower == "/h" || lower == "/help"
+    }
+
+    /// For `/h <question>`, returns the trimmed question; nil otherwise.
+    private func helpQuestion(_ text: String) -> String? {
+        for prefix in ["/h ", "/help "] where text.lowercased().hasPrefix(prefix) {
+            let q = String(text.dropFirst(prefix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+            return q.isEmpty ? nil : q
+        }
+        return nil
+    }
+
+    /// Brief help shown (as Markdown) directly in the chat for a bare `/h`.
+    /// Keep in sync with the minimal box's Help panel (`MainView.helpContent`).
+    static let helpBrief = """
+    ## 命令
+    - `/chat` — 打开/切换多轮聊天窗口
+    - `/issue <url>` — 用本地代码分析 GitHub issue
+    - `/pr <url>` — 用本地代码 review GitHub PR diff
+    - `/h` — 显示本帮助；`/h <问题>` — 结合文档让 AI 解答如何操作
+    - `@name msg` — 指定 provider 别名或模型名
+
+    ## 快捷键
+    - 双击 Option — 显示/隐藏窗口
+    - Esc / ⌘W — 隐藏窗口
+    - ⌘B — 切换用量历史 · ⌘L — 清空历史
+
+    ## 设置（⌘,）
+    - **code dir** — 本地仓库根目录；`/issue`、`/pr` 在 `<code dir>/<repo>` 定位
+    - **Copy on Selection** — 选中即复制（需辅助功能权限）
+    - **Providers** — 添加 OpenAI 兼容 provider；第一个为默认
+    """
+
+    /// Detailed doc sent to the LLM as context for `/h <question>`, so it can
+    /// give concrete operating steps. Not shown verbatim in the chat.
+    static let helpDetailed = """
+    # houmao 使用详解
+
+    ## 命令
+    - `/chat`：打开多轮聊天窗口。最小输入框是一次性问答，多轮对话在聊天窗口进行。
+    - `/issue <github-issue-url>`：调用本地 ghia，用本地仓库代码分析该 issue。需先设置 code dir，且 `<code dir>/<repo>` 存在该仓库克隆。
+    - `/pr <github-pr-url>`：同上，额外对 PR diff 做五步漏斗深度 review。
+    - `/h`：显示简要帮助；`/h <问题>`：结合本文档让 AI 解答如何操作。
+    - `@name <消息>`：临时指定 provider 别名或模型名。
+
+    ## 快捷键
+    - 双击 Option：显示/隐藏窗口
+    - Esc / ⌘W：隐藏窗口
+    - ⌘B：切换用量历史
+    - ⌘L：清空历史
+
+    ## 设置（⌘,）
+    ### code dir
+    本地仓库根目录。设置后 `/issue`、`/pr` 会在 `<code dir>/<repo>` 或 `<code dir>/<owner>/<repo>` 定位仓库。在设置面板点 code dir 行的铅笔手动填写，或点文件夹图标选择目录。
+
+    ### Copy on Selection（选中即复制）
+    开启后，在任意 app 选中文本会自动复制到剪贴板。需要「辅助功能」权限：系统设置 → 隐私与安全性 → 辅助功能 → 勾选 houmao。设置面板里有该开关；若权限未授予，开关会提示去授权。
+
+    ### Providers
+    添加 OpenAI 兼容的 provider（Name、URL、Models、可选 API Key）。列表第一个为默认。上下文窗口会自动探测（vLLM 走 `/v1/models` 的 `max_model_len`，LM Studio 走 `/api/v0/models` 的 `loaded_context_length`）。
+    """
+
 
     // MARK: - /issue and /pr commands
 
@@ -441,7 +522,7 @@ final class MainViewModel {
 
     /// Run one conversational turn: append the user message, stream the
     /// assistant reply into the session, and feed prior turns back as history.
-    private func executeChatTurn(_ text: String) {
+    private func executeChatTurn(_ text: String, context: String? = nil) {
         // Support `@name msg` to pick a provider/model, just like the minimal box.
         let mention = parseModelMention(text)
         let question = (mention?.message.isEmpty == false) ? mention!.message : text
@@ -456,6 +537,15 @@ final class MainViewModel {
             chatStore.finish(id)
             inputText = ""
             return
+        }
+
+        // The bubble shows the user's question; `context` (e.g. the help doc) is
+        // prepended only to what's sent to the LLM, not displayed.
+        let sentQuestion: String
+        if let context {
+            sentQuestion = "参考以下 houmao 使用文档回答用户问题，给出具体、可操作的步骤。\n\n<文档>\n\(context)\n</文档>\n\n用户问题：\(question)"
+        } else {
+            sentQuestion = question
         }
 
         // Snapshot history BEFORE appending the new user turn.
@@ -481,7 +571,7 @@ final class MainViewModel {
         currentTask = Task {
             do {
                 let reply = try await client.askStream(
-                    question: question,
+                    question: sentQuestion,
                     attachments: [],
                     history: priorHistory
                 ) { [weak self] token in
