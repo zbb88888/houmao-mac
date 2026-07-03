@@ -284,13 +284,19 @@ struct SettingsView: View {
         }
 
         // Save or update
+        let savedID: UUID
         if let id = editingProviderID,
            let i = settings.providers.firstIndex(where: { $0.id == id }) {
             settings.providers[i] = Provider(id: id, name: name, apiHost: url, apiKey: apiKey, models: models)
+            savedID = id
         } else {
-            settings.providers.append(Provider(name: name, apiHost: url, apiKey: apiKey, models: models))
+            let p = Provider(name: name, apiHost: url, apiKey: apiKey, models: models)
+            settings.providers.append(p)
+            savedID = p.id
         }
         resetForm()
+        // Detect & cache the model's context window (best-effort, async).
+        Task { await settings.detectContextWindow(for: savedID) }
     }
 
     private func validateProvider(name: String, url: String, models: [String]) -> String? {

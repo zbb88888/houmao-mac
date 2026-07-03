@@ -24,6 +24,24 @@ final class MainViewModel {
 
     var attachments: [Attachment] = []
 
+    /// The current model's context window (tokens), or 0 when unknown. Resolved
+    /// from the provider backing `lastModelName` (else the default provider).
+    var contextWindowTokens: Int {
+        AppSettings.shared.resolveModel(named: lastModelName)?.provider.contextTokens ?? 0
+    }
+
+    /// Rough token estimate of the current conversation (~3 chars/token, matching
+    /// the analyzer's budget heuristic). Used only for the status-bar ring.
+    var contextUsedTokens: Int {
+        chatStore.messages.reduce(0) { $0 + $1.text.count / 3 }
+    }
+
+    /// Best-effort populate any missing context windows so the ring has a value
+    /// without the user visiting Settings. Fire-and-forget.
+    func ensureContextWindows() {
+        Task { await AppSettings.shared.detectMissingContextWindows() }
+    }
+
     private var currentTask: Task<Void, Never>?
     private(set) var usageTracker: UsageTracker?
     let commandHistory = CommandHistory()
@@ -318,7 +336,8 @@ final class MainViewModel {
             binaryPath: IssueAnalyzer.defaultBinaryPath,
             apiKey: resolved.provider.apiKey,
             baseURL: resolved.provider.apiHost + "/v1",
-            model: resolved.model
+            model: resolved.model,
+            contextTokens: resolved.provider.contextTokens
         ))
 
         postChatStatus(mode == "pr" ? "审阅 PR：\(repo)" : "分析 issue：\(repo)")

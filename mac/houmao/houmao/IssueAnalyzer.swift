@@ -13,6 +13,7 @@ struct IssueAnalyzer {
         var apiKey: String
         var baseURL: String // OpenAI-compatible base, including the `/v1` suffix.
         var model: String
+        var contextTokens: Int // Detected provider context window; 0 = unknown.
     }
 
     enum AnalyzerError: LocalizedError {
@@ -64,6 +65,9 @@ struct IssueAnalyzer {
             env["OPENAI_API_KEY"] = config.apiKey
             env["OPENAI_BASE_URL"] = config.baseURL
             env["OPENAI_MODEL"] = config.model
+            if config.contextTokens > 0 {
+                env["OPENAI_CONTEXT_TOKENS"] = String(config.contextTokens)
+            }
             process.environment = env
 
             let outPipe = Pipe()

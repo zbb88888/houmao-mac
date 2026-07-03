@@ -38,6 +38,7 @@ struct ChatView: View {
         )
         .onExitCommand { viewModel.exitChatMode() }
         .onAppear {
+            viewModel.ensureContextWindows()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 isInputFocused = true
             }
@@ -63,6 +64,7 @@ struct ChatView: View {
 
             if let modelName = viewModel.lastModelName {
                 modelBadge(modelName)
+                contextRing
             }
             Spacer()
             Button(action: { viewModel.exitChatMode() }) {
@@ -193,6 +195,38 @@ struct ChatView: View {
             .padding(.vertical, 2)
             .background(Color.accentColor.opacity(0.7))
             .cornerRadius(4)
+    }
+
+    /// Context-usage ring shown next to the model badge (Claude/Codex style):
+    /// the arc fills with the current conversation's estimated token usage
+    /// against the model's window. Hovering shows the total window size.
+    private var contextRing: some View {
+        let window = viewModel.contextWindowTokens
+        let used = viewModel.contextUsedTokens
+        let fraction = window > 0 ? min(1.0, Double(used) / Double(window)) : 0
+        return ZStack {
+            Circle()
+                .stroke(Color.secondary.opacity(0.25), lineWidth: 2)
+            if window > 0 {
+                Circle()
+                    .trim(from: 0, to: fraction)
+                    .stroke(ringColor(fraction),
+                            style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+        }
+        .frame(width: 13, height: 13)
+        .help(window > 0
+              ? "上下文窗口 \(window) tokens（已用约 \(used)）"
+              : "上下文窗口未知")
+    }
+
+    private func ringColor(_ fraction: Double) -> Color {
+        switch fraction {
+        case ..<0.7: return .green
+        case ..<0.9: return .orange
+        default: return .red
+        }
     }
 
     @ViewBuilder

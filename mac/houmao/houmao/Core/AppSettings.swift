@@ -8,17 +8,19 @@ struct Provider: Codable, Identifiable, Equatable {
     var apiHost: String     // Base URL
     var apiKey: String      // Loaded from Keychain at runtime; NOT persisted to UserDefaults
     var models: [String]    // Available model IDs, e.g. ["gpt-4o", "gpt-4o-mini"]
+    var contextTokens: Int  // Detected context window (tokens); 0 = unknown
 
     enum CodingKeys: String, CodingKey {
-        case id, name, apiHost, apiKey, models
+        case id, name, apiHost, apiKey, models, contextTokens
     }
 
-    init(id: UUID = UUID(), name: String, apiHost: String, apiKey: String = "", models: [String]) {
+    init(id: UUID = UUID(), name: String, apiHost: String, apiKey: String = "", models: [String], contextTokens: Int = 0) {
         self.id = id
         self.name = name
         self.apiHost = Provider.cleanURL(apiHost)
         self.apiKey = apiKey
         self.models = models
+        self.contextTokens = contextTokens
     }
 
     init(from decoder: Decoder) throws {
@@ -30,6 +32,7 @@ struct Provider: Codable, Identifiable, Equatable {
         // migrated into the Keychain, then it is no longer encoded.
         self.apiKey = try c.decodeIfPresent(String.self, forKey: .apiKey) ?? ""
         self.models = try c.decode([String].self, forKey: .models)
+        self.contextTokens = try c.decodeIfPresent(Int.self, forKey: .contextTokens) ?? 0
     }
 
     func encode(to encoder: Encoder) throws {
@@ -39,6 +42,7 @@ struct Provider: Codable, Identifiable, Equatable {
         try c.encode(apiHost, forKey: .apiHost)
         // apiKey intentionally omitted — secrets live in the Keychain.
         try c.encode(models, forKey: .models)
+        try c.encode(contextTokens, forKey: .contextTokens)
     }
 
     /// Strip /v1, /v1/chat/completions suffixes users often paste by mistake.
@@ -170,6 +174,89 @@ final class AppSettings {
             return nil
         }
         return ResolvedModel(provider: provider, model: model)
+    }
+
+    /// Detect a provider's context window (see `probeContextWindow`) and cache
+    /// it onto the provider (persisted). Best-effort: returns nil when the
+    /// endpoint doesn't expose it (e.g. the official OpenAI API).
+    @discardableResult
+    func detectContextWindow(for id: UUID) async -> Int? {
+        guard let provider = providers.first(where: { $0.id == id }) else { return nil }
+        let model = provider.models.first ?? ""
+        guard let window = await Self.probeContextWindow(
+            apiHost: provider.apiHost, apiKey: provider.apiKey, model: model
+        ), window > 0 else { return nil }
+
+        await MainActor.run {
+            if let i = self.providers.firstIndex(where: { $0.id == id }) {
+                self.providers[i].contextTokens = window
+            }
+        }
+        return window
+    }
+
+    /// Best-effort detect the context window for every provider that doesn't yet
+    /// have one cached. Called lazily (e.g. when the chat opens) so the ring can
+    /// show a value without the user visiting Settings.
+    func detectMissingContextWindows() async {
+        let ids = providers.filter { $0.contextTokens <= 0 }.map(\.id)
+        for id in ids {
+            await detectContextWindow(for: id)
+        }
+    }
+
+    /// GET the models endpoint and read the context window for the given model.
+    /// Tries the OpenAI-compatible `/v1/models` first (vLLM `max_model_len` /
+    /// others `context_length`), then falls back to LM Studio's native
+    /// `/api/v0/models` (preferring the actually loaded window). Best-effort:
+    /// returns nil when no endpoint exposes it (e.g. the official OpenAI API).
+    static func probeContextWindow(apiHost: String, apiKey: String, model: String) async -> Int? {
+        if let w = await probeModelsEndpoint(
+            apiHost + "/v1/models", apiKey: apiKey, model: model,
+            pick: { $0.max_model_len ?? $0.context_length }
+        ) {
+            return w
+        }
+        return await probeModelsEndpoint(
+            apiHost + "/api/v0/models", apiKey: apiKey, model: model,
+            pick: { $0.loaded_context_length ?? $0.max_context_length }
+        )
+    }
+
+    private struct ModelsResp: Decodable {
+        struct Item: Decodable {
+            let id: String?
+            let max_model_len: Int?
+            let context_length: Int?
+            let loaded_context_length: Int?
+            let max_context_length: Int?
+        }
+        let data: [Item]
+    }
+
+    /// GET a models-list endpoint and return the window chosen by `pick` for the
+    /// requested model (falling back to the first entry that exposes one).
+    private static func probeModelsEndpoint(
+        _ urlString: String, apiKey: String, model: String,
+        pick: (ModelsResp.Item) -> Int?
+    ) async -> Int? {
+        guard let url = URL(string: urlString) else { return nil }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 8
+        if !apiKey.isEmpty {
+            req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              let http = resp as? HTTPURLResponse, http.statusCode == 200,
+              let out = try? JSONDecoder().decode(ModelsResp.self, from: data) else { return nil }
+
+        var fallback: Int?
+        for m in out.data {
+            guard let w = pick(m), w > 0 else { continue }
+            if m.id == model { return w }
+            if fallback == nil { fallback = w }
+        }
+        return fallback
     }
 
 }
