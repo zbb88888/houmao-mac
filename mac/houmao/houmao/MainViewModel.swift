@@ -353,7 +353,7 @@ final class MainViewModel {
     ## 命令
     - `/chat`：打开多轮聊天窗口。最小输入框是一次性问答，多轮对话在聊天窗口进行。
     - `/issue <github-issue-url>`：调用本地 ghia，用本地仓库代码分析该 issue。需先设置 code dir，且 `<code dir>/<repo>` 存在该仓库克隆。
-    - `/pr <github-pr-url>`：同上，额外对 PR diff 做五步漏斗深度 review。
+    - `/pr <github-pr-url>`：同上，额外对 PR diff 做六步漏斗深度 review。
     - `/h`：显示简要帮助；`/h <问题>`：结合本文档让 AI 解答如何操作。
     - `@name <消息>`：临时指定 provider 别名或模型名。
 
