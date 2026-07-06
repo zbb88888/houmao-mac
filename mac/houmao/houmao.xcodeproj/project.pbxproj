@@ -13,20 +13,27 @@
 		19995B918BCCADB57F626B12 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8673CCE45ECC5F8DD4FB2F8 /* AppSettings.swift */; };
 		19C9F6D85879AF6FE6299FDA /* Pipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A267C3C5EF1066D16826CA8 /* Pipeline.swift */; };
 		1BD52E52CE5AC31258FF66CD /* PipelineAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 304C34344F48BD99E3B1E19F /* PipelineAction.swift */; };
+		2307134B590D569C23CDA014 /* PKCE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE2BE89827B69CB8810ED90 /* PKCE.swift */; };
 		24DCBC6420DBD1C3035066D0 /* BuiltinActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4A5F4FE9A82E9E6B84B1D1 /* BuiltinActions.swift */; };
 		39D57155CF6966C808689D94 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0BC36FC5E119006A965686E /* Assets.xcassets */; };
 		3C37F1672D96FD7F9FC6D41C /* PipelineParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2F991A07308DE37AEDB329 /* PipelineParser.swift */; };
 		40F5C9585B7DA82FBF8FE31B /* ConversationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 866890AB80CBCD0C2B1C2E96 /* ConversationStore.swift */; };
 		43269FE26BD3EC1A4D306903 /* houmaoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9AEEE5D5E88D810CC2F4E7 /* houmaoApp.swift */; };
+		48548AA7258DA25481EC0C04 /* GoogleAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B81BFC7008DECB0341CF0F7 /* GoogleAuthTests.swift */; };
+		489DBD824B8D8BEA8C368FC3 /* MailProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D294FA5BEF072740B48A5A69 /* MailProvider.swift */; };
 		4A4D01C514A8F3C4049B7401 /* AiTxtClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08126500EB5DAEF6E3EA0261 /* AiTxtClient.swift */; };
 		4DC903D4DC0CF422B37647D4 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99D44385EF33EF2316E4ADA /* KeychainStore.swift */; };
+		510D19CDB94F4643747B3C60 /* MailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF08D164A5D2EA8C9127D54 /* MailViewModel.swift */; };
 		51B22447BCA96ED141D2470F /* houmaoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */; };
+		544235FE343AC24F7D546849 /* MailInsight.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F2A33D78252698C10ED103 /* MailInsight.swift */; };
 		5A6C6C32968E7A922C953FA0 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BF08A509F2FFE9FEE779D39 /* MarkdownView.swift */; };
+		6080F1F56A8D693403F8CA75 /* MailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A898812C4E745A5A78DA3D1 /* MailView.swift */; };
 		66AF29D4489C1F7D925C3279 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ACFAC2F8E8BEF91D60F434 /* Theme.swift */; };
 		66B77BCF21C91F327B06BB07 /* UsageTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DEA0EA2BAF153958FC236CB /* UsageTracker.swift */; };
 		67770692576258B01B0A7366 /* PipelineParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1463CB9916AB39A21F23ECAA /* PipelineParserTests.swift */; };
 		6C057AA5E9D3A3A9D7F9AFED /* Attachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16A32AF2D3C92FD4642119D6 /* Attachment.swift */; };
 		720B6BF62E68556D13CB61E0 /* GlobalHotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E00EBE3D61489D710C85775 /* GlobalHotKeyManager.swift */; };
+		7E06D06B246B6D758C185C38 /* MailGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE08487E764F95B66219AEB /* MailGroupingTests.swift */; };
 		86152D287A639E44D19E8D75 /* HistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F2FF595A63FBBFCE32E347 /* HistoryViewModel.swift */; };
 		8C4AE05803D40E41CAC8831D /* SelectToCopyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 410FF4A6A10475DBEC89ECF4 /* SelectToCopyManager.swift */; };
 		8E10C6E4356EA19E054822D8 /* CommandHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F4B902B3D042810487E0B2F /* CommandHistory.swift */; };
@@ -34,13 +41,21 @@
 		9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */; };
 		9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31DADFF4D45E07705B344E48 /* MainViewModel.swift */; };
 		A3C3D1FF66B9D838943E282F /* PipelineRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A46DDBD2FAFB7BCD7D2052 /* PipelineRunner.swift */; };
+		ADF31009ECB585C1768DE057 /* MailInsightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5936F6D62F51F4E102E6F22 /* MailInsightTests.swift */; };
 		C37CC0717D7D7421F9FD869A /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E57CA19726AD9EFFBBB555B3 /* Conversation.swift */; };
 		C3BA07A77644BACB8E21A081 /* ChatStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E94C815AAEDD8E48836C96E /* ChatStore.swift */; };
 		CAE8880B5D80A8AC100228C2 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75259439A55CE9D1A9179843 /* SettingsView.swift */; };
+		D07C2B26D7B703F84593C50D /* GmailProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D9F37F0171267C0C74A5BE5 /* GmailProvider.swift */; };
 		D23123A0AE23E2F18E0D45A1 /* houmaoUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8482DAE51378989DE1B24152 /* houmaoUITestsLaunchTests.swift */; };
+		D33C6358E4575392165EF1F0 /* MailMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4D01DBF553FC3A1D20709F /* MailMessage.swift */; };
+		D51E182E30B4A8A52AC8176D /* LoopbackAuthReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CCB93719A995CD96D314473 /* LoopbackAuthReceiver.swift */; };
 		D5E3519D846F8C01540F5659 /* ChatStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19148038642034373C73C39 /* ChatStoreTests.swift */; };
+		DB3E772578359D1761A17CE5 /* GoogleAuthProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3002824A3E520F4E31E75A /* GoogleAuthProvider.swift */; };
+		DF5A8B48A7E21CC043964C40 /* MailGrouping.swift in Sources */ = {isa = PBXBuildFile; fileRef = 619FF54E8FF017D104ECBFEF /* MailGrouping.swift */; };
+		DF8347BE6F6CD2E8416A4668 /* TextClustering.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDFCF205D358DA2ADF1105B2 /* TextClustering.swift */; };
 		E0508EFE430B2A031BE608FC /* NoteWriting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3484CCD82163FE37FE0A3078 /* NoteWriting.swift */; };
 		E1541F22D20877460D696EB9 /* MarkdownParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7AB34ACA01BB70F852F37F3 /* MarkdownParserTests.swift */; };
+		EF957138A8BB21781964CC02 /* TextClusteringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0C55C88E57A6F6BC2D2641 /* TextClusteringTests.swift */; };
 		F46213BE55659AC254D5DA13 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C554DC6180330C830A49B6 /* Message.swift */; };
 		F796883257E05BF2207103FE /* houmaoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6A21B56C31A9618F79441D /* houmaoUITests.swift */; };
 		F91C0061C677A89D66AD3817 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD58C3AFB563B123BF6B396A /* MainView.swift */; };
@@ -67,9 +82,12 @@
 /* Begin PBXFileReference section */
 		03D9C94B2FABF2B254493D98 /* ChatModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModeTests.swift; sourceTree = "<group>"; };
 		08126500EB5DAEF6E3EA0261 /* AiTxtClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiTxtClient.swift; sourceTree = "<group>"; };
+		0AE08487E764F95B66219AEB /* MailGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailGroupingTests.swift; sourceTree = "<group>"; };
+		0DF08D164A5D2EA8C9127D54 /* MailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailViewModel.swift; sourceTree = "<group>"; };
 		0F4B902B3D042810487E0B2F /* CommandHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandHistory.swift; sourceTree = "<group>"; };
 		1463CB9916AB39A21F23ECAA /* PipelineParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineParserTests.swift; sourceTree = "<group>"; };
 		16A32AF2D3C92FD4642119D6 /* Attachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attachment.swift; sourceTree = "<group>"; };
+		1D9F37F0171267C0C74A5BE5 /* GmailProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailProvider.swift; sourceTree = "<group>"; };
 		26A46DDBD2FAFB7BCD7D2052 /* PipelineRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineRunner.swift; sourceTree = "<group>"; };
 		28F2FF595A63FBBFCE32E347 /* HistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewModel.swift; sourceTree = "<group>"; };
 		2A267C3C5EF1066D16826CA8 /* Pipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pipeline.swift; sourceTree = "<group>"; };
@@ -78,13 +96,17 @@
 		31DADFF4D45E07705B344E48 /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
 		3484CCD82163FE37FE0A3078 /* NoteWriting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWriting.swift; sourceTree = "<group>"; };
 		3743A8B5A8F2BE869F0343E5 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		3A898812C4E745A5A78DA3D1 /* MailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailView.swift; sourceTree = "<group>"; };
+		3F0C55C88E57A6F6BC2D2641 /* TextClusteringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextClusteringTests.swift; sourceTree = "<group>"; };
 		410FF4A6A10475DBEC89ECF4 /* SelectToCopyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectToCopyManager.swift; sourceTree = "<group>"; };
 		4A2F991A07308DE37AEDB329 /* PipelineParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineParser.swift; sourceTree = "<group>"; };
 		4D4A5F4FE9A82E9E6B84B1D1 /* BuiltinActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltinActions.swift; sourceTree = "<group>"; };
 		5BF08A509F2FFE9FEE779D39 /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
 		5DEA0EA2BAF153958FC236CB /* UsageTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageTracker.swift; sourceTree = "<group>"; };
 		5E94C815AAEDD8E48836C96E /* ChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStore.swift; sourceTree = "<group>"; };
+		619FF54E8FF017D104ECBFEF /* MailGrouping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailGrouping.swift; sourceTree = "<group>"; };
 		6217DF1DFAFCB0989F9FC1EC /* houmaoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = houmaoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6CCB93719A995CD96D314473 /* LoopbackAuthReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopbackAuthReceiver.swift; sourceTree = "<group>"; };
 		6E00EBE3D61489D710C85775 /* GlobalHotKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotKeyManager.swift; sourceTree = "<group>"; };
 		75259439A55CE9D1A9179843 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		76274726958AE5C36B6AC0B5 /* Attachment+AppKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Attachment+AppKit.swift"; sourceTree = "<group>"; };
@@ -92,16 +114,24 @@
 		862143F6F82F5ABC375AD59C /* IssueAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueAnalyzer.swift; sourceTree = "<group>"; };
 		866890AB80CBCD0C2B1C2E96 /* ConversationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStore.swift; sourceTree = "<group>"; };
 		8AB2D08692D6137AFEE6BF4A /* houmao.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = houmao.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8B81BFC7008DECB0341CF0F7 /* GoogleAuthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthTests.swift; sourceTree = "<group>"; };
 		8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoTests.swift; sourceTree = "<group>"; };
+		8FE2BE89827B69CB8810ED90 /* PKCE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PKCE.swift; sourceTree = "<group>"; };
 		9014401F2CE5CEA21AF65771 /* houmaoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = houmaoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		97C554DC6180330C830A49B6 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
+		9F3002824A3E520F4E31E75A /* GoogleAuthProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthProvider.swift; sourceTree = "<group>"; };
+		AA4D01DBF553FC3A1D20709F /* MailMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailMessage.swift; sourceTree = "<group>"; };
 		AC6A21B56C31A9618F79441D /* houmaoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoUITests.swift; sourceTree = "<group>"; };
 		B7AB34ACA01BB70F852F37F3 /* MarkdownParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownParserTests.swift; sourceTree = "<group>"; };
 		B8673CCE45ECC5F8DD4FB2F8 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		C0BC36FC5E119006A965686E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C5936F6D62F51F4E102E6F22 /* MailInsightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailInsightTests.swift; sourceTree = "<group>"; };
+		CDFCF205D358DA2ADF1105B2 /* TextClustering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextClustering.swift; sourceTree = "<group>"; };
 		CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMETextField.swift; sourceTree = "<group>"; };
 		D0ACFAC2F8E8BEF91D60F434 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		D19148038642034373C73C39 /* ChatStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStoreTests.swift; sourceTree = "<group>"; };
+		D294FA5BEF072740B48A5A69 /* MailProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailProvider.swift; sourceTree = "<group>"; };
+		E3F2A33D78252698C10ED103 /* MailInsight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailInsight.swift; sourceTree = "<group>"; };
 		E57CA19726AD9EFFBBB555B3 /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
 		E99D44385EF33EF2316E4ADA /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		F598AC90045D4ECF6A978FEF /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
@@ -109,6 +139,15 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		3441AFF45DCD74D4CC31DF63 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				9F3002824A3E520F4E31E75A /* GoogleAuthProvider.swift */,
+				8FE2BE89827B69CB8810ED90 /* PKCE.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
 		3EEFF6E530A72EDE07E33109 /* Pipeline */ = {
 			isa = PBXGroup;
 			children = (
@@ -143,10 +182,25 @@
 				28F2FF595A63FBBFCE32E347 /* HistoryViewModel.swift */,
 				E99D44385EF33EF2316E4ADA /* KeychainStore.swift */,
 				D0ACFAC2F8E8BEF91D60F434 /* Theme.swift */,
+				3441AFF45DCD74D4CC31DF63 /* Auth */,
 				A7F084AFFA2F5E2A0E6A91C0 /* Chat */,
+				E6094ECBBBC71EBF383ADF74 /* Clustering */,
+				6DB684EBD2F5289AA6367718 /* Mail */,
 				3EEFF6E530A72EDE07E33109 /* Pipeline */,
 			);
 			path = Core;
+			sourceTree = "<group>";
+		};
+		6DB684EBD2F5289AA6367718 /* Mail */ = {
+			isa = PBXGroup;
+			children = (
+				1D9F37F0171267C0C74A5BE5 /* GmailProvider.swift */,
+				619FF54E8FF017D104ECBFEF /* MailGrouping.swift */,
+				E3F2A33D78252698C10ED103 /* MailInsight.swift */,
+				AA4D01DBF553FC3A1D20709F /* MailMessage.swift */,
+				D294FA5BEF072740B48A5A69 /* MailProvider.swift */,
+			);
+			path = Mail;
 			sourceTree = "<group>";
 		};
 		7281214FAC24114FFF5CD1DB = {
@@ -164,9 +218,13 @@
 			children = (
 				03D9C94B2FABF2B254493D98 /* ChatModeTests.swift */,
 				D19148038642034373C73C39 /* ChatStoreTests.swift */,
+				8B81BFC7008DECB0341CF0F7 /* GoogleAuthTests.swift */,
 				8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */,
+				0AE08487E764F95B66219AEB /* MailGroupingTests.swift */,
+				C5936F6D62F51F4E102E6F22 /* MailInsightTests.swift */,
 				B7AB34ACA01BB70F852F37F3 /* MarkdownParserTests.swift */,
 				1463CB9916AB39A21F23ECAA /* PipelineParserTests.swift */,
+				3F0C55C88E57A6F6BC2D2641 /* TextClusteringTests.swift */,
 			);
 			path = houmaoTests;
 			sourceTree = "<group>";
@@ -191,6 +249,14 @@
 			path = houmaoUITests;
 			sourceTree = "<group>";
 		};
+		E6094ECBBBC71EBF383ADF74 /* Clustering */ = {
+			isa = PBXGroup;
+			children = (
+				CDFCF205D358DA2ADF1105B2 /* TextClustering.swift */,
+			);
+			path = Clustering;
+			sourceTree = "<group>";
+		};
 		FB272FED30A621D6D038D168 /* houmao */ = {
 			isa = PBXGroup;
 			children = (
@@ -201,6 +267,9 @@
 				2C9AEEE5D5E88D810CC2F4E7 /* houmaoApp.swift */,
 				CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */,
 				862143F6F82F5ABC375AD59C /* IssueAnalyzer.swift */,
+				6CCB93719A995CD96D314473 /* LoopbackAuthReceiver.swift */,
+				3A898812C4E745A5A78DA3D1 /* MailView.swift */,
+				0DF08D164A5D2EA8C9127D54 /* MailViewModel.swift */,
 				FD58C3AFB563B123BF6B396A /* MainView.swift */,
 				31DADFF4D45E07705B344E48 /* MainViewModel.swift */,
 				5BF08A509F2FFE9FEE779D39 /* MarkdownView.swift */,
@@ -334,22 +403,33 @@
 				C37CC0717D7D7421F9FD869A /* Conversation.swift in Sources */,
 				40F5C9585B7DA82FBF8FE31B /* ConversationStore.swift in Sources */,
 				720B6BF62E68556D13CB61E0 /* GlobalHotKeyManager.swift in Sources */,
+				D07C2B26D7B703F84593C50D /* GmailProvider.swift in Sources */,
+				DB3E772578359D1761A17CE5 /* GoogleAuthProvider.swift in Sources */,
 				03EC79C73AD3CEA674FB1445 /* HistoryStore.swift in Sources */,
 				86152D287A639E44D19E8D75 /* HistoryViewModel.swift in Sources */,
 				9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */,
 				8F1FEBBA064AF43072562A25 /* IssueAnalyzer.swift in Sources */,
 				4DC903D4DC0CF422B37647D4 /* KeychainStore.swift in Sources */,
+				D51E182E30B4A8A52AC8176D /* LoopbackAuthReceiver.swift in Sources */,
+				DF5A8B48A7E21CC043964C40 /* MailGrouping.swift in Sources */,
+				544235FE343AC24F7D546849 /* MailInsight.swift in Sources */,
+				D33C6358E4575392165EF1F0 /* MailMessage.swift in Sources */,
+				489DBD824B8D8BEA8C368FC3 /* MailProvider.swift in Sources */,
+				6080F1F56A8D693403F8CA75 /* MailView.swift in Sources */,
+				510D19CDB94F4643747B3C60 /* MailViewModel.swift in Sources */,
 				F91C0061C677A89D66AD3817 /* MainView.swift in Sources */,
 				9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */,
 				5A6C6C32968E7A922C953FA0 /* MarkdownView.swift in Sources */,
 				F46213BE55659AC254D5DA13 /* Message.swift in Sources */,
 				E0508EFE430B2A031BE608FC /* NoteWriting.swift in Sources */,
+				2307134B590D569C23CDA014 /* PKCE.swift in Sources */,
 				19C9F6D85879AF6FE6299FDA /* Pipeline.swift in Sources */,
 				1BD52E52CE5AC31258FF66CD /* PipelineAction.swift in Sources */,
 				3C37F1672D96FD7F9FC6D41C /* PipelineParser.swift in Sources */,
 				A3C3D1FF66B9D838943E282F /* PipelineRunner.swift in Sources */,
 				8C4AE05803D40E41CAC8831D /* SelectToCopyManager.swift in Sources */,
 				CAE8880B5D80A8AC100228C2 /* SettingsView.swift in Sources */,
+				DF8347BE6F6CD2E8416A4668 /* TextClustering.swift in Sources */,
 				66AF29D4489C1F7D925C3279 /* Theme.swift in Sources */,
 				66B77BCF21C91F327B06BB07 /* UsageTracker.swift in Sources */,
 				43269FE26BD3EC1A4D306903 /* houmaoApp.swift in Sources */,
@@ -371,8 +451,12 @@
 			files = (
 				FABDF015DB6FD14520C41E4F /* ChatModeTests.swift in Sources */,
 				D5E3519D846F8C01540F5659 /* ChatStoreTests.swift in Sources */,
+				48548AA7258DA25481EC0C04 /* GoogleAuthTests.swift in Sources */,
+				7E06D06B246B6D758C185C38 /* MailGroupingTests.swift in Sources */,
+				ADF31009ECB585C1768DE057 /* MailInsightTests.swift in Sources */,
 				E1541F22D20877460D696EB9 /* MarkdownParserTests.swift in Sources */,
 				67770692576258B01B0A7366 /* PipelineParserTests.swift in Sources */,
+				EF957138A8BB21781964CC02 /* TextClusteringTests.swift in Sources */,
 				51B22447BCA96ED141D2470F /* houmaoTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

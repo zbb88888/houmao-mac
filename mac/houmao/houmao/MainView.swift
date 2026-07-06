@@ -340,6 +340,7 @@ struct MainView: View {
             helpRow(key: "h", description: "Show this help")
             helpRow(key: "b", description: "Toggle usage history")
             helpRow(key: "/chat", description: "Toggle chat (multi-turn) mode")
+            helpRow(key: "/mail", description: "Clean up Gmail: cluster + batch trash")
             helpRow(key: "/issue url", description: "Analyze a GitHub issue with local code")
             helpRow(key: "/pr url", description: "Review a GitHub PR diff with local code")
             helpRow(key: "@name msg", description: "Use provider alias or model name")

@@ -67,6 +67,10 @@ struct SettingsView: View {
     @State private var reposRoot = ""
     @State private var editingReposRoot = false
 
+    @State private var editingGoogleOAuth = false
+    @State private var googleClientIDDraft = ""
+    @State private var googleClientSecretDraft = ""
+
     @State private var editingProviderID: UUID?
     @State private var providerName = ""
     @State private var providerURL = ""
@@ -141,6 +145,51 @@ struct SettingsView: View {
             .background(Color.primary.opacity(0.04))
             .cornerRadius(6)
             .onAppear { reposRoot = settings.reposRoot }
+
+            Divider()
+
+            // Gmail OAuth — same row style as code dir / providers: shows the
+            // saved Client ID with a pencil to edit; the secret uses SecureField
+            // like the provider API key. Desktop-app secret is not confidential.
+            VStack(alignment: .leading, spacing: 6) {
+                if editingGoogleOAuth {
+                    TextField("Client ID", text: $googleClientIDDraft)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { saveGoogleOAuth() }
+                    SecureField("Client Secret", text: $googleClientSecretDraft)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { saveGoogleOAuth() }
+                    HStack {
+                        Button("Save") { saveGoogleOAuth() }
+                        Button("Cancel") {
+                            editingGoogleOAuth = false
+                        }
+                    }
+                } else {
+                    HStack {
+                        Text("Gmail OAuth")
+                            .font(.system(size: 13, weight: .semibold))
+                        Spacer()
+                        Button {
+                            googleClientIDDraft = settings.googleClientID
+                            googleClientSecretDraft = settings.googleClientSecret
+                            editingGoogleOAuth = true
+                        } label: {
+                            Image(systemName: "pencil").frame(width: iconWidth)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Edit")
+                    }
+                    Text(settings.googleClientID.isEmpty ? "未设置" : settings.googleClientID)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            .padding(8)
+            .background(Color.primary.opacity(0.04))
+            .cornerRadius(6)
 
             Divider()
 
@@ -249,6 +298,8 @@ struct SettingsView: View {
                     if editingReposRoot {
                         reposRoot = settings.reposRoot
                         editingReposRoot = false
+                    } else if editingGoogleOAuth {
+                        editingGoogleOAuth = false
                     } else if editingProviderID != nil {
                         resetForm()
                     } else {
@@ -258,6 +309,8 @@ struct SettingsView: View {
                 onReturn: {
                     if editingReposRoot {
                         saveReposRoot()
+                    } else if editingGoogleOAuth {
+                        saveGoogleOAuth()
                     } else if editingProviderID != nil {
                         saveProvider()
                     } else {
@@ -337,5 +390,11 @@ struct SettingsView: View {
     private func saveReposRoot() {
         settings.reposRoot = reposRoot.trimmingCharacters(in: .whitespacesAndNewlines)
         editingReposRoot = false
+    }
+
+    private func saveGoogleOAuth() {
+        settings.googleClientID = googleClientIDDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.googleClientSecret = googleClientSecretDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        editingGoogleOAuth = false
     }
 }

@@ -38,15 +38,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var lockFileDescriptor: Int32 = -1
     private(set) var mainViewModel: MainViewModel!
     private(set) var historyViewModel: HistoryViewModel!
+    private(set) var mailViewModel: MailViewModel!
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
     private var exitChatObserver: NSObjectProtocol?
     private var chatStatusObserver: NSObjectProtocol?
+    private var enterMailObserver: NSObjectProtocol?
+    private var exitMailObserver: NSObjectProtocol?
 
     /// Standalone, resizable / full-screen-capable chat window (office-style).
     /// Distinct from the floating minimal input box; shares the view model so
     /// the chat session stays in sync.
     private var chatWindow: NSWindow?
+    /// Standalone Gmail cleanup window (`/mail`), same shell as the chat window.
+    private var mailWindow: NSWindow?
 
     /// One-shot observer used to defer hiding a full-screen chat window until the
     /// exit-full-screen transition completes.
@@ -75,10 +80,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         mainViewModel = MainViewModel(usageTracker: tracker)
         historyViewModel = HistoryViewModel(store: store)
+        mailViewModel = MailViewModel()
 
         setupPanel()
         setupShortcutMonitor()
         setupChatWindowObservers()
+        setupMailWindowObservers()
 
         hotKeyManager = GlobalHotKeyManager.shared
         tracker.start()
@@ -233,10 +240,65 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// (this is a standard, always-resident app), and clears the shared
     /// view-model input state.
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if sender == mailWindow {
+            sender.orderOut(nil)
+            return false
+        }
         guard sender == chatWindow else { return true }
         hideChatWindow()
         mainViewModel.exitChatMode()
         return false
+    }
+
+    // MARK: Mail window (`/mail`)
+
+    private func setupMailWindowObservers() {
+        enterMailObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoEnterMailWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.showMailWindow()
+        }
+        exitMailObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoExitMailWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.mailWindow?.orderOut(nil)
+        }
+    }
+
+    private func makeMailWindow() -> NSWindow {
+        let screen = screenContainingMouse()
+        let visible = screen.visibleFrame
+        let width = min(1200, max(760, visible.width * 0.7))
+        let height = min(900, max(520, visible.height * 0.8))
+        let rect = NSRect(
+            x: visible.midX - width / 2,
+            y: visible.midY - height / 2,
+            width: width,
+            height: height
+        )
+        let window = NSWindow(
+            contentRect: rect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "邮件清理"
+        window.titlebarAppearsTransparent = true
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 640, height: 420)
+        window.delegate = self
+
+        let mailView = MailView().environment(mailViewModel)
+        window.contentViewController = NSHostingController(rootView: mailView)
+        return window
+    }
+
+    private func showMailWindow() {
+        let window = mailWindow ?? makeMailWindow()
+        mailWindow = window
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
     }
 
     func showMainPanel() {

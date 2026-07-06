@@ -2,7 +2,7 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
-> 最近更新：2026-06-30（极简框一次性问答 + 第3次自动升级为独立可缩放/全屏标准聊天窗口）｜ 维护方式：每次提交涉及架构/功能变更时同步本文件。
+> 最近更新：2026-07-06（邮件助手 Phase 6 全部落地（含 6.6 可选 LLM 簇摘要/重要度）：`Core/Clustering` + `MailProvider`/`GmailProvider` + `MailGrouping` + `GoogleAuthProvider`(PKCE)/`LoopbackAuthReceiver` + `MailInsightAnalyzer` + `/mail` 窗口 UI，全套 72 单测绿；ADR-8 补记「只启用 Gmail API，不用 Gmail MCP/Workspace MCP/Postmaster」；端到端联调待 OAuth Client ID，见 3.7 / Phase 6 / ADR-8 / ADR-9）｜ 维护方式：每次提交涉及架构/功能变更时同步本文件。
 
 ---
 
@@ -51,6 +51,10 @@
 | `⌘,` | 设置面板 |
 | `@model 问题` | 指定模型提问 |
 | `文本 \| $action \| $action` | 管道处理（见 3.2） |
+| `/chat` | 打开 / 切换标准聊天窗口（见 3.3） |
+| `/mail` | 打开邮件处理页面：余弦聚簇 + Gmail 标签分类（无 AI）+ 勾选批量清理（见 3.7） |
+
+> **命令一致性（单一事实来源）**：所有 `/工具` 命令（`/chat`、`/mail`、`/issue`、`/pr`…）的识别与分发集中在 `MainViewModel.handleToolCommand(_:)` 一个函数里。极简输入框（`submit()`）与标准聊天窗输入框（`sendChatTurn()`）**都先调用它**，因此两个输入面暴露的工具集永远一致——新增工具只在此处加一次即可两面生效。各面仅保留自身差异（极简框=一次性单轮、聊天窗=多轮；帮助的呈现：面板 vs 气泡）。回归由 `ChatModeTests` 的一致性用例守护。曾出现 `/mail` 只在极简框生效、聊天窗漏拦的 bug，即因两面各自路由命令所致。
 
 ---
 
@@ -125,6 +129,8 @@ flowchart TB
 | `ContentSink` | ⬜ 规划 | 泛化 `NoteWriting`：本地笔记 / 云存储 / 收藏统一为 sink |
 | `MessageSource` | ⬜ 规划 | 输入源：划词 / 分享 / 剪贴板 |
 | `CloudStorageProvider` | ⬜ 规划 | 云存储抽象；`GoogleDriveSink` 第一个实现 |
+| `GoogleAuthProvider` | ⬜ 规划 | Google OAuth 2.0（Desktop app + PKCE + loopback）；Drive 与 Gmail 共用，token 存 Keychain |
+| `MailProvider` | ⬜ 规划 | 邮件抽象（列表/元数据/移废纸篓/删除）；`GmailProvider` 第一个实现（见 3.7） |
 
 ### 2.4 信息总线模型（目标形态）
 
@@ -220,6 +226,51 @@ flowchart TB
 - macOS：`SelectCopySource`（已有 SelectToCopyManager）/ Services / 剪贴板。
 - iOS：`ShareExtensionSource`（主入口）/ 剪贴板 / App Intents。
 
+### 3.7 邮件助手：余弦聚簇分类 + 勾选批量清理（⬜ 规划）
+
+**目标**：输入 `/mail` 唤起独立的**邮件处理页面**（与 `/chat` 同构的独立 `NSWindow`）；用**余弦相似度（无 AI）把标题近似的成批模板邮件聚成簇**，分类直接用 **Gmail 原生分类标签**，按簇展示（每簇一行 + 数量）；用户整簇/逐条勾选要删的→提交→自动**批量移入废纸篓**（默认可恢复）。AI 总结/重要度研判为**可选增强**（第一版可全程无 AI）。首个且当前唯一目标邮箱为 **Gmail**。
+
+**为什么走 Gmail API（REST）而非 IMAP**：见 ADR-8。核心是——REST 返回结构化 JSON（含 labelIds）便于直接做分类/聚类（也便于可选喂 LLM）、`batchModify`/`batchDelete` 原生支持一次上千封、纯 `URLSession` 契合 Core 纯 Foundation、且能复用 Phase 4 的 Google OAuth 基建。
+
+**工作流**：
+
+```mermaid
+flowchart TB
+    U[输入 /mail 唤起邮件处理页面] --> M1[messages.list + q 粗筛限量<br/>取最近 N 封的 id]
+    M1 --> M2[messages.get format=metadata<br/>metadataHeaders: Subject/From/Date/List-Unsubscribe<br/>+ labelIds + snippet]
+    M2 --> C1[分类（无 AI）<br/>直读 Gmail 原生标签 CATEGORY_*<br/>+ List-Unsubscribe 头]
+    C1 --> C2[聚簇（无 AI，Core/Clustering）<br/>char n-gram TF-IDF 向量 + 余弦<br/>DBSCAN / 阈值 Union-Find]
+    C2 --> M4[页面按分类→簇分组展示<br/>每簇：代表标题 + 分类 + 数量 + 整簇勾选<br/>低优先类别默认预勾]
+    M4 --> M5[用户复核、整簇/逐条勾选 → 提交]
+    M5 --> M6[batchModify 加 TRASH 标签<br/>批量移入废纸篓（可撤销）]
+    C2 -.可选增强.-> AI[LLM 对每簇代表样本<br/>补摘要/重要度研判]
+    AI -.-> M4
+```
+
+**分组策略：分类与聚合正交（均无 AI，见 ADR-9）**：
+
+- **分类（用 Gmail 原生标签，零算法）**：余弦只能把「相似的聚成簇」，给不出语义类别名。直接读 Gmail 返回的 `labelIds`（`CATEGORY_PROMOTIONS/SOCIAL/UPDATES/FORUMS/PERSONAL`）+ `List-Unsubscribe` 头（有即营销/订阅）作为分类维度，免费、稳定、无 AI。
+- **聚合（余弦相似度，Core/Clustering）**：在分类（或发件人域名）内，用**字符 n-gram（如 3-gram）TF-IDF 向量 + 余弦相似度**把模板化标题聚成簇。选 char n-gram 而非词级：对短标题/中英混杂/模板文本更鲁棒。聚类用 **DBSCAN（余弦距离）** 或**阈值 Union-Find**：不预设簇数，DBSCAN 能把散邮件归为噪声点（不强行归簇）。
+- **规模**：粗筛限量 N 封后两两比较 O(n²) 完全可接受（千量级毫秒）；若将来 N 极大，再加 **LSH（SimHash/MinHash）** 预筛降到近线性。
+- **AI 可选增强**：第一版全程无 AI；待接入 LLM 后，只对**每簇代表样本**补摘要与重要度研判（一簇共享一个判断），而非逐封。
+
+**交互决策（与 `/chat` 一致）**：`/mail` 唤起独立可缩放 `NSWindow`（非极简框）；页面内邮件**按分类→簇分组**（同簇可整簇勾选/折叠），每簇一行（代表标题 + 分类标签 + 数量 + 整簇勾选框），展开可看簇内逐条；底部「提交清理 N 封」按钮；聚簇瞬时完成即渲染（接入 LLM 增强时，摘要/重要度按簇流式回填，不阻塞）。
+
+**默认分类（来自 Gmail 原生标签，无 AI）**：促销 `CATEGORY_PROMOTIONS` / 社交 `CATEGORY_SOCIAL` / 更新通知 `CATEGORY_UPDATES` / 论坛 `CATEGORY_FORUMS` / 个人 `CATEGORY_PERSONAL`；另用 `List-Unsubscribe` 头辅判营销/订阅。低优先类别（促销/更新/论坛）页面默认预勾选，用户仍可整簇/逐条改。
+
+**最佳实践清单（选型与性能确认）**：
+
+- **聚类为主、AI 可选**：分类（Gmail 标签）+ 聚合（char n-gram TF-IDF + 余弦）均无 AI，第一版即可落地；若后续接入 LLM，**只对每簇代表样本判一次**（簇内共享）、无法聚簇的散邮件才分批打包喂 LLM（结构化输出 `summary/importance/suggestDelete`），而非每封一次往返；搭配服务端 `q` 粗筛限量避免全量扫描。
+- **认证**：OAuth 2.0 **Desktop app** client + **PKCE + loopback（`http://127.0.0.1:<port>`）**；Google 已弃用 OOB（复制粘贴 code），loopback 是桌面应用官方推荐流程。
+- **权限最小化**：scope 取 `https://www.googleapis.com/auth/gmail.modify`——可读 + 改标签/移废纸篓，但**无法永久删除**；恰好满足需求。永久删除需 `https://mail.google.com/` 全权限，默认不申请。
+- **只取元数据**：`messages.get` 用 `format=metadata` + `metadataHeaders=From,Subject,Date,List-Unsubscribe`（配 snippet、labelIds），不下载正文，省配额省流量；聚簇取 Subject、分类取 labelIds/List-Unsubscribe。
+- **批量清理**：`users.messages.batchModify` 加 `TRASH` 标签（一次 ≤1000 id）为默认动作；`users.messages.batchDelete`（永久）需二次确认且需全权限，非默认。
+- **Token**：refresh token 存 `KeychainStore`（复用现有 Keychain 基建）。
+
+**抽象**：新增 `MailProvider` 协议（`listMessages(query:)` / `fetchMetadata(ids:)` / `trashMessages(ids:)` / `deleteMessages(ids:)`），`GmailProvider` 首个实现，放 Core（纯 `URLSession`，跨平台）；**聚类算法独立于业务**——放 `Core/Clustering/`（纯算法，不依赖任何 Mail/Chat 类型，只吃 `[String]`/泛型、输出簇索引，可独立单测与复用）；OAuth 由 `GoogleAuthProvider` 提供（与 Phase 4 Drive 共享，扩展 scope）。LLM 总结（可选）复用 `AiTxtClient`。
+
+**安全护栏（见 ADR-8）**：默认移废纸篓不永久删；提交前页面强制用户复核勾选（系统仅按低优先类别预勾、不自动执行）；永久删除须显式二次确认——误删要紧邮件的代价不可逆。
+
 ---
 
 ## 4. 开发路线图与事项跟踪
@@ -277,6 +328,22 @@ flowchart TB
 | 5.3 | Share Extension 输入源 | ⬜ |
 | 5.4 | App Intents / Shortcuts | ⬜ |
 
+### Phase 6 — 邮件助手（余弦聚簇分组 + 批量清理）⬜
+
+> 依赖 Google OAuth 基建（与 Phase 4 Drive 共享 `GoogleAuthProvider`）。分类/聚合均无 AI，LLM 为可选增强。见 3.7 / ADR-8 / ADR-9。
+
+| # | 事项 | 状态 |
+|---|---|---|
+| 6.0 | `GoogleAuthProvider`（OAuth 2.0 Desktop app + PKCE + loopback；scope `gmail.modify`；refresh token 存 Keychain）+ `LoopbackAuthReceiver`（127.0.0.1 回环捕获回调） | ✅ |
+| 6.1 | `MailProvider` 协议 + `MailMessage`/`MailCategory` 模型 + `GmailProvider`（`messages.list` 粗筛 / `get` 元数据含 labelIds / `batchModify` 移废纸篓 / `batchDelete`） | ✅ |
+| 6.2 | `Core/Clustering/TextClustering`（char 3-gram TF-IDF + 余弦 + 阈值 Union-Find，与业务解耦）+ 单测 9 例 | ✅ |
+| 6.3 | `MailGrouping` 分组装配：分类读 Gmail `labelIds`；同类内调用聚类模块成簇 + 单测 | ✅ |
+| 6.4 | `/mail` 命令 + `MailViewModel` + `MailView` 邮件处理窗口（独立 NSWindow，与 `/chat` 同构；按分类→簇分组/整簇勾选/低优先类预勾）+ 设置页填 OAuth Client ID | ✅ |
+| 6.5 | 提交 → `batchModify` 批量移废纸篓（可撤销）；永久删除二次确认（`allowPermanentDelete` 门禁 + 确认弹窗） | 🚧 实现完成，待真实账号联调 |
+| 6.6 | LLM 对每簇代表样本补摘要/重要度/建议清理（`MailInsightAnalyzer` 复用 `AiTxtClient`，每簇一次往返，宽松 JSON 解析）+ `MailView` 展示 + 「应用 AI 建议」一键勾选 + 单测 5 例 | ✅ |
+
+> **外部前置（唯一阻塞）**：`/mail` 端到端联调需在 Google Cloud Console 注册 **Desktop app** 类型 OAuth Client，将 Client ID 填入「设置（⌘,）→ Google OAuth (Gmail)」。分类/聚类/UI 无此依赖，已可离线编译+单测（全套 67 单测绿）。
+
 ### 跨阶段：测试与质量
 
 - 测试框架：Swift Testing（`@Test` / `#expect`）。
@@ -330,11 +397,39 @@ flowchart TB
   3. **设置与任务栏显示标准化** —— Dock 出现图标、进 ⌘-Tab、菜单栏常显；`Settings…`（⌘,）落到应用菜单 `About` 之下、`Services` 之上的原生位置，全局可用。
 - **影响**：`.accessory → .regular`；`applicationDidFinishLaunching` 末尾 `showChatWindow()`；新增 `applicationShouldHandleReopen`；应用菜单插入标准 `Settings…` 项。单实例（flock）、窗口单例、全局热键均不受影响。安装后需重新 `make install` 覆盖旧的 accessory 版本方能生效。
 
+### ADR-8：邮件功能走 Gmail API（REST），默认移废纸篓不永久删
+
+- **决策**：邮件「AI 过滤 + 批量清理」采用 **Gmail REST API**（而非 IMAP / MailCore2）；认证用 OAuth 2.0 Desktop app + PKCE + loopback；权限取 `gmail.modify`；批量清理默认 `batchModify` 移入 `TRASH`（可恢复），永久 `batchDelete` 需二次确认。
+- **理由**：
+  1. **结构化优先**：REST 返回 JSON，元数据（发件人/主题/时间/snippet/labelIds）可直接用于分类/聚类（也便于可选喂 LLM），无需自解析 MIME；IMAP 需处理 MIME/编码，复杂且易错。
+  2. **批量语义原生**：`batchModify`/`batchDelete` 一次 ≤1000 封，天然契合「批量清理」；IMAP 需 `STORE` + `EXPUNGE` 手工拼。
+  3. **服务端粗筛省 token**：Gmail `q` 搜索语法可先过滤（分类/时间/未读），只把候选喂 AI。
+  4. **契合架构**：纯 `URLSession`，落 Core 纯 Foundation，不引 ObjC 依赖（MailCore2 会破坏 Core/Shell 分层）；OAuth 复用 Phase 4 Google 基建。
+  5. **最小权限 + 可恢复**：`gmail.modify` 不含永久删除能力；默认移废纸篓可撤销，规避 AI 误判导致真实邮件不可逆丢失。
+- **代价 / 边界**：仅支持 Gmail（未来 Outlook 走 Microsoft Graph 同理）；**不支持任意自建 IMAP 邮箱**——若将来有此需求，再单独评估在 Shell 层引入 MailCore2。
+- **只启用 Gmail API（不用 Gmail MCP / Workspace MCP / Postmaster）**：Google Cloud API Library 里搜 "gmail" 会出现 4 个 API，只需启用 **Gmail API**（"View and manage Gmail mailbox data"，即 `gmail.googleapis.com/gmail/v1/users/me/...`）。其余均不用：
+  - **Gmail MCP API / Workspace MCP API**：面向"让 Agent 通过 MCP 工具自主调用 Gmail"的 agentic 架构。houmao 的邮件工作流本体（list→分类→聚类→移废纸篓）是**确定性代码全程无 LLM**（ADR-9），LLM 仅在 6.6 作为**文本摘要器**（`AiTxtClient.ask` 纯文本进出，不调工具、不碰 Gmail）。接 MCP 需引入 MCP Host + tool-calling 运行时（违背 ADR-1 不引重型编排），且**违背 ADR-8 安全护栏**（要求删除前人工复核，而 MCP 的价值恰是模型自主执行），背后照样需 Gmail API + 同一套 OAuth/scope，纯属多余跳转。"本地 LLM 驱动" ≠ "让 LLM 自主收发邮件"。
+  - **Gmail Postmaster Tools API**：面向大批量发件方的投递率/信誉分析，与"读取+清理收件箱"无关。
+  - 将来接 Drive「收藏到云文档」(Phase 4) 时再额外启用 **Google Drive API**，共用同一 OAuth Client。
+
+### ADR-9：邮件分组用「Gmail 原生标签分类 + char n-gram TF-IDF 余弦聚簇」（无 AI）
+
+- **决策**：邮件分组拆为正交的两个维度，均**不依赖 AI**：
+  - **分类**：直接读 Gmail 原生 `labelIds`（`CATEGORY_PROMOTIONS/SOCIAL/UPDATES/FORUMS/PERSONAL`）+ `List-Unsubscribe` 头，零算法。
+  - **聚合**：用 **字符 n-gram（如 3-gram）TF-IDF 向量 + 余弦相似度**把模板化标题聚成簇，聚类用 DBSCAN（余弦距离）或阈值 Union-Find。
+- **理由**：
+  1. **分类不该用余弦**：余弦只能“把相似的聚成簇”，给不出语义类别名；而 Gmail 已免费返回稳定的分类标签，直接用最稳。
+  2. **char n-gram 优于词级**：短标题/中英混杂/模板文本下，词级 TF-IDF 词表稀疏；char n-gram 对这类文本鲁棒得多，且无需分词器。
+  3. **无 AI 依赖**：纯本地、稳定、可解释、零 token；符合“无 AI 聚合分类”的诉求；纯算法不引入模型依赖，保住 Core 纯 Foundation。
+  4. **DBSCAN/阈值**：不预设簇数；DBSCAN 能把散邮件归为噪声点，不强行归簇。
+- **规模/升级**：粗筛限量 N 封后两两余弦 O(n²) 完全可接受；若 N 极大再加 LSH（SimHash/MinHash）预筛。若标题措辞差异大但语义同类，再升级为 embedding 余弦（作可选项，不入第一版）。
+- **代码隔离**：聚类算法放 `Core/Clustering/`，与业务类型（Mail/Chat）完全解耦，只吃 `[String]`/泛型输入、输出簇索引，可独立单测与复用。
+
 ---
 
-## 6. 关键决策（已拍板 Q1–Q4）
+## 6. 关键决策（已拍板 Q1–Q5）
 
-> 以下问题已确认，落地细节并入对应章节与 ADR（ADR-5 / ADR-6）。
+> 以下问题已确认，落地细节并入对应章节与 ADR（ADR-5 / ADR-6 / ADR-8 / ADR-9）。
 
 | # | 事项 | 决策 | 影响阶段 |
 |---|---|---|---|
@@ -342,8 +437,11 @@ flowchart TB
 | Q2 | 云端文档格式 | **Markdown（.md）**：近似纯文本、跨平台/对 LLM 最友好 | Phase 4 |
 | Q3 | `/chat` 退出方式 | 与极简输入框一致：双击 Option 收起、`⌘W` 关闭；再输 `/chat` 在两种模式间切换 | Phase 2.2 |
 | Q4 | 聊天持久化 | **已落地：多会话 JSON 持久化、可跨会话**（`ConversationStore`） | ✅ Phase 2 |
+| Q5 | 邮件功能范围 | **`/mail` 唤起处理页面：余弦聚簇 + Gmail 标签分类（无 AI）→ 展示 → 用户勾选提交 → 批量移废纸篓**；AI 总结为可选；仅 Gmail、走 Gmail REST API（非 IMAP），默认可恢复不永久删 | Phase 6 |
 
-**仍需的外部前置**：Q1 需在 Google Cloud Console 注册 OAuth 2.0 Client（macOS/iOS 类型）拿到 Client ID（Phase 4 启动前准备）。
+**仍需的外部前置**：
+
+- **Phase 4（Drive）+ Phase 6（Gmail）共用**：在 Google Cloud Console 注册 OAuth 2.0 Client，类型选 **Desktop app**（用于 PKCE + loopback 流程）拿到 Client ID。Drive 与 Gmail 复用同一 client，按需分别授予 Drive 与 `gmail.modify` scope（Phase 4 / Phase 6 启动前准备）。
 
 ---
 

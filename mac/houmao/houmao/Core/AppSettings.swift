@@ -79,6 +79,18 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(reposRoot, forKey: "reposRoot") }
     }
 
+    /// Google OAuth Desktop-app Client ID for the `/mail` (Gmail) workflow and
+    /// future Drive integration. Persisted to UserDefaults (not a secret).
+    var googleClientID: String {
+        didSet { UserDefaults.standard.set(googleClientID, forKey: "googleClientID") }
+    }
+
+    /// Google OAuth Desktop-app client secret (not confidential for installed
+    /// apps; Google requires it at token exchange alongside PKCE).
+    var googleClientSecret: String {
+        didSet { UserDefaults.standard.set(googleClientSecret, forKey: "googleClientSecret") }
+    }
+
     private init() {
         if let data = UserDefaults.standard.data(forKey: "providers"),
            let decoded = try? JSONDecoder().decode([Provider].self, from: data) {
@@ -87,6 +99,8 @@ final class AppSettings {
             self.providers = []
         }
         self.reposRoot = UserDefaults.standard.string(forKey: "reposRoot") ?? ""
+        self.googleClientID = UserDefaults.standard.string(forKey: "googleClientID") ?? ""
+        self.googleClientSecret = UserDefaults.standard.string(forKey: "googleClientSecret") ?? ""
         // Clean up legacy keys from previous versions
         UserDefaults.standard.removeObject(forKey: "workers")
         // Hydrate API keys from the Keychain (and migrate legacy plaintext keys).

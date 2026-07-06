@@ -119,23 +119,10 @@ final class MainViewModel {
             commandHistory.add(trimmed)
         }
 
-        // `/chat` from the minimal box just opens the standalone chat window.
-        // The box itself stays a one-shot surface; conversational turns happen
-        // in the chat window (whichever window is up is the surface in use).
-        if trimmed.lowercased() == "/chat" {
-            inputText = ""
-            openChatWindow()
-            return
-        }
-
-        // `/issue <url>` / `/pr <url>` analyze a GitHub issue or PR against a
-        // local repo (external `ghia`), rendered as a conversation in the chat
-        // window. `/pr` additionally reviews the diff.
-        if let mode = analysisMode(trimmed) {
-            inputText = ""
-            analyzeCommand(trimmed, mode: mode)
-            return
-        }
+        // Slash "/tool" commands (`/chat` `/mail` `/issue` `/pr`) are dispatched
+        // through the single shared router so the minimal box and the chat window
+        // always support the exact same tool set (see docs: 命令一致性).
+        if handleToolCommand(trimmed) { return }
 
         // Check commands (only when no media attached)
         if !hasAttachments, let target = commands[trimmed.lowercased()] {
@@ -269,6 +256,9 @@ final class MainViewModel {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         commandHistory.add(trimmed)
+        // Same shared "/tool" router as the minimal box, so both surfaces expose
+        // an identical tool set (see docs: 命令一致性).
+        if handleToolCommand(trimmed) { return }
         // `/h` shows the brief help doc directly (never sent to the LLM);
         // `/h <question>` sends the question + detailed doc to the LLM.
         if isHelpCommand(trimmed) {
@@ -280,13 +270,42 @@ final class MainViewModel {
             executeChatTurn(q, context: Self.helpDetailed)
             return
         }
+        chatStore.ensureCurrent()
+        executeChatTurn(trimmed)
+    }
+
+    /// Single source of truth for slash "/tool" command dispatch, shared by every
+    /// input surface (the minimal box's `submit()` and the chat window's
+    /// `sendChatTurn()`). Adding a tool here makes it available on both surfaces
+    /// at once — surfaces must never route these commands independently, or the
+    /// tool set drifts (e.g. `/mail` once worked in the box but not in chat).
+    ///
+    /// Returns true if `trimmed` was a recognized tool command and consumed.
+    /// Surface-specific behavior (one-shot query vs multi-turn chat, and how help
+    /// is rendered) stays in the respective caller; only the tool set is shared.
+    @discardableResult
+    func handleToolCommand(_ trimmed: String) -> Bool {
+        switch trimmed.lowercased() {
+        case "/chat":
+            inputText = ""
+            openChatWindow()
+            return true
+        case "/mail":
+            inputText = ""
+            NotificationCenter.default.post(name: .houmaoEnterMailWindow, object: nil)
+            return true
+        default:
+            break
+        }
+        // `/issue <url>` / `/pr <url>` analyze a GitHub issue or PR against a
+        // local repo (external `ghia`), rendered as a conversation in the chat
+        // window. `/pr` additionally reviews the diff.
         if let mode = analysisMode(trimmed) {
             inputText = ""
             analyzeCommand(trimmed, mode: mode)
-            return
+            return true
         }
-        chatStore.ensureCurrent()
-        executeChatTurn(trimmed)
+        return false
     }
 
     /// True for the bare help command (no follow-up question).
@@ -309,6 +328,7 @@ final class MainViewModel {
     static let helpBrief = """
     ## 命令
     - `/chat` — 打开/切换多轮聊天窗口
+    - `/mail` — 打开 Gmail 清理面板（聚类 + 批量移废纸篓）
     - `/issue <url>` — 用本地代码分析 GitHub issue
     - `/pr <url>` — 用本地代码 review GitHub PR diff
     - `/h` — 显示本帮助；`/h <问题>` — 结合文档让 AI 解答如何操作

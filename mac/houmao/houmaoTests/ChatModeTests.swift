@@ -64,4 +64,40 @@ struct ChatModeTests {
         #expect(vm.panel == .none)
         #expect(vm.chatStore.messages.isEmpty == false)
     }
+
+    // MARK: - Tool-command consistency across surfaces
+
+    @Test func handleToolCommandRecognizesToolsOnly() {
+        let vm = makeVM()
+        #expect(vm.handleToolCommand("/chat") == true)
+        #expect(vm.handleToolCommand("/mail") == true)
+        #expect(vm.handleToolCommand("hello world") == false)
+        #expect(vm.handleToolCommand("") == false)
+    }
+
+    @Test func slashMailConsumedByBothSurfacesIdentically() {
+        // `/mail` must be consumed (input cleared, no chat turn created) whether
+        // it comes from the minimal box or the chat window — the shared router
+        // guarantees the tool set can't drift between surfaces.
+        let box = makeVM()
+        box.inputText = "/mail"
+        box.submit()
+        #expect(box.inputText == "")
+        #expect(box.chatStore.messages.isEmpty)
+
+        let chat = makeVM()
+        chat.inputText = "/mail"
+        chat.sendChatTurn()
+        #expect(chat.inputText == "")
+        #expect(chat.chatStore.messages.isEmpty)
+    }
+
+    @Test func slashChatWorksFromChatWindowToo() {
+        let vm = makeVM()
+        vm.inputText = "/chat"
+        vm.sendChatTurn()
+
+        #expect(vm.panel == .chat)
+        #expect(vm.inputText == "")
+    }
 }
