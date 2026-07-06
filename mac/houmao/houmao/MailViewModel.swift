@@ -46,6 +46,9 @@ final class MailViewModel {
     var detail: DetailState?
     /// The id the detail request is for, so stale responses can be ignored.
     private var detailMessageID: String?
+    /// Last AI analysis (selection key + time), used to ignore accidental
+    /// double-clicks that would re-analyze the same selection within seconds.
+    private var lastAnalysis: (key: String, at: Date)?
     /// False until the first successful `load()`, so the UI can tell a fresh
     /// (not-yet-loaded) review state from a genuinely empty result.
     private(set) var hasLoaded = false
@@ -297,6 +300,12 @@ final class MailViewModel {
     /// No window is activated, so the AI button stays usable for the next batch.
     func analyzeSelected() async {
         guard !selectedIDs.isEmpty, let provider = makeProvider() else { return }
+        // Ignore an accidental repeat: same selection re-triggered within 5s.
+        let key = selectedIDs.sorted().joined(separator: ",")
+        if let last = lastAnalysis, last.key == key, Date().timeIntervalSince(last.at) < 5 {
+            return
+        }
+        lastAnalysis = (key: key, at: Date())
         let selected = loadedMessages
             .filter { selectedIDs.contains($0.id) }
             .sorted { $0.date < $1.date }
