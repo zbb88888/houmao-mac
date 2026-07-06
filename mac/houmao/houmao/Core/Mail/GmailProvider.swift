@@ -78,6 +78,14 @@ struct GmailProvider: MailProvider {
         return detail.toMailMessage()
     }
 
+    // MARK: - Full message (detail view)
+
+    func fetchFull(id: String) async throws -> MailMessageDetail {
+        let query = [URLQueryItem(name: "format", value: "full")]
+        let detail: MessageFullResponse = try await get("/messages/\(id)", query: query)
+        return detail.toDetail()
+    }
+
     // MARK: - Cleanup
 
     func trashMessages(ids: [String]) async throws {
@@ -177,6 +185,8 @@ private struct MessageDetailResponse: Decodable {
     let id: String
     let snippet: String?
     let labelIds: [String]?
+    /// Epoch milliseconds (string), Gmail's server receive time.
+    let internalDate: String?
     let payload: Payload?
 
     func toMailMessage() -> MailMessage {
@@ -184,14 +194,94 @@ private struct MessageDetailResponse: Decodable {
         func header(_ name: String) -> String? {
             headers.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }?.value
         }
+        let date = internalDate
+            .flatMap(Double.init)
+            .map { Date(timeIntervalSince1970: $0 / 1000) } ?? .distantPast
         return MailMessage(
             id: id,
             from: header("From") ?? "",
             subject: header("Subject") ?? "",
             snippet: snippet ?? "",
             labelIds: labelIds ?? [],
-            hasListUnsubscribe: header("List-Unsubscribe") != nil
+            hasListUnsubscribe: header("List-Unsubscribe") != nil,
+            date: date
         )
+    }
+}
+
+/// `format=full` response: like the metadata one, but the payload carries the
+/// MIME tree (`body.data` + nested `parts`) we decode into readable text.
+private struct MessageFullResponse: Decodable {
+    struct Body: Decodable { let data: String? }
+    struct Part: Decodable {
+        let mimeType: String?
+        let headers: [MessageDetailResponse.Payload.Header]?
+        let body: Body?
+        let parts: [Part]?
+    }
+    let id: String
+    let snippet: String?
+    let payload: Part?
+
+    func toDetail() -> MailMessageDetail {
+        let headers = payload?.headers ?? []
+        func header(_ name: String) -> String? {
+            headers.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }?.value
+        }
+        let text = payload.flatMap { Self.extractText(from: $0) } ?? ""
+        let body = text.isEmpty ? (snippet ?? "") : text
+        return MailMessageDetail(
+            id: id,
+            from: header("From") ?? "",
+            to: header("To") ?? "",
+            subject: header("Subject") ?? "",
+            date: header("Date") ?? "",
+            body: body
+        )
+    }
+
+    /// Walk the MIME tree, preferring a `text/plain` part; fall back to the
+    /// first `text/html` part (tags stripped) so there's always readable text.
+    private static func extractText(from part: Part) -> String? {
+        if let plain = firstPart(part, mimeType: "text/plain"), let text = decode(plain.body?.data) {
+            return text
+        }
+        if let html = firstPart(part, mimeType: "text/html"), let raw = decode(html.body?.data) {
+            return stripHTML(raw)
+        }
+        return nil
+    }
+
+    private static func firstPart(_ part: Part, mimeType: String) -> Part? {
+        if part.mimeType?.caseInsensitiveCompare(mimeType) == .orderedSame, part.body?.data != nil {
+            return part
+        }
+        for child in part.parts ?? [] {
+            if let match = firstPart(child, mimeType: mimeType) { return match }
+        }
+        return nil
+    }
+
+    /// Gmail encodes body data as base64url (RFC 4648 §5, no padding).
+    private static func decode(_ base64url: String?) -> String? {
+        guard var s = base64url else { return nil }
+        s = s.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while s.count % 4 != 0 { s.append("=") }
+        guard let data = Data(base64Encoded: s) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// Naive tag strip so an HTML-only message is still legible in the detail view.
+    private static func stripHTML(_ html: String) -> String {
+        let stripped = html.replacingOccurrences(
+            of: "<[^>]+>", with: "", options: .regularExpression
+        )
+        return stripped
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

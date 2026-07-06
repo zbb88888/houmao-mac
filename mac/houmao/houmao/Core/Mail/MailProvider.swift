@@ -18,6 +18,9 @@ protocol MailProvider: Sendable {
     /// Fetch metadata (no body) for the given ids.
     func fetchMetadata(ids: [String]) async throws -> [MailMessage]
 
+    /// Fetch the full message (headers + decoded body) for the detail view.
+    func fetchFull(id: String) async throws -> MailMessageDetail
+
     /// Move messages to Trash (recoverable). The cleanup action.
     func trashMessages(ids: [String]) async throws
 

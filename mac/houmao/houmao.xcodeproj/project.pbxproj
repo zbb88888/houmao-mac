@@ -25,7 +25,6 @@
 		4DC903D4DC0CF422B37647D4 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99D44385EF33EF2316E4ADA /* KeychainStore.swift */; };
 		510D19CDB94F4643747B3C60 /* MailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF08D164A5D2EA8C9127D54 /* MailViewModel.swift */; };
 		51B22447BCA96ED141D2470F /* houmaoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */; };
-		544235FE343AC24F7D546849 /* MailInsight.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F2A33D78252698C10ED103 /* MailInsight.swift */; };
 		5A6C6C32968E7A922C953FA0 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BF08A509F2FFE9FEE779D39 /* MarkdownView.swift */; };
 		6080F1F56A8D693403F8CA75 /* MailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A898812C4E745A5A78DA3D1 /* MailView.swift */; };
 		66AF29D4489C1F7D925C3279 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ACFAC2F8E8BEF91D60F434 /* Theme.swift */; };
@@ -41,7 +40,6 @@
 		9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */; };
 		9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31DADFF4D45E07705B344E48 /* MainViewModel.swift */; };
 		A3C3D1FF66B9D838943E282F /* PipelineRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A46DDBD2FAFB7BCD7D2052 /* PipelineRunner.swift */; };
-		ADF31009ECB585C1768DE057 /* MailInsightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5936F6D62F51F4E102E6F22 /* MailInsightTests.swift */; };
 		C37CC0717D7D7421F9FD869A /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E57CA19726AD9EFFBBB555B3 /* Conversation.swift */; };
 		C3BA07A77644BACB8E21A081 /* ChatStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E94C815AAEDD8E48836C96E /* ChatStore.swift */; };
 		CAE8880B5D80A8AC100228C2 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75259439A55CE9D1A9179843 /* SettingsView.swift */; };
@@ -125,13 +123,11 @@
 		B7AB34ACA01BB70F852F37F3 /* MarkdownParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownParserTests.swift; sourceTree = "<group>"; };
 		B8673CCE45ECC5F8DD4FB2F8 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		C0BC36FC5E119006A965686E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		C5936F6D62F51F4E102E6F22 /* MailInsightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailInsightTests.swift; sourceTree = "<group>"; };
 		CDFCF205D358DA2ADF1105B2 /* TextClustering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextClustering.swift; sourceTree = "<group>"; };
 		CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMETextField.swift; sourceTree = "<group>"; };
 		D0ACFAC2F8E8BEF91D60F434 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		D19148038642034373C73C39 /* ChatStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStoreTests.swift; sourceTree = "<group>"; };
 		D294FA5BEF072740B48A5A69 /* MailProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailProvider.swift; sourceTree = "<group>"; };
-		E3F2A33D78252698C10ED103 /* MailInsight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailInsight.swift; sourceTree = "<group>"; };
 		E57CA19726AD9EFFBBB555B3 /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
 		E99D44385EF33EF2316E4ADA /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		F598AC90045D4ECF6A978FEF /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
@@ -196,7 +192,6 @@
 			children = (
 				1D9F37F0171267C0C74A5BE5 /* GmailProvider.swift */,
 				619FF54E8FF017D104ECBFEF /* MailGrouping.swift */,
-				E3F2A33D78252698C10ED103 /* MailInsight.swift */,
 				AA4D01DBF553FC3A1D20709F /* MailMessage.swift */,
 				D294FA5BEF072740B48A5A69 /* MailProvider.swift */,
 			);
@@ -221,7 +216,6 @@
 				8B81BFC7008DECB0341CF0F7 /* GoogleAuthTests.swift */,
 				8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */,
 				0AE08487E764F95B66219AEB /* MailGroupingTests.swift */,
-				C5936F6D62F51F4E102E6F22 /* MailInsightTests.swift */,
 				B7AB34ACA01BB70F852F37F3 /* MarkdownParserTests.swift */,
 				1463CB9916AB39A21F23ECAA /* PipelineParserTests.swift */,
 				3F0C55C88E57A6F6BC2D2641 /* TextClusteringTests.swift */,
@@ -412,7 +406,6 @@
 				4DC903D4DC0CF422B37647D4 /* KeychainStore.swift in Sources */,
 				D51E182E30B4A8A52AC8176D /* LoopbackAuthReceiver.swift in Sources */,
 				DF5A8B48A7E21CC043964C40 /* MailGrouping.swift in Sources */,
-				544235FE343AC24F7D546849 /* MailInsight.swift in Sources */,
 				D33C6358E4575392165EF1F0 /* MailMessage.swift in Sources */,
 				489DBD824B8D8BEA8C368FC3 /* MailProvider.swift in Sources */,
 				6080F1F56A8D693403F8CA75 /* MailView.swift in Sources */,
@@ -453,7 +446,6 @@
 				D5E3519D846F8C01540F5659 /* ChatStoreTests.swift in Sources */,
 				48548AA7258DA25481EC0C04 /* GoogleAuthTests.swift in Sources */,
 				7E06D06B246B6D758C185C38 /* MailGroupingTests.swift in Sources */,
-				ADF31009ECB585C1768DE057 /* MailInsightTests.swift in Sources */,
 				E1541F22D20877460D696EB9 /* MarkdownParserTests.swift in Sources */,
 				67770692576258B01B0A7366 /* PipelineParserTests.swift in Sources */,
 				EF957138A8BB21781964CC02 /* TextClusteringTests.swift in Sources */,

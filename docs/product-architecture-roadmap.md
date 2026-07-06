@@ -2,7 +2,7 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
-> 最近更新：2026-07-06（邮件助手 Phase 6 全部落地（含 6.6 可选 LLM 簇摘要/重要度）：`Core/Clustering` + `MailProvider`/`GmailProvider` + `MailGrouping` + `GoogleAuthProvider`(PKCE)/`LoopbackAuthReceiver` + `MailInsightAnalyzer` + `/mail` 窗口 UI，全套 72 单测绿；ADR-8 补记「只启用 Gmail API，不用 Gmail MCP/Workspace MCP/Postmaster」；端到端联调待 OAuth Client ID，见 3.7 / Phase 6 / ADR-8 / ADR-9）｜ 维护方式：每次提交涉及架构/功能变更时同步本文件。
+> 最近更新：2026-07-06（邮件助手：标题分类策略重构为**括号多级标签**（`()` 1 级 / `[]` 2 级 / 其他括号更后；PR/issue 标题匹配；无括号回退 Gmail 分类），见 [mail-title-classify.md](mail-title-classify.md)；新增邮件详情独立大窗口 + 选中单封「AI 分析」（摘要 / 自动路由 `/pr`、`/issue`）；`/mail` 窗口铺满屏幕、顶部操作栏精简；**移除**原 6.6 簇级 LLM 摘要/重要度（`MailInsightAnalyzer`）；`Core/Clustering` + `MailProvider`/`GmailProvider` + `MailGrouping` + `GoogleAuthProvider`(PKCE)/`LoopbackAuthReceiver` + `/mail` 窗口 UI；ADR-8 补记「只启用 Gmail API，不用 Gmail MCP/Workspace MCP/Postmaster」；端到端联调待 OAuth Client ID，见 3.7 / Phase 6 / ADR-8 / ADR-9）｜ 维护方式：每次提交涉及架构/功能变更时同步本文件。
 
 ---
 
@@ -337,10 +337,10 @@ flowchart TB
 | 6.0 | `GoogleAuthProvider`（OAuth 2.0 Desktop app + PKCE + loopback；scope `gmail.modify`；refresh token 存 Keychain）+ `LoopbackAuthReceiver`（127.0.0.1 回环捕获回调） | ✅ |
 | 6.1 | `MailProvider` 协议 + `MailMessage`/`MailCategory` 模型 + `GmailProvider`（`messages.list` 粗筛 / `get` 元数据含 labelIds / `batchModify` 移废纸篓 / `batchDelete`） | ✅ |
 | 6.2 | `Core/Clustering/TextClustering`（char 3-gram TF-IDF + 余弦 + 阈值 Union-Find，与业务解耦）+ 单测 9 例 | ✅ |
-| 6.3 | `MailGrouping` 分组装配：分类读 Gmail `labelIds`；同类内调用聚类模块成簇 + 单测 | ✅ |
-| 6.4 | `/mail` 命令 + `MailViewModel` + `MailView` 邮件处理窗口（独立 NSWindow，与 `/chat` 同构；按分类→簇分组/整簇勾选/低优先类预勾）+ 设置页填 OAuth Client ID | ✅ |
-| 6.5 | 提交 → `batchModify` 批量移废纸篓（可撤销）；永久删除二次确认（`allowPermanentDelete` 门禁 + 确认弹窗） | 🚧 实现完成，待真实账号联调 |
-| 6.6 | LLM 对每簇代表样本补摘要/重要度/建议清理（`MailInsightAnalyzer` 复用 `AiTxtClient`，每簇一次往返，宽松 JSON 解析）+ `MailView` 展示 + 「应用 AI 建议」一键勾选 + 单测 5 例 | ✅ |
+| 6.3 | `MailGrouping` 分组装配：**括号多级标签**（`()` 1 级 / `[]` 2 级 / 其他括号更后）+ PR/issue 标题匹配 + 无括号回退 Gmail 分类；同组内仅按**标题**近邻聚簇；见 [mail-title-classify.md](mail-title-classify.md) + 单测 | ✅ |
+| 6.4 | `/mail` 命令 + `MailViewModel` + `MailView` 邮件处理窗口（独立 NSWindow，与 `/chat` 同构；两级大类›小类分组/整组勾选/默认不预选）+ 选中单封「AI 分析」 + 邮件详情大窗口 + 设置页填 OAuth Client ID | ✅ |
+| 6.5 | 提交 → `batchModify` 批量移废纸篓（可撤销）；标记已读（可撤销） | 🚧 实现完成，待真实账号联调 |
+| 6.6 | ~~LLM 对每簇代表样本补摘要/重要度~~ **已移除**（`MailInsightAnalyzer` + 簇级展示），改为选中单封的「AI 分析」：在聊天栏插入任务气泡「分析邮件：<标题>」，摘要或自动路由 `/pr`、`/issue`（`MailViewModel.analyzeSelected` + `MainViewModel.analyzeMailForChat`，不抢窗口焦点故 AI 按钮可连续用） | ✅ |
 
 > **外部前置（唯一阻塞）**：`/mail` 端到端联调需在 Google Cloud Console 注册 **Desktop app** 类型 OAuth Client，将 Client ID 填入「设置（⌘,）→ Google OAuth (Gmail)」。分类/聚类/UI 无此依赖，已可离线编译+单测（全套 67 单测绿）。
 

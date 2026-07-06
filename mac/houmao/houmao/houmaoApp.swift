@@ -45,6 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var chatStatusObserver: NSObjectProtocol?
     private var enterMailObserver: NSObjectProtocol?
     private var exitMailObserver: NSObjectProtocol?
+    private var openMailDetailObserver: NSObjectProtocol?
 
     /// Standalone, resizable / full-screen-capable chat window (office-style).
     /// Distinct from the floating minimal input box; shares the view model so
@@ -52,6 +53,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var chatWindow: NSWindow?
     /// Standalone Gmail cleanup window (`/mail`), same shell as the chat window.
     private var mailWindow: NSWindow?
+    /// Standalone message-detail window opened from the mail list (standard large
+    /// window, not an in-place sheet).
+    private var mailDetailWindow: NSWindow?
 
     /// One-shot observers used to defer hiding a full-screen window until its
     /// exit-full-screen transition completes, keyed by window (a full-screen
@@ -251,6 +255,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             hideMailWindow()
             return false
         }
+        if sender == mailDetailWindow {
+            hideWindowSafely(sender)
+            mailViewModel.closeDetail()
+            return false
+        }
         guard sender == chatWindow else { return true }
         hideChatWindow()
         mainViewModel.exitChatMode()
@@ -270,6 +279,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         ) { [weak self] _ in
             self?.hideMailWindow()
         }
+        openMailDetailObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoOpenMailDetail, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.showMailDetailWindow()
+        }
     }
 
     /// Hide the mail window. Uses `hideWindowSafely` so a full-screen close does
@@ -280,16 +294,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func makeMailWindow() -> NSWindow {
-        let screen = screenContainingMouse()
-        let visible = screen.visibleFrame
-        let width = min(1200, max(760, visible.width * 0.7))
-        let height = min(900, max(520, visible.height * 0.8))
-        let rect = NSRect(
-            x: visible.midX - width / 2,
-            y: visible.midY - height / 2,
-            width: width,
-            height: height
-        )
+        let rect = centeredGoldenRect(on: screenContainingMouse())
         let window = NSWindow(
             contentRect: rect,
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -311,9 +316,67 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         return window
     }
 
+    /// A window rect centered on `screen`, sized to the golden ratio (0.618) of
+    /// the usable screen in each dimension.
+    private func centeredGoldenRect(on screen: NSScreen) -> NSRect {
+        let visible = screen.visibleFrame
+        let golden = 0.618
+        let width = visible.width * golden
+        let height = visible.height * golden
+        return NSRect(
+            x: visible.midX - width / 2,
+            y: visible.midY - height / 2,
+            width: width,
+            height: height
+        )
+    }
+
     private func showMailWindow() {
         let window = mailWindow ?? makeMailWindow()
         mailWindow = window
+        // Open centered at the golden-ratio size every time (unless the user has
+        // taken it full screen), matching the chat window's centered shell.
+        if !window.styleMask.contains(.fullScreen) {
+            window.setFrame(centeredGoldenRect(on: screenContainingMouse()), display: true)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    /// Standard large detail window (mirrors the chat window's shell), shared as
+    /// a singleton and reused for whichever message the user opens.
+    private func makeMailDetailWindow() -> NSWindow {
+        let visible = screenContainingMouse().visibleFrame
+        let width = min(1400, max(820, visible.width * 0.8))
+        let height = min(1000, max(560, visible.height * 0.8))
+        let rect = NSRect(
+            x: visible.midX - width / 2,
+            y: visible.midY - height / 2,
+            width: width,
+            height: height
+        )
+        let window = NSWindow(
+            contentRect: rect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "邮件详情"
+        window.titlebarAppearsTransparent = true
+        window.appearance = NSAppearance(named: .aqua)
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 640, height: 420)
+        window.delegate = self
+
+        let detailView = MailDetailView().environment(mailViewModel)
+        window.contentViewController = NSHostingController(rootView: detailView)
+        return window
+    }
+
+    private func showMailDetailWindow() {
+        let window = mailDetailWindow ?? makeMailDetailWindow()
+        mailDetailWindow = window
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
     }

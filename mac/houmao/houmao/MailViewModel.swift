@@ -26,6 +26,14 @@ final class MailViewModel {
         let perform: () async -> Void
     }
 
+    /// Detail-view state for the double-clicked message. `nil` means no detail
+    /// is open (the sheet is dismissed).
+    enum DetailState: Equatable {
+        case loading
+        case loaded(MailMessageDetail)
+        case failed(String)
+    }
+
     var phase: Phase
     var clusters: [MailCluster] = []
     var selectedIDs: Set<String> = []
@@ -34,15 +42,13 @@ final class MailViewModel {
     var isMutating = false
     /// The last reversible action, surfaced as a banner with an 撤销 button.
     var undoAction: UndoAction?
+    /// Content of the double-clicked message (nil → detail sheet hidden).
+    var detail: DetailState?
+    /// The id the detail request is for, so stale responses can be ignored.
+    private var detailMessageID: String?
     /// False until the first successful `load()`, so the UI can tell a fresh
     /// (not-yet-loaded) review state from a genuinely empty result.
     private(set) var hasLoaded = false
-
-    /// Optional LLM insight per cluster id (Phase 6.6). Filled progressively by
-    /// `analyzeInsights()`; the core workflow works fine without it.
-    var insights: [UUID: MailClusterInsight] = [:]
-    /// True while `analyzeInsights()` is running.
-    var isAnalyzing = false
 
     /// Gmail `q` filter for the coarse server-side pre-filter. Unread inbox only
     /// — read mail is intentionally skipped (triage focuses on the new stuff).
@@ -129,24 +135,33 @@ final class MailViewModel {
         let grouped = MailGrouping.group(loadedMessages, customTags: AppSettings.shared.mailTags)
         mailLog.info("grouped \(self.loadedMessages.count) messages into \(grouped.count) clusters")
         clusters = grouped
-        insights = [:]
         // UX: keep the default state fully unselected; users explicitly decide.
         selectedIDs.removeAll()
     }
 
     // MARK: - Selection
 
-    /// Clusters grouped by display group, preserving `MailGrouping`'s ordering,
-    /// so the UI renders one non-collapsing section per group.
-    var groupedClusters: [(key: MailGroupKey, clusters: [MailCluster])] {
-        var order: [MailGroupKey] = []
-        var map: [MailGroupKey: [MailCluster]] = [:]
+    /// Clusters arranged as a two-level tree — primary (大类) → secondary (小类)
+    /// → clusters — preserving `MailGrouping`'s ordering, so the UI renders one
+    /// non-collapsing section per primary with sub-headers per secondary.
+    var groupedClusters: [(primary: String, subgroups: [(secondary: String?, clusters: [MailCluster])])] {
+        var primaryOrder: [String] = []
+        var primaryMap: [String: [MailCluster]] = [:]
         for cluster in clusters {
-            let key = cluster.groupKey
-            if map[key] == nil { order.append(key) }
-            map[key, default: []].append(cluster)
+            if primaryMap[cluster.primary] == nil { primaryOrder.append(cluster.primary) }
+            primaryMap[cluster.primary, default: []].append(cluster)
         }
-        return order.map { ($0, map[$0] ?? []) }
+        return primaryOrder.map { primary in
+            let group = primaryMap[primary] ?? []
+            var secondaryOrder: [String?] = []
+            var secondaryMap: [String?: [MailCluster]] = [:]
+            for cluster in group {
+                if secondaryMap[cluster.secondary] == nil { secondaryOrder.append(cluster.secondary) }
+                secondaryMap[cluster.secondary, default: []].append(cluster)
+            }
+            let subgroups = secondaryOrder.map { (secondary: $0, clusters: secondaryMap[$0] ?? []) }
+            return (primary: primary, subgroups: subgroups)
+        }
     }
 
     func isSelected(_ id: String) -> Bool { selectedIDs.contains(id) }
@@ -242,38 +257,69 @@ final class MailViewModel {
         }
     }
 
-    // MARK: - LLM insights (optional, Phase 6.6)
+    // MARK: - LLM (optional)
 
     /// Whether an LLM model is configured (so the "AI 分析" action is available).
     var canAnalyze: Bool { AppSettings.shared.resolveModel(named: nil) != nil }
 
-    /// Best-effort: ask the LLM for a one-line summary + importance per cluster
-    /// (one round-trip per cluster, on its representative sample). Fills
-    /// `insights` progressively; per-cluster failures are skipped silently.
-    func analyzeInsights() async {
-        guard !isAnalyzing, let resolved = AppSettings.shared.resolveModel(named: nil) else { return }
-        let analyzer = MailInsightAnalyzer(client: AiTxtClient(
-            baseURL: resolved.provider.apiHost,
-            model: resolved.model,
-            apiKey: resolved.provider.apiKey
-        ))
-        isAnalyzing = true
-        defer { isAnalyzing = false }
+    // MARK: - Detail view
 
-        for cluster in clusters {
-            if insights[cluster.id] != nil { continue }
-            if let insight = try? await analyzer.analyze(cluster) {
-                insights[cluster.id] = insight
-            }
+    /// Fetch and show the full content of a double-clicked message. Ignores a
+    /// response if the user has since opened another message or closed the sheet.
+    func openDetail(_ message: MailMessage) async {
+        guard let provider = makeProvider() else { return }
+        detailMessageID = message.id
+        detail = .loading
+        // Show the standalone detail window immediately (with a spinner) so the
+        // click feels responsive while the body is fetched.
+        NotificationCenter.default.post(name: .houmaoOpenMailDetail, object: nil)
+        do {
+            let full = try await provider.fetchFull(id: message.id)
+            guard detailMessageID == message.id else { return }
+            detail = .loaded(full)
+        } catch {
+            guard detailMessageID == message.id else { return }
+            detail = .failed(error.localizedDescription)
         }
     }
 
-    /// Select every cluster the LLM suggested deleting (additive to the current
-    /// selection). No-op until `analyzeInsights()` has produced insights.
-    func applyAISuggestions() {
-        for cluster in clusters where insights[cluster.id]?.suggestDelete == true {
-            cluster.messages.forEach { selectedIDs.insert($0.id) }
+    func closeDetail() {
+        detail = nil
+        detailMessageID = nil
+    }
+
+    // MARK: - AI analysis (single selected message)
+
+    /// Analyze the selected mail as a task bubble in the chat window. Selecting a
+    /// whole cluster analyzes it **as one thread**: the messages are ordered
+    /// oldest→newest and sent together so the AI can follow the story over time.
+    /// A GitHub PR/issue link runs the `/pr` / `/issue` flow; otherwise a summary.
+    /// No window is activated, so the AI button stays usable for the next batch.
+    func analyzeSelected() async {
+        guard !selectedIDs.isEmpty, let provider = makeProvider() else { return }
+        let selected = loadedMessages
+            .filter { selectedIDs.contains($0.id) }
+            .sorted { $0.date < $1.date }
+        guard !selected.isEmpty else { return }
+        var mails: [MailMessageDetail] = []
+        for message in selected {
+            if let full = try? await provider.fetchFull(id: message.id) { mails.append(full) }
         }
+        guard !mails.isEmpty else { return }
+        let github = mails.lazy.compactMap { Self.firstGitHubURL(in: $0.body) }.first
+        AppDelegate.shared?.mainViewModel.analyzeMailForChat(mails: mails, github: github)
+    }
+
+    /// First GitHub issue/PR URL in `text`, with its analysis mode
+    /// (`pr` for `/pull/`, `issue` for `/issues/`); nil when none is present.
+    static func firstGitHubURL(in text: String) -> (url: String, mode: String)? {
+        let pattern = #"https?://github\.com/[^/\s]+/[^/\s]+/(pull|issues)/\d+"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        guard let match = regex.firstMatch(in: text, range: range),
+              let urlRange = Range(match.range, in: text) else { return nil }
+        let url = String(text[urlRange])
+        return (url, url.contains("/pull/") ? "pr" : "issue")
     }
 
     // MARK: - Helpers
@@ -281,7 +327,7 @@ final class MailViewModel {
     private func removeFromView(ids: Set<String>) {
         clusters = clusters.compactMap { cluster in
             let remaining = cluster.messages.filter { !ids.contains($0.id) }
-            return remaining.isEmpty ? nil : MailCluster(id: cluster.id, category: cluster.category, customTag: cluster.customTag, messages: remaining)
+            return remaining.isEmpty ? nil : MailCluster(id: cluster.id, primary: cluster.primary, secondary: cluster.secondary, category: cluster.category, messages: remaining)
         }
         loadedMessages.removeAll { ids.contains($0.id) }
         selectedIDs.subtract(ids)

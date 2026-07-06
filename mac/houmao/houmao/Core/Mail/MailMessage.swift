@@ -14,6 +14,9 @@ struct MailMessage: Identifiable, Equatable, Sendable {
     let labelIds: [String]
     /// True when a `List-Unsubscribe` header is present (marketing/subscription).
     let hasListUnsubscribe: Bool
+    /// Server receive time (Gmail `internalDate`), used to order a cluster's
+    /// messages oldest→newest for time-line AI analysis.
+    let date: Date
 
     init(
         id: String,
@@ -21,7 +24,8 @@ struct MailMessage: Identifiable, Equatable, Sendable {
         subject: String,
         snippet: String = "",
         labelIds: [String] = [],
-        hasListUnsubscribe: Bool = false
+        hasListUnsubscribe: Bool = false,
+        date: Date = .distantPast
     ) {
         self.id = id
         self.from = from
@@ -29,14 +33,29 @@ struct MailMessage: Identifiable, Equatable, Sendable {
         self.snippet = snippet
         self.labelIds = labelIds
         self.hasListUnsubscribe = hasListUnsubscribe
+        self.date = date
     }
+}
+
+/// Full message content for the detail view, fetched on demand (double-click a
+/// row). Populated from `messages.get?format=full` — includes the decoded body
+/// text, which the list view intentionally omits.
+struct MailMessageDetail: Identifiable, Equatable, Sendable {
+    let id: String
+    let from: String
+    let to: String
+    let subject: String
+    let date: String
+    /// Best-effort plain-text body (prefers a `text/plain` part; falls back to
+    /// the snippet when the message has only non-text parts).
+    let body: String
 }
 
 /// Semantic category derived from provider labels — zero AI (ADR-9).
 ///
 /// Mapped straight from Gmail's native `CATEGORY_*` labels; messages without a
-/// category label fall back to `.primary`. Low-priority categories are
-/// pre-checked in the review UI (the user can still change any selection).
+/// category label fall back to `.primary`. Used as the 大类 for bracket-less
+/// mail so a bracket-less inbox still splits by promotions/social/updates/… .
 enum MailCategory: String, CaseIterable, Sendable {
     case promotions
     case social
@@ -54,14 +73,6 @@ enum MailCategory: String, CaseIterable, Sendable {
         case .forums: return "论坛"
         case .personal: return "个人"
         case .primary: return "主要"
-        }
-    }
-
-    /// Whether this category is pre-selected for cleanup by default.
-    var isLowPriority: Bool {
-        switch self {
-        case .promotions, .updates, .forums: return true
-        case .social, .personal, .primary: return false
         }
     }
 

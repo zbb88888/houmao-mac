@@ -21,6 +21,9 @@ extension Notification.Name {
     static let houmaoEnterMailWindow = Notification.Name("houmaoEnterMailWindow")
     /// Posted when the mail window should be closed.
     static let houmaoExitMailWindow = Notification.Name("houmaoExitMailWindow")
+    /// Posted when the user opens a message so the app can show the standalone
+    /// mail-detail window (a standard large window, not an in-place sheet).
+    static let houmaoOpenMailDetail = Notification.Name("houmaoOpenMailDetail")
 }
 
 /// Listens for double-tap Option key to show/hide main window.

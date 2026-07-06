@@ -445,21 +445,34 @@ final class MainViewModel {
 
         currentTask?.cancel()
         currentTask = Task {
-            do {
-                for try await event in analyzer.stream(url: url, repoPath: repoPath, mode: mode) {
-                    if Task.isCancelled { break }
-                    switch event {
-                    case .progress(let p): postChatStatus(p)
-                    case .content(let c): chatStore.appendToken(assistantID, c)
-                    }
-                }
-            } catch {
-                chatStore.appendToken(assistantID, "\n\n分析失败：\(error.localizedDescription)")
-            }
-            chatStore.finish(assistantID)
+            await streamGhia(analyzer, url: url, repoPath: repoPath, mode: mode, into: assistantID)
             isLoading = false
-            postChatStatus(idleStatus())
         }
+    }
+
+    /// Stream a `ghia` analysis into an assistant message: progress → title bar,
+    /// content → tokens, ending with `finish`. Shared by `/pr`·`/issue` commands
+    /// and the mail task-bubble flow. Honors the calling `Task`'s cancellation.
+    private func streamGhia(
+        _ analyzer: IssueAnalyzer,
+        url: String,
+        repoPath: String,
+        mode: String,
+        into assistantID: UUID
+    ) async {
+        do {
+            for try await event in analyzer.stream(url: url, repoPath: repoPath, mode: mode) {
+                if Task.isCancelled { break }
+                switch event {
+                case .progress(let p): postChatStatus(p)
+                case .content(let c): chatStore.appendToken(assistantID, c)
+                }
+            }
+        } catch {
+            chatStore.appendToken(assistantID, "\n\n分析失败：\(error.localizedDescription)")
+        }
+        chatStore.finish(assistantID)
+        postChatStatus(idleStatus())
     }
 
     // MARK: - Chat window status (drives the title bar)
@@ -507,6 +520,113 @@ final class MainViewModel {
         return (String(url[ownerRange]), String(url[repoRange]))
     }
 
+    /// Analyze mail as a **task bubble** in the chat window's current
+    /// conversation: a user bubble "分析邮件：<标题>" plus a streamed assistant
+    /// reply. `mails` is a whole cluster ordered oldest→newest (a "thread"); a
+    /// GitHub PR/issue link runs `ghia` against the local repo, otherwise the
+    /// thread gets an LLM time-line summary.
+    ///
+    /// Intentionally does NOT show or activate any window — the mail window stays
+    /// front-most and key, so its AI button never greys out and the user can
+    /// analyze more mail back-to-back. Results accumulate in the chat window.
+    func analyzeMailForChat(mails: [MailMessageDetail], github: (url: String, mode: String)?) {
+        guard let resolved = AppSettings.shared.resolveModel(named: nil) else {
+            showError("No provider configured. Open Settings (⌘,) to add one.")
+            return
+        }
+        guard let first = mails.first else { return }
+        let subject = first.subject.isEmpty ? "(无主题)" : first.subject
+        chatStore.ensureCurrent()
+        if mails.count == 1 {
+            chatStore.appendUser("分析邮件：\(subject)")
+        } else {
+            // List every message (numbered, time order) so the user sees exactly
+            // which mails go into this one combined analysis.
+            let list = mails.enumerated()
+                .map { "\($0.offset + 1). \($0.element.subject.isEmpty ? "(无主题)" : $0.element.subject)" }
+                .joined(separator: "\n")
+            chatStore.appendUser("分析邮件（共 \(mails.count) 封，按时间从早到晚）：\n\(list)")
+        }
+        let assistantID = chatStore.startAssistant(streaming: true)
+        lastModelName = resolved.provider.name
+
+        // A GitHub PR/issue link → analyze against the local repo via ghia.
+        if let github, let (owner, repo) = parseGitHubOwnerRepo(github.url) {
+            guard let repoPath = AppSettings.shared.resolveRepoPath(owner: owner, repo: repo) else {
+                let root = AppSettings.shared.reposRoot.trimmingCharacters(in: .whitespaces)
+                let reply = root.isEmpty
+                    ? "尚未设置 code dir，无法分析 \(repo)。请在设置（⌘,）配置 code dir。"
+                    : "code dir「\(root)」下没找到仓库 \(repo)。请确认已 clone 到 \(root)/\(repo)。"
+                chatStore.updateText(assistantID, reply)
+                chatStore.finish(assistantID)
+                return
+            }
+            let analyzer = IssueAnalyzer(config: .init(
+                binaryPath: IssueAnalyzer.defaultBinaryPath,
+                apiKey: resolved.provider.apiKey,
+                baseURL: resolved.provider.apiHost + "/v1",
+                model: resolved.model,
+                contextTokens: resolved.provider.contextTokens
+            ))
+            // Independent task (not `currentTask`): analyzing several mails
+            // back-to-back must not cancel each other's in-flight analysis.
+            Task { await streamGhia(analyzer, url: github.url, repoPath: repoPath, mode: github.mode, into: assistantID) }
+            return
+        }
+
+        // Otherwise → LLM summary / time-line analysis of the thread.
+        let prompt = Self.mailThreadPrompt(mails)
+        let client = AiTxtClient(baseURL: resolved.provider.apiHost, model: resolved.model, apiKey: resolved.provider.apiKey)
+        Task {
+            do {
+                _ = try await client.askStream(question: prompt, attachments: [], history: []) { [weak self] token in
+                    Task { @MainActor in self?.chatStore.appendToken(assistantID, token) }
+                }
+            } catch {
+                chatStore.appendToken(assistantID, "\n\n分析失败：\(error.localizedDescription)")
+            }
+            chatStore.finish(assistantID)
+        }
+    }
+
+    /// Build the LLM prompt for a mail thread (one or more messages already
+    /// ordered oldest→newest).
+    private static func mailThreadPrompt(_ mails: [MailMessageDetail]) -> String {
+        if mails.count == 1 {
+            let m = mails[0]
+            var header = "发件人：\(m.from)\n"
+            if !m.to.isEmpty { header += "收件人：\(m.to)\n" }
+            if !m.date.isEmpty { header += "时间：\(m.date)\n" }
+            header += "主题：\(m.subject.isEmpty ? "(无主题)" : m.subject)"
+            return """
+            请阅读下面这封邮件，用中文快速给出：
+            1) 一句话摘要；
+            2) 3-5 条核心要点（要点式）；
+            3) 是否需要我处理或回复；若需要，给出建议动作。
+            只输出结论，不要复述原文。
+
+            \(header)
+            正文：
+            \(m.body)
+            """
+        }
+        var thread = ""
+        for (index, m) in mails.enumerated() {
+            thread += "【第 \(index + 1) 封】"
+            if !m.date.isEmpty { thread += "时间：\(m.date)  " }
+            thread += "发件人：\(m.from)\n主题：\(m.subject.isEmpty ? "(无主题)" : m.subject)\n正文：\n\(m.body)\n\n---\n\n"
+        }
+        return """
+        下面是同一主题下的 \(mails.count) 封邮件，已按时间从早到晚排列。请用中文：
+        1) 概述这组邮件讲了什么、事情如何随时间推进；
+        2) 提炼关键结论 / 决定 / 待办；
+        3) 是否需要我处理或回复；若需要，给出建议动作。
+        只输出结论，不要逐封复述。
+
+        \(thread)
+        """
+    }
+
     /// Auto-upgrade the one-shot input box into the standalone chat window:
     /// seed a NEW conversation with the completed one-shot turns as context,
     /// open the chat window, then run the triggering submission as its first
@@ -538,6 +658,17 @@ final class MainViewModel {
     /// Map Core chat messages onto the LLM client's wire format.
     private func toChatMessages(_ messages: [Message]) -> [ChatMessage] {
         messages.map { ChatMessage(role: $0.role.rawValue, content: .text($0.text)) }
+    }
+
+    /// Prior one-shot turns as LLM history, so the minimal box (临时对话框) is a
+    /// real ongoing conversation with memory while it stays open.
+    private func oneShotHistory() -> [ChatMessage] {
+        var history: [ChatMessage] = []
+        for turn in oneShotTurns {
+            history.append(ChatMessage(role: "user", content: .text(turn.user)))
+            history.append(ChatMessage(role: "assistant", content: .text(turn.assistant)))
+        }
+        return history
     }
 
     /// Run one conversational turn: append the user message, stream the
@@ -614,10 +745,10 @@ final class MainViewModel {
         }
     }
 
-    /// One-shot query from the 临时对话框 (minimal input box): a brand-new
-    /// exchange every time, sent with no history (see docs/ui-design.md §4).
-    /// The reply is kept in `oneShotTurns` only to seed a fresh chat conversation
-    /// if the box later upgrades to the chat window.
+    /// One-shot query from the 临时对话框 (minimal input box). While the box
+    /// stays open it is a real ongoing conversation: prior turns are replayed as
+    /// history so the model has memory. The turns also seed a fresh chat
+    /// conversation if the box later upgrades to the chat window.
     private func executeQuery(question: String, resolved: ResolvedModel, attachments: [Attachment]) {
         let client = AiTxtClient(baseURL: resolved.provider.apiHost, model: resolved.model, apiKey: resolved.provider.apiKey)
 
@@ -634,6 +765,7 @@ final class MainViewModel {
 
         usageTracker?.record(text: question)
 
+        let history = oneShotHistory()
         currentTask?.cancel()
         currentTask = Task {
             do {
@@ -641,8 +773,8 @@ final class MainViewModel {
                 let reply = try await client.askStream(
                     question: question,
                     attachments: currentAttachments,
-                    // 临时对话框：每次都是全新对话，不带历史（见 docs/ui-design.md §4）。
-                    history: []
+                    // Replay prior one-shot turns so the open box keeps context.
+                    history: history
                 ) { [weak self] token in
                     Task { @MainActor in
                         self?.lastLLMReply = (self?.lastLLMReply ?? "") + token
