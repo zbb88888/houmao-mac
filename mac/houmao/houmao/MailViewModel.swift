@@ -17,14 +17,23 @@ final class MailViewModel {
         case connecting
         case loading
         case review
-        case submitting
-        case done(trashed: Int)
         case failed(String)
+    }
+
+    /// A just-completed action the user can still reverse (feedback + 撤销).
+    struct UndoAction {
+        let label: String
+        let perform: () async -> Void
     }
 
     var phase: Phase
     var clusters: [MailCluster] = []
     var selectedIDs: Set<String> = []
+    /// True while a trash / mark-read mutation is in flight (keeps the list
+    /// visible with a lightweight busy indicator instead of a full-screen spinner).
+    var isMutating = false
+    /// The last reversible action, surfaced as a banner with an 撤销 button.
+    var undoAction: UndoAction?
     /// False until the first successful `load()`, so the UI can tell a fresh
     /// (not-yet-loaded) review state from a genuinely empty result.
     private(set) var hasLoaded = false
@@ -35,12 +44,15 @@ final class MailViewModel {
     /// True while `analyzeInsights()` is running.
     var isAnalyzing = false
 
-    /// Gmail `q` filter for the coarse server-side pre-filter.
-    var query: String = "in:inbox newer_than:30d"
+    /// Gmail `q` filter for the coarse server-side pre-filter. Unread inbox only
+    /// — read mail is intentionally skipped (triage focuses on the new stuff).
+    var query: String = "is:unread in:inbox newer_than:30d"
     /// Cap on the number of messages pulled per run (keeps O(n²) clustering fast).
     var maxResults: Int = 200
 
     private var auth: GoogleAuthProvider?
+    /// Raw fetched messages, kept so `regroup()` can re-cluster without refetching.
+    private var loadedMessages: [MailMessage] = []
 
     init() {
         // If a refresh token already exists we're effectively connected.
@@ -89,15 +101,12 @@ final class MailViewModel {
             return
         }
         phase = .loading
+        undoAction = nil
         do {
             let ids = try await provider.listMessages(query: query, maxResults: maxResults)
             mailLog.info("listMessages returned \(ids.count) ids for query \(self.query, privacy: .public)")
-            let messages = try await provider.fetchMetadata(ids: ids)
-            let grouped = MailGrouping.group(messages)
-            mailLog.info("grouped \(messages.count) messages into \(grouped.count) clusters")
-            clusters = grouped
-            insights = [:]
-            selectedIDs = Set(grouped.filter(\.isPreselected).flatMap { $0.messages.map(\.id) })
+            loadedMessages = try await provider.fetchMetadata(ids: ids)
+            applyGrouping()
             hasLoaded = true
             phase = .review
         } catch MailProviderError.notAuthenticated {
@@ -109,7 +118,36 @@ final class MailViewModel {
         }
     }
 
+    /// Re-run grouping over the already-fetched messages (e.g. after the user
+    /// edits custom tags) — no network round-trip.
+    func regroup() {
+        guard hasLoaded else { return }
+        applyGrouping()
+    }
+
+    private func applyGrouping() {
+        let grouped = MailGrouping.group(loadedMessages, customTags: AppSettings.shared.mailTags)
+        mailLog.info("grouped \(self.loadedMessages.count) messages into \(grouped.count) clusters")
+        clusters = grouped
+        insights = [:]
+        // UX: keep the default state fully unselected; users explicitly decide.
+        selectedIDs.removeAll()
+    }
+
     // MARK: - Selection
+
+    /// Clusters grouped by display group, preserving `MailGrouping`'s ordering,
+    /// so the UI renders one non-collapsing section per group.
+    var groupedClusters: [(key: MailGroupKey, clusters: [MailCluster])] {
+        var order: [MailGroupKey] = []
+        var map: [MailGroupKey: [MailCluster]] = [:]
+        for cluster in clusters {
+            let key = cluster.groupKey
+            if map[key] == nil { order.append(key) }
+            map[key, default: []].append(cluster)
+        }
+        return order.map { ($0, map[$0] ?? []) }
+    }
 
     func isSelected(_ id: String) -> Bool { selectedIDs.contains(id) }
 
@@ -130,33 +168,75 @@ final class MailViewModel {
         }
     }
 
-    // MARK: - Cleanup
+    // MARK: Whole-group (section) selection
 
-    /// Move the selected messages to Trash (recoverable) — the default action.
-    func submitCleanup() async {
-        guard !selectedIDs.isEmpty, let provider = makeProvider() else { return }
-        let ids = Array(selectedIDs)
-        phase = .submitting
-        do {
-            try await provider.trashMessages(ids: ids)
-            removeFromView(ids: Set(ids))
-            phase = .done(trashed: ids.count)
-        } catch {
-            phase = .failed(error.localizedDescription)
+    private func messageIDs(in clusters: [MailCluster]) -> [String] {
+        clusters.flatMap { $0.messages.map(\.id) }
+    }
+
+    func groupCount(_ clusters: [MailCluster]) -> Int { messageIDs(in: clusters).count }
+
+    func isGroupFullySelected(_ clusters: [MailCluster]) -> Bool {
+        let ids = messageIDs(in: clusters)
+        return !ids.isEmpty && ids.allSatisfy { selectedIDs.contains($0) }
+    }
+
+    func toggleGroup(_ clusters: [MailCluster]) {
+        let ids = messageIDs(in: clusters)
+        if isGroupFullySelected(clusters) {
+            ids.forEach { selectedIDs.remove($0) }
+        } else {
+            ids.forEach { selectedIDs.insert($0) }
         }
     }
 
-    /// Permanently delete the selection — irreversible. Gated by the UI's
-    /// explicit confirmation dialog and the provider's `allowPermanentDelete`
-    /// flag (ADR-8).
-    func permanentlyDelete() async {
-        guard !selectedIDs.isEmpty, let provider = makeProvider(allowPermanentDelete: true) else { return }
+    // MARK: - Actions
+
+    /// Move the selected messages to Trash (recoverable). Removes them from the
+    /// list in place so triage keeps flowing; offers an undo.
+    func submitCleanup() async {
+        guard !selectedIDs.isEmpty, let provider = makeProvider() else { return }
         let ids = Array(selectedIDs)
-        phase = .submitting
+        await mutate(ids: ids, label: "已移入废纸篓 \(ids.count) 封") {
+            try await provider.trashMessages(ids: ids)
+        } reverse: {
+            try await provider.untrash(ids: ids)
+        }
+    }
+
+    /// Mark the selected messages as read. Since the list shows unread only,
+    /// they drop out of view afterwards; offers an undo.
+    func markRead() async {
+        guard !selectedIDs.isEmpty, let provider = makeProvider() else { return }
+        let ids = Array(selectedIDs)
+        await mutate(ids: ids, label: "已标记已读 \(ids.count) 封") {
+            try await provider.markRead(ids: ids)
+        } reverse: {
+            try await provider.markUnread(ids: ids)
+        }
+    }
+
+    func dismissUndo() { undoAction = nil }
+
+    /// Run a mutation in place: keep the list visible, remove the affected rows,
+    /// then expose an undo that reverses the change server-side and reloads.
+    private func mutate(
+        ids: [String],
+        label: String,
+        action: @escaping () async throws -> Void,
+        reverse: @escaping () async throws -> Void
+    ) async {
+        isMutating = true
+        defer { isMutating = false }
         do {
-            try await provider.deleteMessages(ids: ids)
+            try await action()
             removeFromView(ids: Set(ids))
-            phase = .done(trashed: ids.count)
+            undoAction = UndoAction(label: label) { [weak self] in
+                guard let self else { return }
+                self.undoAction = nil
+                do { try await reverse(); await self.load() }
+                catch { self.phase = .failed(error.localizedDescription) }
+            }
         } catch {
             phase = .failed(error.localizedDescription)
         }
@@ -201,8 +281,9 @@ final class MailViewModel {
     private func removeFromView(ids: Set<String>) {
         clusters = clusters.compactMap { cluster in
             let remaining = cluster.messages.filter { !ids.contains($0.id) }
-            return remaining.isEmpty ? nil : MailCluster(id: cluster.id, category: cluster.category, messages: remaining)
+            return remaining.isEmpty ? nil : MailCluster(id: cluster.id, category: cluster.category, customTag: cluster.customTag, messages: remaining)
         }
+        loadedMessages.removeAll { ids.contains($0.id) }
         selectedIDs.subtract(ids)
     }
 
@@ -217,7 +298,7 @@ final class MailViewModel {
     }
 
     /// Build a Gmail provider from the current (or Keychain-backed) auth.
-    private func makeProvider(allowPermanentDelete: Bool = false) -> GmailProvider? {
+    private func makeProvider() -> GmailProvider? {
         let auth = self.auth ?? {
             // Refresh-only provider for a returning session (redirect unused).
             let a = makeAuth(redirectURI: "http://127.0.0.1:0")
@@ -225,9 +306,6 @@ final class MailViewModel {
             return a
         }()
         guard isConfigured else { return nil }
-        return GmailProvider(
-            accessTokenProvider: { try await auth.validAccessToken() },
-            allowPermanentDelete: allowPermanentDelete
-        )
+        return GmailProvider(accessTokenProvider: { try await auth.validAccessToken() })
     }
 }

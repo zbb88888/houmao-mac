@@ -91,6 +91,15 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(googleClientSecret, forKey: "googleClientSecret") }
     }
 
+    /// User custom mail-tag rules, one `名称: 关键词` per line. Parsed lazily via
+    /// `mailTags`; matching emails form their own group in `/mail`.
+    var mailTagRules: String {
+        didSet { UserDefaults.standard.set(mailTagRules, forKey: "mailTagRules") }
+    }
+
+    /// Parsed custom tag rules.
+    var mailTags: [MailTag] { MailTag.parse(mailTagRules) }
+
     private init() {
         if let data = UserDefaults.standard.data(forKey: "providers"),
            let decoded = try? JSONDecoder().decode([Provider].self, from: data) {
@@ -101,6 +110,7 @@ final class AppSettings {
         self.reposRoot = UserDefaults.standard.string(forKey: "reposRoot") ?? ""
         self.googleClientID = UserDefaults.standard.string(forKey: "googleClientID") ?? ""
         self.googleClientSecret = UserDefaults.standard.string(forKey: "googleClientSecret") ?? ""
+        self.mailTagRules = UserDefaults.standard.string(forKey: "mailTagRules") ?? ""
         // Clean up legacy keys from previous versions
         UserDefaults.standard.removeObject(forKey: "workers")
         // Hydrate API keys from the Keychain (and migrate legacy plaintext keys).

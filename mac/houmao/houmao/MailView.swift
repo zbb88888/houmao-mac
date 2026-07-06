@@ -8,7 +8,8 @@ struct MailView: View {
     private var theme: Theme { AppTheme.current }
 
     @State private var expanded: Set<UUID> = []
-    @State private var showDeleteConfirm = false
+    @State private var showTagEditor = false
+    @State private var tagDraft = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,6 +19,7 @@ struct MailView: View {
         }
         .background(theme.background)
         .foregroundStyle(theme.textPrimary)
+        .sheet(isPresented: $showTagEditor) { tagEditor }
     }
 
     // MARK: - Header
@@ -25,32 +27,46 @@ struct MailView: View {
     @ViewBuilder private var header: some View {
         @Bindable var vm = viewModel
         HStack(spacing: 10) {
-            Image(systemName: "envelope.badge")
-                .foregroundStyle(theme.accent)
-            Text("邮件清理").font(.headline)
-
             TextField("Gmail 过滤条件（q 语法）", text: $vm.query)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.plain)
+                .foregroundStyle(theme.textPrimary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(theme.surface, in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(theme.divider))
                 .frame(maxWidth: 320)
                 .onSubmit { Task { await viewModel.load() } }
 
             Button {
                 Task { await viewModel.load() }
             } label: {
-                Label("刷新", systemImage: "arrow.clockwise")
+                Image(systemName: "arrow.clockwise")
             }
+            .help("刷新")
+            .accessibilityLabel("刷新")
             .disabled(isBusy)
+
+            Button {
+                tagDraft = AppSettings.shared.mailTagRules
+                showTagEditor = true
+            } label: {
+                Image(systemName: "pencil")
+            }
+            .help("编辑自定义分类标签")
+            .accessibilityLabel("编辑自定义分类标签")
 
             if viewModel.canAnalyze {
                 Button {
                     Task { await viewModel.analyzeInsights() }
                 } label: {
                     if viewModel.isAnalyzing {
-                        HStack(spacing: 6) { ProgressView().controlSize(.small); Text("分析中…") }
+                        ProgressView().controlSize(.small)
                     } else {
-                        Label("AI 分析", systemImage: "sparkles")
+                        Image(systemName: "sparkles")
                     }
                 }
+                .help("AI 分析")
+                .accessibilityLabel("AI 分析")
                 .disabled(isBusy || viewModel.isAnalyzing || viewModel.clusters.isEmpty)
             }
 
@@ -58,6 +74,33 @@ struct MailView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+
+    // MARK: - Tag editor
+
+    @ViewBuilder private var tagEditor: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("自定义分类标签").font(.headline)
+            Text("每行一条「分类名: 主题关键词」。主题命中关键词的邮件会单独归为该分类（优先于 Gmail 分类）。")
+                .font(.caption).foregroundStyle(theme.textSecondary)
+            TextEditor(text: $tagDraft)
+                .font(.system(size: 13, design: .monospaced))
+                .frame(minWidth: 380, minHeight: 160)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(theme.divider))
+            HStack {
+                Text("例：GitHub: zbb88888").font(.caption).foregroundStyle(theme.textSecondary)
+                Spacer()
+                Button("取消") { showTagEditor = false }
+                Button("保存") {
+                    AppSettings.shared.mailTagRules = tagDraft
+                    viewModel.regroup()
+                    showTagEditor = false
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 460)
     }
 
     // MARK: - Content
@@ -80,8 +123,6 @@ struct MailView: View {
             centered { progress("正在等待浏览器授权…") }
         case .loading:
             centered { progress("正在拉取并分组邮件…") }
-        case .submitting:
-            centered { progress("正在提交清理…") }
         case .failed(let message):
             centered {
                 VStack(spacing: 12) {
@@ -91,14 +132,6 @@ struct MailView: View {
                 }
                 .padding()
             }
-        case .done(let trashed):
-            centered {
-                VStack(spacing: 12) {
-                    Image(systemName: "checkmark.circle").foregroundStyle(theme.accent).font(.largeTitle)
-                    Text("已移入废纸篓 \(trashed) 封（可在 Gmail 废纸篓恢复）")
-                    Button("继续清理") { Task { await viewModel.load() } }
-                }
-            }
         case .review:
             reviewList
         }
@@ -107,18 +140,14 @@ struct MailView: View {
     @ViewBuilder private var reviewList: some View {
         if viewModel.clusters.isEmpty {
             centered {
-                if viewModel.hasLoaded {
-                    Text("没有匹配的邮件。").foregroundStyle(theme.textSecondary)
-                } else {
-                    Button("加载邮件") { Task { await viewModel.load() } }
-                        .buttonStyle(.borderedProminent)
-                }
+                Text(viewModel.hasLoaded ? "没有匹配的邮件。" : "点击右上角「刷新」加载未读邮件")
+                    .foregroundStyle(theme.textSecondary)
             }
         } else {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
-                    ForEach(viewModel.clusters) { cluster in
-                        clusterRow(cluster)
+                LazyVStack(alignment: .leading, spacing: 14) {
+                    ForEach(viewModel.groupedClusters, id: \.key) { group in
+                        groupSection(group.key, clusters: group.clusters)
                     }
                 }
                 .padding(16)
@@ -127,10 +156,38 @@ struct MailView: View {
         }
     }
 
+    // MARK: - Group section (non-collapsing folder)
+
+    @ViewBuilder private func groupSection(_ key: MailGroupKey, clusters: [MailCluster]) -> some View {
+        let color = groupColor(key)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Toggle("", isOn: Binding(
+                    get: { viewModel.isGroupFullySelected(clusters) },
+                    set: { _ in viewModel.toggleGroup(clusters) }
+                ))
+                .labelsHidden()
+                .toggleStyle(.checkbox)
+
+                Circle().fill(color).frame(width: 9, height: 9)
+                Text(key.displayName).font(.system(size: 13, weight: .semibold))
+                Text("\(viewModel.groupCount(clusters))")
+                    .font(.caption).foregroundStyle(theme.textSecondary)
+                Spacer()
+            }
+
+            ForEach(clusters) { cluster in
+                clusterRow(cluster, color: color)
+            }
+        }
+    }
+
     // MARK: - Cluster row
 
-    @ViewBuilder private func clusterRow(_ cluster: MailCluster) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+    @ViewBuilder private func clusterRow(_ cluster: MailCluster, color: Color) -> some View {
+        HStack(spacing: 0) {
+            Rectangle().fill(color).frame(width: 3)
+            VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
                 Toggle("", isOn: Binding(
                     get: { viewModel.isClusterFullySelected(cluster) },
@@ -138,8 +195,6 @@ struct MailView: View {
                 ))
                 .labelsHidden()
                 .toggleStyle(.checkbox)
-
-                categoryBadge(cluster.category)
 
                 Text(cluster.representativeSubject.isEmpty ? "(无主题)" : cluster.representativeSubject)
                     .lineLimit(1)
@@ -187,8 +242,10 @@ struct MailView: View {
                 .padding(.leading, 34)
                 .padding(.bottom, 6)
             }
+            }
         }
-        .background(theme.surface.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+        .background(theme.surface.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     @ViewBuilder private func messageRow(_ message: MailMessage) -> some View {
@@ -212,11 +269,25 @@ struct MailView: View {
         .padding(.vertical, 3)
     }
 
-    @ViewBuilder private func categoryBadge(_ category: MailCategory) -> some View {
-        Text(category.displayName)
-            .font(.caption2)
-            .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(theme.accent.opacity(category.isLowPriority ? 0.25 : 0.12), in: Capsule())
+    /// Color per display group: custom tags use the brand accent (they stand out
+    /// from the pastel Gmail categories); Gmail categories get distinct hues.
+    private func groupColor(_ key: MailGroupKey) -> Color {
+        switch key {
+        case .custom: return theme.accent
+        case .gmail(let category): return categoryColor(category)
+        }
+    }
+
+    /// Distinct, muted accent per category to make groups scannable at a glance.
+    private func categoryColor(_ category: MailCategory) -> Color {
+        switch category {
+        case .promotions: return .orange
+        case .social: return .blue
+        case .updates: return .purple
+        case .forums: return .brown
+        case .personal: return .pink
+        case .primary: return theme.accent
+        }
     }
 
     @ViewBuilder private func importanceBadge(_ importance: MailClusterInsight.Importance) -> some View {
@@ -235,52 +306,73 @@ struct MailView: View {
     // MARK: - Footer
 
     @ViewBuilder private var footer: some View {
+        if let undo = viewModel.undoAction {
+            undoBanner(undo)
+        }
         Divider().overlay(theme.divider)
-        HStack {
-            Text("已选 \(viewModel.selectedCount) 封")
+        HStack(spacing: 12) {
+            Text("\(viewModel.selectedCount)")
                 .foregroundStyle(theme.textSecondary)
+            if viewModel.isMutating {
+                ProgressView().controlSize(.small)
+            }
             Spacer()
             if viewModel.insights.values.contains(where: { $0.suggestDelete }) {
                 Button {
                     viewModel.applyAISuggestions()
                 } label: {
-                    Label("应用 AI 建议", systemImage: "sparkles")
+                    Image(systemName: "wand.and.stars")
                 }
+                .help("应用 AI 建议")
+                .accessibilityLabel("应用 AI 建议")
             }
-            Button(role: .destructive) {
-                showDeleteConfirm = true
+            Button {
+                Task { await viewModel.markRead() }
             } label: {
-                Text("永久删除…")
+                Image(systemName: "envelope.open")
             }
-            .disabled(viewModel.selectedCount == 0)
+            .help("标记已读")
+            .accessibilityLabel("标记已读")
+            .disabled(viewModel.selectedCount == 0 || viewModel.isMutating)
 
             Button {
                 Task { await viewModel.submitCleanup() }
             } label: {
-                Text("移入废纸篓（\(viewModel.selectedCount)）")
+                Image(systemName: "trash")
             }
             .buttonStyle(.borderedProminent)
-            .disabled(viewModel.selectedCount == 0)
+            .tint(.red)
+            .help("删除（移入废纸篓）")
+            .accessibilityLabel("删除，移入废纸篓")
+            .disabled(viewModel.selectedCount == 0 || viewModel.isMutating)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .confirmationDialog(
-            "永久删除 \(viewModel.selectedCount) 封邮件？此操作不可恢复。",
-            isPresented: $showDeleteConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("永久删除", role: .destructive) {
-                Task { await viewModel.permanentlyDelete() }
+    }
+
+    @ViewBuilder private func undoBanner(_ undo: MailViewModel.UndoAction) -> some View {
+        Divider().overlay(theme.divider)
+        HStack(spacing: 10) {
+            Text(undo.label).font(.callout).foregroundStyle(theme.textSecondary)
+            Button("撤销") { Task { await undo.perform() } }
+                .buttonStyle(.link)
+            Spacer()
+            Button { viewModel.dismissUndo() } label: {
+                Image(systemName: "xmark").font(.caption)
             }
-            Button("取消", role: .cancel) {}
+            .buttonStyle(.plain)
+            .accessibilityLabel("关闭提示")
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(theme.surface.opacity(0.6))
     }
 
     // MARK: - Helpers
 
     private var isBusy: Bool {
         switch viewModel.phase {
-        case .connecting, .loading, .submitting: return true
+        case .connecting, .loading: return true
         default: return false
         }
     }

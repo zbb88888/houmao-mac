@@ -18,12 +18,17 @@ protocol MailProvider: Sendable {
     /// Fetch metadata (no body) for the given ids.
     func fetchMetadata(ids: [String]) async throws -> [MailMessage]
 
-    /// Move messages to Trash (recoverable). Default cleanup action.
+    /// Move messages to Trash (recoverable). The cleanup action.
     func trashMessages(ids: [String]) async throws
 
-    /// Permanently delete messages (irreversible). Requires elevated scope and
-    /// an explicit confirmation upstream.
-    func deleteMessages(ids: [String]) async throws
+    /// Restore messages from Trash back to the inbox (undo of `trashMessages`).
+    func untrash(ids: [String]) async throws
+
+    /// Mark messages as read (removes the `UNREAD` label).
+    func markRead(ids: [String]) async throws
+
+    /// Mark messages as unread (undo of `markRead`).
+    func markUnread(ids: [String]) async throws
 }
 
 /// Errors surfaced by mail providers.
@@ -31,8 +36,6 @@ enum MailProviderError: LocalizedError {
     case notAuthenticated
     case requestFailed(String)
     case invalidResponse(String)
-    /// Attempted a permanent delete without the required scope/confirmation.
-    case permanentDeleteNotPermitted
 
     var errorDescription: String? {
         switch self {
@@ -42,8 +45,6 @@ enum MailProviderError: LocalizedError {
             return msg
         case .invalidResponse(let debug):
             return "无效的响应: \(debug)"
-        case .permanentDeleteNotPermitted:
-            return "当前权限不支持永久删除"
         }
     }
 }

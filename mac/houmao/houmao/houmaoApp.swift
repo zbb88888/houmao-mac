@@ -53,9 +53,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// Standalone Gmail cleanup window (`/mail`), same shell as the chat window.
     private var mailWindow: NSWindow?
 
-    /// One-shot observer used to defer hiding a full-screen chat window until the
-    /// exit-full-screen transition completes.
-    private var fsExitObserver: NSObjectProtocol?
+    /// One-shot observers used to defer hiding a full-screen window until its
+    /// exit-full-screen transition completes, keyed by window (a full-screen
+    /// `orderOut` otherwise leaves an empty black Space). Shared by all windows.
+    private var fsExitObservers: [ObjectIdentifier: NSObjectProtocol] = [:]
 
     /// Cross-process "activate the existing instance" notification, used to keep
     /// the app to a single running instance (process-level singleton).
@@ -214,22 +215,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func hideChatWindow() {
         guard let window = chatWindow else { return }
+        hideWindowSafely(window)
+    }
+
+    /// Hide a window without leaving an empty black full-screen Space: if it is
+    /// full screen, exit full screen first and `orderOut` once the transition
+    /// completes; otherwise hide immediately. Shared by the chat and mail windows.
+    private func hideWindowSafely(_ window: NSWindow) {
         guard window.styleMask.contains(.fullScreen) else {
             window.orderOut(nil)
             return
         }
-        // `orderOut` on a full-screen window leaves an empty black Space. Exit
-        // full screen first, then hide once the transition finishes.
-        if let obs = fsExitObserver {
+        let key = ObjectIdentifier(window)
+        if let obs = fsExitObservers[key] {
             NotificationCenter.default.removeObserver(obs)
         }
-        fsExitObserver = NotificationCenter.default.addObserver(
+        fsExitObservers[key] = NotificationCenter.default.addObserver(
             forName: NSWindow.didExitFullScreenNotification, object: window, queue: .main
         ) { [weak self] _ in
             window.orderOut(nil)
-            guard let self, let obs = self.fsExitObserver else { return }
+            guard let self, let obs = self.fsExitObservers[key] else { return }
             NotificationCenter.default.removeObserver(obs)
-            self.fsExitObserver = nil
+            self.fsExitObservers[key] = nil
         }
         window.toggleFullScreen(nil)
     }
@@ -241,7 +248,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// view-model input state.
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if sender == mailWindow {
-            sender.orderOut(nil)
+            hideMailWindow()
             return false
         }
         guard sender == chatWindow else { return true }
@@ -261,8 +268,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         exitMailObserver = NotificationCenter.default.addObserver(
             forName: .houmaoExitMailWindow, object: nil, queue: .main
         ) { [weak self] _ in
-            self?.mailWindow?.orderOut(nil)
+            self?.hideMailWindow()
         }
+    }
+
+    /// Hide the mail window. Uses `hideWindowSafely` so a full-screen close does
+    /// not leave an empty black Space.
+    private func hideMailWindow() {
+        guard let window = mailWindow else { return }
+        hideWindowSafely(window)
     }
 
     private func makeMailWindow() -> NSWindow {
@@ -282,8 +296,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "邮件清理"
+        window.title = "mail"
         window.titlebarAppearsTransparent = true
+        // Force light appearance so the title renders black over the light green
+        // theme (dark mode would draw it white).
+        window.appearance = NSAppearance(named: .aqua)
         window.collectionBehavior = [.fullScreenPrimary]
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 640, height: 420)

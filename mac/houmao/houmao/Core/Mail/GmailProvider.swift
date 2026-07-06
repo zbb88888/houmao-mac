@@ -3,14 +3,12 @@ import Foundation
 /// Gmail REST implementation of `MailProvider` (ADR-8).
 ///
 /// Pure `URLSession` (Core-friendly). Reads metadata only (`format=metadata`),
-/// filters server-side with Gmail `q` syntax, and cleans up via `batchModify`
-/// (move to Trash, recoverable). Permanent `batchDelete` is disabled unless the
-/// caller explicitly opts in (`allowPermanentDelete`) —误删代价不可逆 (ADR-8).
+/// filters server-side with Gmail `q` syntax, and mutates labels via
+/// `batchModify` (move to Trash / mark read) — all recoverable, no permanent
+/// delete (误删代价不可逆, ADR-8).
 struct GmailProvider: MailProvider {
     /// Access-token supplier; typically `await GoogleAuthProvider.validAccessToken()`.
     let accessTokenProvider: @Sendable () async throws -> String
-    /// Gate for the irreversible permanent-delete path.
-    var allowPermanentDelete: Bool = false
 
     private let base = "https://gmail.googleapis.com/gmail/v1/users/me"
     /// Gmail caps batch mutations at 1000 ids per request.
@@ -83,20 +81,28 @@ struct GmailProvider: MailProvider {
     // MARK: - Cleanup
 
     func trashMessages(ids: [String]) async throws {
-        for chunk in ids.chunked(into: batchLimit) {
-            let body = try JSONSerialization.data(withJSONObject: [
-                "ids": chunk,
-                "addLabelIds": ["TRASH"],
-            ])
-            try await post("/messages/batchModify", body: body)
-        }
+        try await batchModify(ids: ids, add: ["TRASH"], remove: [])
     }
 
-    func deleteMessages(ids: [String]) async throws {
-        guard allowPermanentDelete else { throw MailProviderError.permanentDeleteNotPermitted }
+    func untrash(ids: [String]) async throws {
+        try await batchModify(ids: ids, add: ["INBOX"], remove: ["TRASH"])
+    }
+
+    func markRead(ids: [String]) async throws {
+        try await batchModify(ids: ids, add: [], remove: ["UNREAD"])
+    }
+
+    func markUnread(ids: [String]) async throws {
+        try await batchModify(ids: ids, add: ["UNREAD"], remove: [])
+    }
+
+    private func batchModify(ids: [String], add: [String], remove: [String]) async throws {
         for chunk in ids.chunked(into: batchLimit) {
-            let body = try JSONSerialization.data(withJSONObject: ["ids": chunk])
-            try await post("/messages/batchDelete", body: body)
+            var payload: [String: Any] = ["ids": chunk]
+            if !add.isEmpty { payload["addLabelIds"] = add }
+            if !remove.isEmpty { payload["removeLabelIds"] = remove }
+            let body = try JSONSerialization.data(withJSONObject: payload)
+            try await post("/messages/batchModify", body: body)
         }
     }
 
