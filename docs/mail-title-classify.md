@@ -39,7 +39,7 @@
 ### 语义大类：PR / issue
 
 GitHub 通知邮件的 `()` 内通常是 `PR #num` / `Issue #num`，归一化后自然得到 `pr` / `issue`，
-再规范化为展示名 **`PR`** / **`issue`**（`canonicalPrimary`）。
+再规范化为展示名 **`PR`** / **`Issue`**（`canonicalPrimary`）。
 
 作为补充，当**完全没有括号**但标题中出现 PR/issue 关键词时，仍按关键词归入大类：
 
@@ -67,7 +67,7 @@ Gmail 会给每封邮件打一组 `labelIds`（如 `CATEGORY_PROMOTIONS`、`CATE
 - UI 为**两级**：一级大类作为分区标题（含全选框、色点、计数），二级小类作为缩进子标题。
 - 3 级及以后的标签，附加在二级标签后，用 `›` 连接展示（如 `beta › gamma`），不再额外嵌套，
   保持界面简洁。
-- 大类排序：**自定义标签（规则顺序）→ PR → issue → 其他括号标签（首次出现顺序）→ Gmail 分类（`MailCategory.allCases` 固定顺序）**。
+- 大类排序：**自定义标签（规则顺序）→ Issue → PR → 其他括号标签（首次出现顺序）→ Gmail 分类（`MailCategory.allCases` 固定顺序）**。Issue 在 PR 前：issue 复杂度低、细节少，直觉上优先处理。
 
 ## 聚合：仅按标题近邻
 
@@ -95,7 +95,7 @@ Gmail 会给每封邮件打一组 `labelIds`（如 `CATEGORY_PROMOTIONS`、`CATE
 | 标题 | 大类 | 小类 |
 |------|------|------|
 | `Re: [cilium/cilium] fix leak (PR #46257)` | `PR` | `cilium/cilium` |
-| `[owner/repo] Crash (Issue #9)` | `issue` | `owner/repo` |
+| `[owner/repo] Crash (Issue #9)` | `Issue` | `owner/repo` |
 | `(v2.0) [core] release cut` | `v2.0` | `core` |
 | `(alpha) [beta] {gamma} hi` | `alpha` | `beta › gamma` |
 | `[GitHub] Alpha release notes` | `github` | （无） |
@@ -108,7 +108,7 @@ Gmail 会给每封邮件打一组 `labelIds`（如 `CATEGORY_PROMOTIONS`、`CATE
 |------|------|
 | `MailGrouping.tags(for:customTags:)` | 计算一封邮件的 `(primary, secondary)` 两级标签 |
 | `MailGrouping.bracketPath(_:)` | 按括号优先级返回存在的各级标签内容 |
-| `MailGrouping.canonicalPrimary(_:)` | 把 `pr`/`pull request`/`issue` 规范为 `PR`/`issue` |
+| `MailGrouping.canonicalPrimary(_:)` | 把 `pr`/`pull request`/`issue` 规范为 `PR`/`Issue` |
 | `MailGrouping.builtinTag(_:)` | 无括号时按标题关键词识别 PR/issue |
 | `MailCategory.from(labelIds:)` | 无任何标签时，把 Gmail `labelIds` 映射为大类 |
 | `MailGrouping.group(_:customTags:config:)` | 分桶 + 逐级细分 + 标题近邻聚合 |

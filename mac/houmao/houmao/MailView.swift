@@ -331,7 +331,7 @@ struct MailView: View {
     private func primaryColor(_ primary: String) -> Color {
         switch primary {
         case "PR": return .green
-        case "issue": return .orange
+        case "Issue": return .orange
         case MailGrouping.unclassified: return theme.textSecondary
         default: return theme.accent
         }

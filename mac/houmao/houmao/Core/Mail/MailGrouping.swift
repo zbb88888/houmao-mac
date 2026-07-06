@@ -74,8 +74,9 @@ enum MailGrouping {
     /// Fallback primary tag for mail with no bracket / keyword classification.
     static let unclassified = "未分类"
 
-    /// Display / priority order of the built-in primary tags.
-    static let builtinTagOrder = ["PR", "issue"]
+    /// Display / priority order of the built-in primary tags. Issue before PR:
+    /// issues are lower-complexity / fewer details, so triage them first.
+    static let builtinTagOrder = ["Issue", "PR"]
 
     /// Group messages into a flat list of clusters, each carrying its `primary`
     /// (大类) and `secondary` (小类) tags. Ordering: custom tags (rule order) →
@@ -188,7 +189,7 @@ enum MailGrouping {
         let tokens = bracketPath(subject)
         guard let first = tokens.first else {
             // No brackets: fall back to a PR/issue title keyword, else 未分类.
-            if let keyword = builtinTag(subject) { return (keyword, nil) }
+            if let keyword = builtinTag(subject) { return (canonicalPrimary(keyword), nil) }
             return (unclassified, nil)
         }
         let primary = canonicalPrimary(first)
@@ -219,11 +220,11 @@ enum MailGrouping {
     }
 
     /// Canonicalize a primary token so GitHub's `(PR #…)` / `(Issue #…)` render
-    /// as the familiar "PR" / "issue" categories.
+    /// as the familiar "PR" / "Issue" categories.
     static func canonicalPrimary(_ token: String) -> String {
         switch token.lowercased() {
         case "pr", "pull request", "pull requests": return "PR"
-        case "issue", "issues": return "issue"
+        case "issue", "issues": return "Issue"
         default: return token
         }
     }

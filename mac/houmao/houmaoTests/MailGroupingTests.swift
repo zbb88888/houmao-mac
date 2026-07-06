@@ -148,11 +148,11 @@ struct MailGroupingTests {
         // with the `[]` repo as the secondary (小类).
         #expect(clusters.contains { $0.primary == "PR" && $0.secondary == "cilium/cilium" })
         #expect(clusters.contains { $0.primary == "PR" && $0.secondary == "owner/repo" })
-        #expect(clusters.contains { $0.primary == "issue" && $0.secondary == "owner/repo" })
-        // The "PR" section comes before "issue" (builtinTagOrder).
+        #expect(clusters.contains { $0.primary == "Issue" && $0.secondary == "owner/repo" })
+        // "Issue" comes before "PR" (builtinTagOrder: issues are simpler, triage first).
         let prIndex = clusters.firstIndex { $0.primary == "PR" }
-        let issueIndex = clusters.firstIndex { $0.primary == "issue" }
-        #expect(prIndex != nil && issueIndex != nil && prIndex! < issueIndex!)
+        let issueIndex = clusters.firstIndex { $0.primary == "Issue" }
+        #expect(prIndex != nil && issueIndex != nil && issueIndex! < prIndex!)
     }
 
     @Test func lastParenTagNormalizesAndStripsRefs() {
