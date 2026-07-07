@@ -57,7 +57,11 @@ struct IssueAnalyzer {
 
             let process = Process()
             process.executableURL = URL(fileURLWithPath: config.binaryPath)
-            process.arguments = ["-url", url, "-repo", repoPath, "-mode", mode, "-timeout", "480s"]
+            // `/pr` runs a six-stage sequential funnel (six LLM turns), so it
+            // needs far more wall-clock than a single-pass `/issue`. Too tight a
+            // deadline killed the run mid-funnel (commonly around stage 3).
+            let timeout = mode == "pr" ? "1200s" : "480s"
+            process.arguments = ["-url", url, "-repo", repoPath, "-mode", mode, "-timeout", timeout]
 
             var env = ProcessInfo.processInfo.environment
             let brewPaths = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"

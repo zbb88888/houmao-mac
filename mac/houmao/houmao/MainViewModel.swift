@@ -481,6 +481,10 @@ final class MainViewModel {
                 }
                 chatStore.finish(assistantID)
                 postChatStatus(idleStatus())
+                if !Task.isCancelled {
+                    let kind = mode == "pr" ? "PR 深度 review" : "Issue 分析"
+                    AppDelegate.shared?.notifyTaskDone(title: "\(kind)已完成", body: url)
+                }
                 return
             } catch is CancellationError {
                 chatStore.finish(assistantID)

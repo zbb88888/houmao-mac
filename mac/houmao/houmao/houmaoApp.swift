@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UserNotifications
 
 @main
 struct HoumaoApp: App {
@@ -27,7 +28,7 @@ class FloatingPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
     static var shared: AppDelegate!
 
     private var hotKeyManager: GlobalHotKeyManager?
@@ -79,6 +80,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         Self.shared = self
         NSApp.setActivationPolicy(.regular)
 
+        setupNotifications()
+
         let store = HistoryStore()
         let tracker = UsageTracker(store: store)
         Self.tracker = tracker
@@ -100,6 +103,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         // The chat window is the app's main UI window; present it on launch.
         showChatWindow()
+    }
+
+    // MARK: - Local notifications (long-running task completion)
+
+    /// Register as the notification-center delegate and request permission to
+    /// post local notifications, so long-running tasks (e.g. the `/pr` six-stage
+    /// review) can pop a completion banner when the window isn't focused.
+    private func setupNotifications() {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
+    /// Post a "task finished" banner. Safe to call from any context; delivery is
+    /// best-effort (silently no-ops if the user denied notification permission).
+    func notifyTaskDone(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Show banners even while the app is frontmost (the chat window usually is).
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
     }
 
     private func setupPanel() {
