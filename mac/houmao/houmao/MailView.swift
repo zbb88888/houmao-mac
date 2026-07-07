@@ -411,6 +411,11 @@ struct MailDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background)
         .foregroundStyle(theme.textPrimary)
+        // ESC closes the detail window, consistent with the chat / minimal-box
+        // windows; routed via a notification so it uses the same close path.
+        .onExitCommand {
+            NotificationCenter.default.post(name: .houmaoCloseMailDetail, object: nil)
+        }
     }
 
     @ViewBuilder private func content(_ detail: MailMessageDetail) -> some View {

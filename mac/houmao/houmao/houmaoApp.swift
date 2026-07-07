@@ -50,6 +50,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var enterMailObserver: NSObjectProtocol?
     private var exitMailObserver: NSObjectProtocol?
     private var openMailDetailObserver: NSObjectProtocol?
+    private var closeMailDetailObserver: NSObjectProtocol?
 
     /// Standalone, resizable / full-screen-capable chat window (office-style).
     /// Distinct from the floating minimal input box; shares the view model so
@@ -327,6 +328,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             forName: .houmaoOpenMailDetail, object: nil, queue: .main
         ) { [weak self] _ in
             self?.showMailDetailWindow()
+        }
+        closeMailDetailObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoCloseMailDetail, object: nil, queue: .main
+        ) { [weak self] _ in
+            // Route through the standard close path (windowShouldClose) so it
+            // hides safely and resets detail state, exactly like the ✕ button.
+            self?.mailDetailWindow?.performClose(nil)
         }
     }
 

@@ -105,6 +105,13 @@ struct ChatView: View {
                 guard isPinnedToBottom else { return }
                 proxy.scrollTo(chatBottomAnchor, anchor: .bottom)
             }
+            .onReceive(NotificationCenter.default.publisher(for: .houmaoChatWindowDidShow)) { _ in
+                // Showing the window (e.g. from a mail AI analysis) jumps to the
+                // newest bubble even when the view was just created and its
+                // message-count onChange never fired.
+                isPinnedToBottom = true
+                scrollToBottom(proxy)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

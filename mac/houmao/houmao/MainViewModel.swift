@@ -553,9 +553,9 @@ final class MainViewModel {
     /// GitHub PR/issue link runs `ghia` against the local repo, otherwise the
     /// thread gets an LLM time-line summary.
     ///
-    /// Intentionally does NOT show or activate any window — the mail window stays
-    /// front-most and key, so its AI button never greys out and the user can
-    /// analyze more mail back-to-back. Results accumulate in the chat window.
+    /// Brings the chat window to the front and scrolls to the freshly inserted
+    /// bubble so the user is taken straight to the analysis. The mail window is
+    /// left untouched (it simply drops behind the chat window).
     func analyzeMailForChat(mails: [MailMessageDetail], github: (url: String, mode: String)?) {
         guard let resolved = AppSettings.shared.resolveModel(named: nil) else {
             showError("No provider configured. Open Settings (⌘,) to add one.")
@@ -576,8 +576,11 @@ final class MainViewModel {
         }
         let assistantID = chatStore.startAssistant(streaming: true)
         lastModelName = resolved.provider.name
+        vmLog.info("mailAI: bubbles created mails=\(mails.count) github=\(github != nil) conv=\(self.chatStore.conversations.count) msgs=\(self.chatStore.messages.count) currentSet=\(self.chatStore.currentID != nil)")
         // Register a retry so this bubble can be re-run from its context menu.
         mailRetries[assistantID] = { [weak self] in self?.analyzeMailForChat(mails: mails, github: github) }
+        // Bring the chat window to the front and scroll to the new bubble.
+        NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
 
         // A GitHub PR/issue link → analyze against the local repo via ghia.
         if let github, let (owner, repo) = parseGitHubOwnerRepo(github.url) {
@@ -615,6 +618,7 @@ final class MainViewModel {
                 chatStore.appendToken(assistantID, "\n\n分析失败：\(error.localizedDescription)")
             }
             chatStore.finish(assistantID)
+            vmLog.info("mailAI: stream finished conv=\(self.chatStore.conversations.count) msgs=\(self.chatStore.messages.count) currentSet=\(self.chatStore.currentID != nil)")
         }
     }
 
