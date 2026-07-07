@@ -1,6 +1,9 @@
 import SwiftUI
 import AppKit
 import UserNotifications
+import os.log
+
+private let notifyLog = Logger(subsystem: "com.houmao", category: "Notifications")
 
 @main
 struct HoumaoApp: App {
@@ -113,7 +116,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private func setupNotifications() {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error {
+                notifyLog.error("requestAuthorization failed: \(error.localizedDescription, privacy: .public)")
+            } else {
+                notifyLog.notice("notification authorization granted=\(granted, privacy: .public)")
+            }
+        }
     }
 
     /// Post a "task finished" banner. Safe to call from any context; delivery is
@@ -124,7 +133,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         content.body = body
         content.sound = .default
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                notifyLog.error("deliver notification failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
     }
 
     /// Show banners even while the app is frontmost (the chat window usually is).

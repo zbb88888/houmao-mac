@@ -458,9 +458,12 @@ final class MainViewModel {
     /// content → tokens, ending with `finish`. Shared by `/pr`·`/issue` commands
     /// and the mail task-bubble flow. Honors the calling `Task`'s cancellation.
     ///
-    /// On failure (e.g. ghia timeout / transient network) it auto-retries with
-    /// exponential backoff — waits 1s, 3s, 5s (up to 3 retries) — resetting the
-    /// partial output each time so the bubble isn't duplicated.
+    /// This is a single, append-only pass: whatever has been shown stays put —
+    /// the bubble is never cleared or rolled back. Transient failures are
+    /// retried *inside* `ghia` at the stage that failed (the funnel resumes
+    /// there instead of restarting from stage one), so retries are invisible
+    /// here. If `ghia` still fails, the error is appended after the existing
+    /// content rather than replacing it.
     private func streamGhia(
         _ analyzer: IssueAnalyzer,
         url: String,
@@ -468,47 +471,27 @@ final class MainViewModel {
         mode: String,
         into assistantID: UUID
     ) async {
-        let backoff: [UInt64] = [1, 3, 5] // seconds before retry 1/2/3
-        var attempt = 0
-        while true {
-            do {
-                for try await event in analyzer.stream(url: url, repoPath: repoPath, mode: mode) {
-                    if Task.isCancelled { break }
-                    switch event {
-                    case .progress(let p): postChatStatus(p)
-                    case .content(let c): chatStore.appendToken(assistantID, c)
-                    }
+        do {
+            for try await event in analyzer.stream(url: url, repoPath: repoPath, mode: mode) {
+                if Task.isCancelled { break }
+                switch event {
+                case .progress(let p): postChatStatus(p)
+                case .content(let c): chatStore.appendToken(assistantID, c)
                 }
-                chatStore.finish(assistantID)
-                postChatStatus(idleStatus())
-                if !Task.isCancelled {
-                    let kind = mode == "pr" ? "PR 深度 review" : "Issue 分析"
-                    AppDelegate.shared?.notifyTaskDone(title: "\(kind)已完成", body: url)
-                }
-                return
-            } catch is CancellationError {
-                chatStore.finish(assistantID)
-                postChatStatus(idleStatus())
-                return
-            } catch {
-                if attempt >= backoff.count {
-                    chatStore.appendToken(assistantID, "\n\n分析失败（已自动重试 \(backoff.count) 次）：\(error.localizedDescription)\n可右键该气泡选择「重试」。")
-                    chatStore.finish(assistantID)
-                    postChatStatus(idleStatus())
-                    return
-                }
-                let wait = backoff[attempt]
-                attempt += 1
-                postChatStatus("分析失败，\(wait)s 后第 \(attempt) 次重试…")
-                try? await Task.sleep(nanoseconds: wait * 1_000_000_000)
-                if Task.isCancelled {
-                    chatStore.finish(assistantID)
-                    postChatStatus(idleStatus())
-                    return
-                }
-                // Clear partial output so the retry re-streams cleanly.
-                chatStore.updateText(assistantID, "")
             }
+            chatStore.finish(assistantID)
+            postChatStatus(idleStatus())
+            if !Task.isCancelled {
+                let kind = mode == "pr" ? "PR 深度 review" : "Issue 分析"
+                AppDelegate.shared?.notifyTaskDone(title: "\(kind)已完成", body: url)
+            }
+        } catch is CancellationError {
+            chatStore.finish(assistantID)
+            postChatStatus(idleStatus())
+        } catch {
+            chatStore.appendToken(assistantID, "\n\n分析中断：\(error.localizedDescription)\n可再次执行该命令重试。")
+            chatStore.finish(assistantID)
+            postChatStatus(idleStatus())
         }
     }
 

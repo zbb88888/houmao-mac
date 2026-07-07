@@ -13,6 +13,11 @@ struct ChatView: View {
     @State private var isInputFocused: Bool = false
     @State private var chatInputHeight: CGFloat = 34
     @State private var windowSize: CGSize = .zero
+    /// Whether the scroll view is currently parked at the bottom. Streaming
+    /// tokens only auto-scroll while this is true, so the view stops yanking
+    /// downward once the user scrolls up to read (auto-follow resumes when they
+    /// scroll back to the bottom).
+    @State private var isPinnedToBottom: Bool = true
 
     private let chatBottomAnchor = "houmao-chat-bottom"
 
@@ -82,11 +87,23 @@ struct ChatView: View {
                 .frame(maxWidth: 1100, alignment: .center)
                 .frame(maxWidth: .infinity)
             }
+            .onScrollGeometryChange(for: Bool.self) { geo in
+                // "At bottom" within a small slack, so ordinary rounding while
+                // streaming still counts as pinned.
+                geo.contentOffset.y >= geo.contentSize.height - geo.containerSize.height - 24
+            } action: { _, atBottom in
+                isPinnedToBottom = atBottom
+            }
             .onChange(of: viewModel.chatStore.messages.count) {
+                // A new turn (user send / assistant start) re-pins to the bottom.
+                isPinnedToBottom = true
                 scrollToBottom(proxy)
             }
             .onChange(of: viewModel.chatStore.messages.last?.text) {
-                scrollToBottom(proxy)
+                // Follow streaming tokens only while pinned, and without the
+                // per-token animation (overlapping animated jumps were the jitter).
+                guard isPinnedToBottom else { return }
+                proxy.scrollTo(chatBottomAnchor, anchor: .bottom)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
