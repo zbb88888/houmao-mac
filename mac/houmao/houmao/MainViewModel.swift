@@ -56,6 +56,10 @@ final class MainViewModel {
     /// window. Each entry is a finished `(question, reply, model)` turn.
     private var oneShotTurns: [(user: String, assistant: String, model: String)] = []
 
+    /// Per assistant-bubble retry action for mail analyses, so a failed bubble
+    /// can be re-run from its context menu (keyed by the assistant message id).
+    private var mailRetries: [UUID: () -> Void] = [:]
+
     /// The minimal input box is a one-shot Q/A surface. Once the user has had
     /// `autoChatThreshold` turns in it, the next submission auto-upgrades to the
     /// standalone chat window (carrying prior turns over as context).
@@ -453,6 +457,10 @@ final class MainViewModel {
     /// Stream a `ghia` analysis into an assistant message: progress → title bar,
     /// content → tokens, ending with `finish`. Shared by `/pr`·`/issue` commands
     /// and the mail task-bubble flow. Honors the calling `Task`'s cancellation.
+    ///
+    /// On failure (e.g. ghia timeout / transient network) it auto-retries with
+    /// exponential backoff — waits 1s, 3s, 5s (up to 3 retries) — resetting the
+    /// partial output each time so the bubble isn't duplicated.
     private func streamGhia(
         _ analyzer: IssueAnalyzer,
         url: String,
@@ -460,19 +468,44 @@ final class MainViewModel {
         mode: String,
         into assistantID: UUID
     ) async {
-        do {
-            for try await event in analyzer.stream(url: url, repoPath: repoPath, mode: mode) {
-                if Task.isCancelled { break }
-                switch event {
-                case .progress(let p): postChatStatus(p)
-                case .content(let c): chatStore.appendToken(assistantID, c)
+        let backoff: [UInt64] = [1, 3, 5] // seconds before retry 1/2/3
+        var attempt = 0
+        while true {
+            do {
+                for try await event in analyzer.stream(url: url, repoPath: repoPath, mode: mode) {
+                    if Task.isCancelled { break }
+                    switch event {
+                    case .progress(let p): postChatStatus(p)
+                    case .content(let c): chatStore.appendToken(assistantID, c)
+                    }
                 }
+                chatStore.finish(assistantID)
+                postChatStatus(idleStatus())
+                return
+            } catch is CancellationError {
+                chatStore.finish(assistantID)
+                postChatStatus(idleStatus())
+                return
+            } catch {
+                if attempt >= backoff.count {
+                    chatStore.appendToken(assistantID, "\n\n分析失败（已自动重试 \(backoff.count) 次）：\(error.localizedDescription)\n可右键该气泡选择「重试」。")
+                    chatStore.finish(assistantID)
+                    postChatStatus(idleStatus())
+                    return
+                }
+                let wait = backoff[attempt]
+                attempt += 1
+                postChatStatus("分析失败，\(wait)s 后第 \(attempt) 次重试…")
+                try? await Task.sleep(nanoseconds: wait * 1_000_000_000)
+                if Task.isCancelled {
+                    chatStore.finish(assistantID)
+                    postChatStatus(idleStatus())
+                    return
+                }
+                // Clear partial output so the retry re-streams cleanly.
+                chatStore.updateText(assistantID, "")
             }
-        } catch {
-            chatStore.appendToken(assistantID, "\n\n分析失败：\(error.localizedDescription)")
         }
-        chatStore.finish(assistantID)
-        postChatStatus(idleStatus())
     }
 
     // MARK: - Chat window status (drives the title bar)
@@ -491,9 +524,16 @@ final class MainViewModel {
         currentTask?.cancel()
         isLoading = false
         inputText = ""
+        mailRetries.removeAll()
         chatStore.reset()
         postChatStatus(idleStatus())
     }
+
+    /// Whether an assistant bubble is a mail analysis that can be retried.
+    func canRetryMail(_ id: UUID) -> Bool { mailRetries[id] != nil }
+
+    /// Re-run the mail analysis behind an assistant bubble (context-menu 重试).
+    func retryMail(_ id: UUID) { mailRetries[id]?() }
 
     /// Render a `/issue` command and an immediate (non-LLM) reply as one chat
     /// turn, e.g. usage or configuration errors.
@@ -549,6 +589,8 @@ final class MainViewModel {
         }
         let assistantID = chatStore.startAssistant(streaming: true)
         lastModelName = resolved.provider.name
+        // Register a retry so this bubble can be re-run from its context menu.
+        mailRetries[assistantID] = { [weak self] in self?.analyzeMailForChat(mails: mails, github: github) }
 
         // A GitHub PR/issue link → analyze against the local repo via ghia.
         if let github, let (owner, repo) = parseGitHubOwnerRepo(github.url) {
