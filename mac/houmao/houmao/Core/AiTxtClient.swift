@@ -214,8 +214,10 @@ struct AiTxtClient: Sendable {
         for try await line in bytes.lines {
             guard !Task.isCancelled else { break }
 
-            guard line.hasPrefix("data: ") else { continue }
-            let payload = String(line.dropFirst(6))
+            guard line.hasPrefix("data:") else { continue }
+            // Some providers emit "data:{...}" without a space after the colon
+            // (e.g. Youdao llmgateway), so strip the prefix then trim whitespace.
+            let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
             if payload == "[DONE]" { break }
 
             guard let chunkData = payload.data(using: .utf8),

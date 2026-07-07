@@ -264,15 +264,19 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     TextField("Name * (e.g. OpenAI, DeepSeek, Local)", text: $providerName)
                         .textFieldStyle(.roundedBorder)
+                        .onChange(of: providerName) { _, v in providerName = Self.singleLine(v) }
                         .onSubmit { saveProvider() }
                     TextField("URL * (e.g. https://api.openai.com)", text: $providerURL)
                         .textFieldStyle(.roundedBorder)
+                        .onChange(of: providerURL) { _, v in providerURL = Self.singleLine(v) }
                         .onSubmit { saveProvider() }
                     TextField("Models * (comma-separated, e.g. gpt-4o, gpt-4o-mini)", text: $providerModels)
                         .textFieldStyle(.roundedBorder)
+                        .onChange(of: providerModels) { _, v in providerModels = Self.singleLine(v) }
                         .onSubmit { saveProvider() }
                     SecureField("API Key (optional)", text: $providerApiKey)
                         .textFieldStyle(.roundedBorder)
+                        .onChange(of: providerApiKey) { _, v in providerApiKey = Self.singleLine(v) }
                         .onSubmit { saveProvider() }
                     if !providerError.isEmpty {
                         Text(providerError)
@@ -319,6 +323,13 @@ struct SettingsView: View {
                 }
             )
         )
+    }
+
+    /// Collapse pasted multi-line text into a single line. Provider fields are
+    /// always single-line; stripping newlines guards against malformed URLs and
+    /// stray whitespace from pasted values.
+    static func singleLine(_ s: String) -> String {
+        s.filter { !$0.isNewline }
     }
 
     private func saveProvider() {

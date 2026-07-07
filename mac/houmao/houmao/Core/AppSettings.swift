@@ -47,7 +47,10 @@ struct Provider: Codable, Identifiable, Equatable {
 
     /// Strip /v1, /v1/chat/completions suffixes users often paste by mistake.
     static func cleanURL(_ raw: String) -> String {
-        var url = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A URL contains no whitespace. Keep only the first whitespace-delimited
+        // token so pasted values with embedded newlines or duplicated lines
+        // (e.g. "https://host/api\nhttps://host/api") don't produce a malformed URL.
+        var url = raw.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""
         for suffix in ["/v1/chat/completions/", "/v1/chat/completions", "/v1/", "/v1"] {
             if url.hasSuffix(suffix) {
                 url = String(url.dropLast(suffix.count))
