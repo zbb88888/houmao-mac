@@ -169,16 +169,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// resizable and supports native full screen — a real office surface, not
     /// the floating input box.
     private func makeChatWindow() -> NSWindow {
-        let screen = screenContainingMouse()
-        let visible = screen.visibleFrame
-        let width = min(1600, max(900, visible.width * 0.9))
-        let height = min(1080, max(560, visible.height * 0.85))
-        let rect = NSRect(
-            x: visible.midX - width / 2,
-            y: visible.midY - height / 2,
-            width: width,
-            height: height
-        )
+        // Same centered golden-ratio proportion as the mail windows.
+        let rect = centeredGoldenRect(on: screenContainingMouse())
 
         let window = NSWindow(
             contentRect: rect,
@@ -212,6 +204,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let window = chatWindow ?? makeChatWindow()
         chatWindow = window
 
+        // Open at the same centered golden-ratio size as the mail window every
+        // time (unless the user has taken it full screen), so both surfaces match.
+        if !window.styleMask.contains(.fullScreen) {
+            window.setFrame(centeredGoldenRect(on: screenContainingMouse()), display: true)
+        }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         NotificationCenter.default.post(name: .houmaoChatWindowDidShow, object: nil)
