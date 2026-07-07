@@ -13,9 +13,6 @@ extension Notification.Name {
     /// Posted by the app after the standalone chat window becomes visible so the
     /// chat input can grab keyboard focus.
     static let houmaoChatWindowDidShow = Notification.Name("houmaoChatWindowDidShow")
-    /// Posted by the view model with a status/topic string (object: String) to
-    /// drive the chat window's title bar (used as a status line).
-    static let houmaoChatStatusChanged = Notification.Name("houmaoChatStatusChanged")
     /// Posted by the view model when `/mail` is entered so the app can open the
     /// standalone mail-cleanup window (mirrors the chat window shell).
     static let houmaoEnterMailWindow = Notification.Name("houmaoEnterMailWindow")

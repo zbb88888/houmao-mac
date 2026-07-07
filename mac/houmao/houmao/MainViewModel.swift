@@ -60,6 +60,13 @@ final class MainViewModel {
     /// can be re-run from its context menu (keyed by the assistant message id).
     private var mailRetries: [UUID: () -> Void] = [:]
 
+    /// When set, the chat view parks this bubble at the TOP of the viewport on
+    /// the next message-count change / window show, instead of scrolling to the
+    /// bottom. Mail analysis sets it to the new "分析邮件：…" header so previous
+    /// history is pushed above the fold and the streamed reply fills the space
+    /// below. The chat view clears it once applied.
+    var topAnchorMessageID: UUID?
+
     /// The minimal input box is a one-shot Q/A surface. Once the user has had
     /// `autoChatThreshold` turns in it, the next submission auto-upgrades to the
     /// standalone chat window (carrying prior turns over as context).
@@ -445,8 +452,6 @@ final class MainViewModel {
             contextTokens: resolved.provider.contextTokens
         ))
 
-        postChatStatus(mode == "pr" ? "审阅 PR：\(repo)" : "分析 issue：\(repo)")
-
         currentTask?.cancel()
         currentTask = Task {
             await streamGhia(analyzer, url: url, repoPath: repoPath, mode: mode, into: assistantID)
@@ -454,9 +459,9 @@ final class MainViewModel {
         }
     }
 
-    /// Stream a `ghia` analysis into an assistant message: progress → title bar,
-    /// content → tokens, ending with `finish`. Shared by `/pr`·`/issue` commands
-    /// and the mail task-bubble flow. Honors the calling `Task`'s cancellation.
+    /// Stream a `ghia` analysis into an assistant message: content → tokens,
+    /// ending with `finish`. Shared by `/pr`·`/issue` commands and the mail
+    /// task-bubble flow. Honors the calling `Task`'s cancellation.
     ///
     /// This is a single, append-only pass: whatever has been shown stays put —
     /// the bubble is never cleared or rolled back. Transient failures are
@@ -475,35 +480,21 @@ final class MainViewModel {
             for try await event in analyzer.stream(url: url, repoPath: repoPath, mode: mode) {
                 if Task.isCancelled { break }
                 switch event {
-                case .progress(let p): postChatStatus(p)
+                case .progress: break
                 case .content(let c): chatStore.appendToken(assistantID, c)
                 }
             }
             chatStore.finish(assistantID)
-            postChatStatus(idleStatus())
             if !Task.isCancelled {
                 let kind = mode == "pr" ? "PR 深度 review" : "Issue 分析"
                 AppDelegate.shared?.notifyTaskDone(title: "\(kind)已完成", body: url)
             }
         } catch is CancellationError {
             chatStore.finish(assistantID)
-            postChatStatus(idleStatus())
         } catch {
             chatStore.appendToken(assistantID, "\n\n分析中断：\(error.localizedDescription)\n可再次执行该命令重试。")
             chatStore.finish(assistantID)
-            postChatStatus(idleStatus())
         }
-    }
-
-    // MARK: - Chat window status (drives the title bar)
-
-    private func postChatStatus(_ status: String) {
-        NotificationCenter.default.post(name: .houmaoChatStatusChanged, object: status)
-    }
-
-    private func idleStatus() -> String {
-        let topic = chatStore.current?.title ?? ""
-        return topic.isEmpty ? "houmao" : topic
     }
 
     /// Discard the whole conversation and start fresh (the chat “renew” button).
@@ -513,7 +504,6 @@ final class MainViewModel {
         inputText = ""
         mailRetries.removeAll()
         chatStore.reset()
-        postChatStatus(idleStatus())
     }
 
     /// Whether an assistant bubble is a mail analysis that can be retried.
@@ -553,9 +543,10 @@ final class MainViewModel {
     /// GitHub PR/issue link runs `ghia` against the local repo, otherwise the
     /// thread gets an LLM time-line summary.
     ///
-    /// Brings the chat window to the front and scrolls to the freshly inserted
-    /// bubble so the user is taken straight to the analysis. The mail window is
-    /// left untouched (it simply drops behind the chat window).
+    /// Brings the chat window to the front and parks this analysis's header
+    /// bubble ("分析邮件：…") at the top of the viewport, so prior history scrolls
+    /// above the fold and the streamed reply has the full window below it. The
+    /// mail window is left untouched (it simply drops behind the chat window).
     func analyzeMailForChat(mails: [MailMessageDetail], github: (url: String, mode: String)?) {
         guard let resolved = AppSettings.shared.resolveModel(named: nil) else {
             showError("No provider configured. Open Settings (⌘,) to add one.")
@@ -564,22 +555,26 @@ final class MainViewModel {
         guard let first = mails.first else { return }
         let subject = first.subject.isEmpty ? "(无主题)" : first.subject
         chatStore.ensureCurrent()
+        let userID: UUID
         if mails.count == 1 {
-            chatStore.appendUser("分析邮件：\(subject)")
+            userID = chatStore.appendUser("分析邮件：\(subject)")
         } else {
             // List every message (numbered, time order) so the user sees exactly
             // which mails go into this one combined analysis.
             let list = mails.enumerated()
                 .map { "\($0.offset + 1). \($0.element.subject.isEmpty ? "(无主题)" : $0.element.subject)" }
                 .joined(separator: "\n")
-            chatStore.appendUser("分析邮件（共 \(mails.count) 封，按时间从早到晚）：\n\(list)")
+            userID = chatStore.appendUser("分析邮件（共 \(mails.count) 封，按时间从早到晚）：\n\(list)")
         }
         let assistantID = chatStore.startAssistant(streaming: true)
         lastModelName = resolved.provider.name
         vmLog.info("mailAI: bubbles created mails=\(mails.count) github=\(github != nil) conv=\(self.chatStore.conversations.count) msgs=\(self.chatStore.messages.count) currentSet=\(self.chatStore.currentID != nil)")
         // Register a retry so this bubble can be re-run from its context menu.
         mailRetries[assistantID] = { [weak self] in self?.analyzeMailForChat(mails: mails, github: github) }
-        // Bring the chat window to the front and scroll to the new bubble.
+        // Park this analysis's header bubble at the top of the chat viewport
+        // (pushing prior history above the fold, leaving space for the reply)
+        // and bring the chat window to the front.
+        topAnchorMessageID = userID
         NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
 
         // A GitHub PR/issue link → analyze against the local repo via ghia.
@@ -741,7 +736,6 @@ final class MainViewModel {
         isLoading = true
         inputText = ""
         panel = .chat
-        postChatStatus("生成回复中…")
 
         usageTracker?.record(text: question)
 
@@ -774,7 +768,6 @@ final class MainViewModel {
             }
             chatStore.finish(assistantID)
             isLoading = false
-            postChatStatus(idleStatus())
         }
     }
 

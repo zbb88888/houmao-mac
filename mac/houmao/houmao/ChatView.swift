@@ -95,7 +95,10 @@ struct ChatView: View {
                 isPinnedToBottom = atBottom
             }
             .onChange(of: viewModel.chatStore.messages.count) {
-                // A new turn (user send / assistant start) re-pins to the bottom.
+                // A mail analysis parks its header bubble at the top of the
+                // viewport (history above the fold, space for the reply below);
+                // any other new turn re-pins to the bottom as usual.
+                if applyTopAnchorIfNeeded(proxy) { return }
                 isPinnedToBottom = true
                 scrollToBottom(proxy)
             }
@@ -106,11 +109,9 @@ struct ChatView: View {
                 proxy.scrollTo(chatBottomAnchor, anchor: .bottom)
             }
             .onReceive(NotificationCenter.default.publisher(for: .houmaoChatWindowDidShow)) { _ in
-                // Showing the window (e.g. from a mail AI analysis) jumps to the
-                // newest bubble even when the view was just created and its
-                // message-count onChange never fired.
-                isPinnedToBottom = true
-                scrollToBottom(proxy)
+                // A freshly created window renders at the top and never fires the
+                // message-count onChange, so honor a pending top anchor here too.
+                _ = applyTopAnchorIfNeeded(proxy)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -136,6 +137,21 @@ struct ChatView: View {
         withAnimation(.easeOut(duration: 0.15)) {
             proxy.scrollTo(chatBottomAnchor, anchor: .bottom)
         }
+    }
+
+    /// If the view model requested a bubble be parked at the top of the viewport
+    /// (mail analysis), scroll it there, disable bottom auto-follow so streaming
+    /// tokens don't yank it back down, and consume the request. Returns whether a
+    /// top anchor was applied.
+    @discardableResult
+    private func applyTopAnchorIfNeeded(_ proxy: ScrollViewProxy) -> Bool {
+        guard let id = viewModel.topAnchorMessageID else { return false }
+        isPinnedToBottom = false
+        withAnimation(.easeOut(duration: 0.15)) {
+            proxy.scrollTo(id, anchor: .top)
+        }
+        viewModel.topAnchorMessageID = nil
+        return true
     }
 
     // MARK: - Input bar

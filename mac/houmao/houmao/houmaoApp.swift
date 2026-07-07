@@ -46,7 +46,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
     private var exitChatObserver: NSObjectProtocol?
-    private var chatStatusObserver: NSObjectProtocol?
     private var enterMailObserver: NSObjectProtocol?
     private var exitMailObserver: NSObjectProtocol?
     private var openMailDetailObserver: NSObjectProtocol?
@@ -203,14 +202,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         ) { [weak self] _ in
             self?.hideChatWindow()
         }
-        chatStatusObserver = NotificationCenter.default.addObserver(
-            forName: .houmaoChatStatusChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            let status = (note.object as? String) ?? "houmao"
-            self?.chatWindow?.title = status.isEmpty ? "houmao" : status
-        }
     }
 
     /// Lazily build the standalone chat window: a standard titled window that is
@@ -226,10 +217,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             backing: .buffered,
             defer: false
         )
-        window.title = "houmao"
+        window.title = ""
         window.titlebarAppearsTransparent = true
-        // Title is used as a status line (topic / tool progress), so keep it visible.
-        window.titleVisibility = .visible
+        // No title text — the chat window shows a clean, empty title bar.
+        window.titleVisibility = .hidden
         window.isMovableByWindowBackground = false
         window.collectionBehavior = [.fullScreenPrimary]
         window.isReleasedWhenClosed = false
@@ -581,9 +572,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = exitChatObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        if let observer = chatStatusObserver {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = activateObserver {
