@@ -76,6 +76,11 @@ final class AppSettings {
         didSet { saveProviders() }
     }
 
+    /// True while `loadAPIKeys()` hydrates `apiKey`s from the Keychain, so the
+    /// `providers` `didSet` skips re-persisting (avoids a redundant Keychain
+    /// rewrite — and its extra authorization prompt — on every launch).
+    @ObservationIgnored private var isHydrating = false
+
     /// Root directory under which local clones live, used to auto-locate a repo
     /// for `/issue` (so the URL alone is enough). Persisted to UserDefaults.
     var reposRoot: String {
@@ -140,22 +145,34 @@ final class AppSettings {
     /// carries a plaintext key (decoded from a legacy UserDefaults payload) and
     /// the Keychain has none, migrate it. Re-persisting afterwards scrubs the
     /// plaintext from UserDefaults because `Provider.encode` omits `apiKey`.
+    ///
+    /// The in-memory hydration itself must NOT re-persist: rewriting every
+    /// Keychain item on each launch triggers a redundant `delete+add` and an
+    /// extra authorization prompt. So `saveProviders` is suppressed during
+    /// hydration and only run when a real migration happened.
     private func loadAPIKeys() {
         var hydrated = providers
+        var didMigrate = false
         for i in hydrated.indices {
             let account = hydrated[i].id.uuidString
             if let stored = KeychainStore.get(account) {
                 hydrated[i].apiKey = stored
             } else if !hydrated[i].apiKey.isEmpty {
                 KeychainStore.set(hydrated[i].apiKey, for: account)
+                didMigrate = true
             }
         }
-        // Assigning triggers `saveProviders`, which writes secrets to the
-        // Keychain and rewrites UserDefaults without plaintext keys.
+        // Hydrate in memory without re-persisting (suppresses the `didSet`).
+        isHydrating = true
         providers = hydrated
+        isHydrating = false
+        // Only when a legacy plaintext key was migrated do we persist once, to
+        // write the Keychain and scrub the plaintext from UserDefaults.
+        if didMigrate { saveProviders() }
     }
 
     private func saveProviders() {
+        guard !isHydrating else { return }
         // Persist secrets to the Keychain first.
         for provider in providers {
             KeychainStore.set(provider.apiKey, for: provider.id.uuidString)

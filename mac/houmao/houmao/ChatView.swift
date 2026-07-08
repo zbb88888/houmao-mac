@@ -38,6 +38,14 @@ struct ChatView: View {
         windowSize.width > 0 ? windowSize.width * 0.618 : 920
     }
 
+    /// Bottom spacer reserved while a mail analysis is pinned to the top, so the
+    /// pinned header bubble has a full viewport of scrollable content beneath it
+    /// and can actually reach the top even when the reply is short/empty.
+    private var topReserveHeight: CGFloat {
+        guard viewModel.topAnchorMessageID != nil else { return 0 }
+        return windowSize.height > 0 ? windowSize.height : 800
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             chatMessageList
@@ -81,6 +89,13 @@ struct ChatView: View {
                         chatBubble(message).id(message.id)
                     }
                     Color.clear.frame(height: 1).id(chatBottomAnchor)
+                    // While a mail analysis is pinned to the top, reserve a full
+                    // viewport below it so it can actually scroll to the top even
+                    // before the reply streams in (otherwise the scroll view hits
+                    // its bottom and the bubble never reaches the top).
+                    if topReserveHeight > 0 {
+                        Color.clear.frame(height: topReserveHeight)
+                    }
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 18)
@@ -95,12 +110,16 @@ struct ChatView: View {
                 isPinnedToBottom = atBottom
             }
             .onChange(of: viewModel.chatStore.messages.count) {
-                // A mail analysis parks its header bubble at the top of the
-                // viewport (history above the fold, space for the reply below);
-                // any other new turn re-pins to the bottom as usual.
-                if applyTopAnchorIfNeeded(proxy) { return }
-                isPinnedToBottom = true
-                scrollToBottom(proxy)
+                // A mail analysis parks its header bubble at the TOP of the
+                // viewport (history above the fold; a full-viewport bottom spacer
+                // reserves room so it can actually reach the top). Any other new
+                // turn re-pins to the bottom as usual.
+                if viewModel.topAnchorMessageID != nil {
+                    applyTopAnchor(proxy)
+                } else {
+                    isPinnedToBottom = true
+                    scrollToBottom(proxy)
+                }
             }
             .onChange(of: viewModel.chatStore.messages.last?.text) {
                 // Follow streaming tokens only while pinned, and without the
@@ -110,8 +129,8 @@ struct ChatView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .houmaoChatWindowDidShow)) { _ in
                 // A freshly created window renders at the top and never fires the
-                // message-count onChange, so honor a pending top anchor here too.
-                _ = applyTopAnchorIfNeeded(proxy)
+                // message-count onChange, so honor the top anchor here too.
+                applyTopAnchor(proxy)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -139,19 +158,20 @@ struct ChatView: View {
         }
     }
 
-    /// If the view model requested a bubble be parked at the top of the viewport
-    /// (mail analysis), scroll it there, disable bottom auto-follow so streaming
-    /// tokens don't yank it back down, and consume the request. Returns whether a
-    /// top anchor was applied.
-    @discardableResult
-    private func applyTopAnchorIfNeeded(_ proxy: ScrollViewProxy) -> Bool {
-        guard let id = viewModel.topAnchorMessageID else { return false }
+    /// Park the mail-analysis header bubble at the TOP of the viewport (and stop
+    /// bottom auto-follow so streamed tokens don't yank it down). The full-viewport
+    /// bottom spacer (`topReserveHeight`) guarantees enough content below it to
+    /// actually reach the top even before the reply streams in. No-op when no top
+    /// anchor is requested. The anchor stays set until the next ordinary turn (the
+    /// view model clears it), so back-to-back analyses each re-pin.
+    private func applyTopAnchor(_ proxy: ScrollViewProxy) {
+        guard let id = viewModel.topAnchorMessageID else { return }
         isPinnedToBottom = false
-        withAnimation(.easeOut(duration: 0.15)) {
-            proxy.scrollTo(id, anchor: .top)
+        DispatchQueue.main.async {
+            withAnimation(.easeOut(duration: 0.15)) {
+                proxy.scrollTo(id, anchor: .top)
+            }
         }
-        viewModel.topAnchorMessageID = nil
-        return true
     }
 
     // MARK: - Input bar

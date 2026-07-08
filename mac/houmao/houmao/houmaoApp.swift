@@ -208,8 +208,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// resizable and supports native full screen — a real office surface, not
     /// the floating input box.
     private func makeChatWindow() -> NSWindow {
-        // Same centered golden-ratio proportion as the mail windows.
-        let rect = centeredGoldenRect(on: screenContainingMouse())
+        // Golden-ratio size, shifted right so it doesn't fully overlap the mail
+        // window (which is shifted left) — lets the user click between them.
+        let rect = centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: windowSideShift)
 
         let window = NSWindow(
             contentRect: rect,
@@ -243,10 +244,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         let window = chatWindow ?? makeChatWindow()
         chatWindow = window
 
-        // Open at the same centered golden-ratio size as the mail window every
-        // time (unless the user has taken it full screen), so both surfaces match.
-        if !window.styleMask.contains(.fullScreen) {
-            window.setFrame(centeredGoldenRect(on: screenContainingMouse()), display: true)
+        // Only place/size the window the first time it's shown. Resizing a window
+        // that's already on screen drives SwiftUI's animated window-size path
+        // (`NSHostingView.updateAnimatedWindowSize`), which can throw mid-layout
+        // and abort the app; it would also yank a window the user has positioned.
+        if !window.isVisible && !window.styleMask.contains(.fullScreen) {
+            window.setFrame(centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: windowSideShift), display: true)
         }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
@@ -337,7 +340,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     }
 
     private func makeMailWindow() -> NSWindow {
-        let rect = centeredGoldenRect(on: screenContainingMouse())
+        // Shifted left so it doesn't fully overlap the chat window (shifted right).
+        let rect = centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift)
         let window = NSWindow(
             contentRect: rect,
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -360,27 +364,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     }
 
     /// A window rect centered on `screen`, sized to the golden ratio (0.618) of
-    /// the usable screen in each dimension.
-    private func centeredGoldenRect(on screen: NSScreen) -> NSRect {
+    /// the usable screen in each dimension. `offsetXFraction` nudges it
+    /// horizontally by that fraction of the screen width (kept fully on screen),
+    /// so the chat and mail windows can sit side-shifted instead of fully
+    /// overlapping — leaving a clickable strip of each to switch between them.
+    private func centeredGoldenRect(on screen: NSScreen, offsetXFraction: CGFloat = 0) -> NSRect {
         let visible = screen.visibleFrame
         let golden = 0.618
         let width = visible.width * golden
         let height = visible.height * golden
+        var x = visible.midX - width / 2 + visible.width * offsetXFraction
+        x = min(max(x, visible.minX), visible.maxX - width)
         return NSRect(
-            x: visible.midX - width / 2,
+            x: x,
             y: visible.midY - height / 2,
             width: width,
             height: height
         )
     }
 
+    /// Horizontal shift (fraction of screen width) applied oppositely to the chat
+    /// and mail windows so they don't fully overlap. 0.09 exposes a ~18% strip of
+    /// each, comfortably clickable, while both stay entirely on screen.
+    private let windowSideShift: CGFloat = 0.09
+
     private func showMailWindow() {
         let window = mailWindow ?? makeMailWindow()
         mailWindow = window
-        // Open centered at the golden-ratio size every time (unless the user has
-        // taken it full screen), matching the chat window's centered shell.
-        if !window.styleMask.contains(.fullScreen) {
-            window.setFrame(centeredGoldenRect(on: screenContainingMouse()), display: true)
+        // Only place/size the window the first time it's shown (see showChatWindow:
+        // resizing a visible window can crash SwiftUI's animated window-size path).
+        if !window.isVisible && !window.styleMask.contains(.fullScreen) {
+            window.setFrame(centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift), display: true)
         }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)

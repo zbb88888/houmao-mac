@@ -503,6 +503,7 @@ final class MainViewModel {
         isLoading = false
         inputText = ""
         mailRetries.removeAll()
+        topAnchorMessageID = nil
         chatStore.reset()
     }
 
@@ -702,6 +703,9 @@ final class MainViewModel {
     /// Run one conversational turn: append the user message, stream the
     /// assistant reply into the session, and feed prior turns back as history.
     private func executeChatTurn(_ text: String, context: String? = nil) {
+        // A normal chat turn ends any mail-analysis top-pin: drop the reserved
+        // bottom spacer and restore ordinary bottom-follow.
+        topAnchorMessageID = nil
         // Support `@name msg` to pick a provider/model, just like the minimal box.
         let mention = parseModelMention(text)
         let question = (mention?.message.isEmpty == false) ? mention!.message : text
