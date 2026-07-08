@@ -71,6 +71,12 @@ final class MailViewModel {
 
     var isConfigured: Bool { !AppSettings.shared.googleClientID.isEmpty }
 
+    /// Whether a Gmail session already exists (refresh token in Keychain), so
+    /// opening `/mail` can auto-refresh without prompting a fresh OAuth flow.
+    var isConnected: Bool {
+        KeychainStore.get(GoogleAuthProvider.keychainAccount)?.isEmpty == false
+    }
+
     var selectedCount: Int { selectedIDs.count }
 
     // MARK: - Connect

@@ -384,6 +384,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+        // Auto-refresh the mail list once when `/mail` opens the window, so the
+        // user sees fresh mail without clicking 刷新. Only when a session already
+        // exists — otherwise keep showing the "连接 Gmail" prompt.
+        Task { @MainActor in
+            if mailViewModel.isConnected {
+                await mailViewModel.load()
+            }
+        }
     }
 
     /// Standard large detail window (mirrors the chat window's shell), shared as
