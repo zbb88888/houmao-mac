@@ -95,12 +95,22 @@ struct AiTxtClient: Sendable {
     let baseURL: String
     let model: String
     let apiKey: String
+    /// Optional system message prepended to every request. When non-empty it is
+    /// sent as the first `system` turn (e.g. to nudge the model toward Chinese
+    /// replies for free-form chat). Callers that need a specific output language
+    /// (pipeline `$translate`/`$summarize`) leave it empty so behavior is unchanged.
+    let systemPrompt: String
 
-    init(baseURL: String, model: String, apiKey: String = "") {
+    init(baseURL: String, model: String, apiKey: String = "", systemPrompt: String = "") {
         self.baseURL = baseURL
         self.model = model
         self.apiKey = apiKey
+        self.systemPrompt = systemPrompt
     }
+
+    /// Default system prompt for free-form chat: reply in Chinese unless the
+    /// user explicitly asks otherwise.
+    static let chatSystemPrompt = "优先用中文回复。"
 
     // MARK: - Shared helpers
 
@@ -121,6 +131,10 @@ struct AiTxtClient: Sendable {
         }
         request.timeoutInterval = 120
 
+        let systemMessages: [ChatMessage] = systemPrompt.isEmpty
+            ? []
+            : [ChatMessage(role: "system", content: .text(systemPrompt))]
+
         let content: ChatMessageContent
         if attachments.isEmpty {
             content = .text(question)
@@ -140,7 +154,7 @@ struct AiTxtClient: Sendable {
 
         let body = ChatRequest(
             model: model,
-            messages: history + [ChatMessage(role: "user", content: content)],
+            messages: systemMessages + history + [ChatMessage(role: "user", content: content)],
             stream: stream
         )
         request.httpBody = try JSONEncoder().encode(body)

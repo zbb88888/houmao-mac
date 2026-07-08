@@ -742,7 +742,8 @@ final class MainViewModel {
         let client = AiTxtClient(
             baseURL: resolved.provider.apiHost,
             model: resolved.model,
-            apiKey: resolved.provider.apiKey
+            apiKey: resolved.provider.apiKey,
+            systemPrompt: AiTxtClient.chatSystemPrompt
         )
 
         currentTask?.cancel()
@@ -776,7 +777,7 @@ final class MainViewModel {
     /// history so the model has memory. The turns also seed a fresh chat
     /// conversation if the box later upgrades to the chat window.
     private func executeQuery(question: String, resolved: ResolvedModel, attachments: [Attachment]) {
-        let client = AiTxtClient(baseURL: resolved.provider.apiHost, model: resolved.model, apiKey: resolved.provider.apiKey)
+        let client = AiTxtClient(baseURL: resolved.provider.apiHost, model: resolved.model, apiKey: resolved.provider.apiKey, systemPrompt: AiTxtClient.chatSystemPrompt)
 
         lastUserText = question
         lastLLMReply = nil
