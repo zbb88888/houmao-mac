@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// The `/mail` cleanup page (Phase 6): review Gmail grouped by category → cluster
 /// and batch-move the selection to Trash. Rendered in a standalone window,
@@ -10,6 +11,7 @@ struct MailView: View {
     @State private var expanded: Set<UUID> = []
     @State private var showTagEditor = false
     @State private var tagDraft = ""
+    @State private var showHelp = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -81,6 +83,16 @@ struct MailView: View {
             .accessibilityLabel("刷新")
             .disabled(isBusy)
 
+            Button {
+                showHelp = true
+            } label: {
+                Image(systemName: "questionmark.circle")
+            }
+            .buttonStyle(.plain)
+            .help("如何使用")
+            .accessibilityLabel("如何使用")
+            .popover(isPresented: $showHelp, arrowEdge: .bottom) { helpPopover }
+
             Spacer()
 
             TextField("Gmail 过滤条件（q 语法）", text: $vm.query)
@@ -95,6 +107,34 @@ struct MailView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+
+    // MARK: - Help
+
+    @ViewBuilder private var helpPopover: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("如何使用").font(.headline)
+            helpRow("checkmark.square", "勾选邮件（大类 / 小类 / 单封均可批量勾选），再点左上角按钮批量操作")
+            helpRow("trash", "删除：把勾选的邮件移入废纸篓（可撤销）")
+            helpRow("sparkles", "AI 分析：对勾选的整簇按时间线分析")
+            helpRow("envelope.open", "标记已读")
+            helpRow("pencil", "编辑自定义分类标签（按主题关键词归类）")
+            helpRow("arrow.clockwise", "刷新：按右侧过滤条件重新拉取邮件")
+            helpRow("hand.point.up.left", "双击某一行查看邮件内容")
+            helpRow("doc.on.doc", "右键某一行可复制主题 / 发件人，便于搜索")
+            helpRow("magnifyingglass", "右上角输入框用 Gmail 的 q 语法过滤（如 is:unread、from:…、older_than:7d）")
+        }
+        .padding(16)
+        .frame(width: 340)
+    }
+
+    @ViewBuilder private func helpRow(_ icon: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .frame(width: 18)
+                .foregroundStyle(theme.textSecondary)
+            Text(text).font(.callout).fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // MARK: - Tag editor
@@ -261,7 +301,8 @@ struct MailView: View {
                 .labelsHidden()
                 .toggleStyle(.checkbox)
 
-                Text(cluster.representativeSubject.isEmpty ? "(无主题)" : cluster.representativeSubject)
+                let subject = cluster.representativeSubject.isEmpty ? "(无主题)" : cluster.representativeSubject
+                Text(subject)
                     .lineLimit(1)
                     .contentShape(Rectangle())
                     .onTapGesture(count: 2) {
@@ -269,7 +310,10 @@ struct MailView: View {
                             Task { await viewModel.openDetail(message) }
                         }
                     }
-                    .help("双击查看邮件内容")
+                    .contextMenu {
+                        Button("复制主题") { copyToPasteboard(subject) }
+                    }
+                    .help("双击查看邮件内容；右键可复制主题")
 
                 Spacer()
 
@@ -311,13 +355,18 @@ struct MailView: View {
             .labelsHidden()
             .toggleStyle(.checkbox)
 
+            let subject = message.subject.isEmpty ? "(无主题)" : message.subject
             VStack(alignment: .leading, spacing: 2) {
-                Text(message.subject.isEmpty ? "(无主题)" : message.subject).lineLimit(1).font(.callout)
+                Text(subject).lineLimit(1).font(.callout)
                 Text(message.from).lineLimit(1).font(.caption).foregroundStyle(theme.textSecondary)
             }
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { Task { await viewModel.openDetail(message) } }
-            .help("双击查看邮件内容")
+            .contextMenu {
+                Button("复制主题") { copyToPasteboard(subject) }
+                Button("复制发件人") { copyToPasteboard(message.from) }
+            }
+            .help("双击查看邮件内容；右键可复制")
             Spacer()
             if message.hasListUnsubscribe {
                 Image(systemName: "bell.slash").font(.caption).foregroundStyle(theme.textSecondary)
@@ -367,6 +416,12 @@ struct MailView: View {
 
     private func toggleExpanded(_ id: UUID) {
         if expanded.contains(id) { expanded.remove(id) } else { expanded.insert(id) }
+    }
+
+    private func copyToPasteboard(_ text: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
     }
 
     @ViewBuilder private func progress(_ label: String) -> some View {
