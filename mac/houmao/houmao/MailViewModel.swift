@@ -59,6 +59,11 @@ final class MailViewModel {
     /// Cap on the number of messages pulled per run (keeps O(n²) clustering fast).
     var maxResults: Int = 200
 
+    /// Local, case-insensitive filter over already-loaded mail (subject / sender).
+    /// Empty → show everything. Set by the mail page search box; unlike `query`
+    /// it never triggers a Gmail refetch — it only narrows what's on screen.
+    var searchFilter: String = ""
+
     private var auth: GoogleAuthProvider?
     /// Raw fetched messages, kept so `regroup()` can re-cluster without refetching.
     private var loadedMessages: [MailMessage] = []
@@ -156,7 +161,7 @@ final class MailViewModel {
     var groupedClusters: [(primary: String, subgroups: [(secondary: String?, clusters: [MailCluster])])] {
         var primaryOrder: [String] = []
         var primaryMap: [String: [MailCluster]] = [:]
-        for cluster in clusters {
+        for cluster in filteredClusters {
             if primaryMap[cluster.primary] == nil { primaryOrder.append(cluster.primary) }
             primaryMap[cluster.primary, default: []].append(cluster)
         }
@@ -170,6 +175,28 @@ final class MailViewModel {
             }
             let subgroups = secondaryOrder.map { (secondary: $0, clusters: secondaryMap[$0] ?? []) }
             return (primary: primary, subgroups: subgroups)
+        }
+    }
+
+    /// `clusters` narrowed by `searchFilter`: a cluster is kept if its
+    /// representative subject matches, otherwise it's shrunk to just the messages
+    /// whose subject / sender match (so counts and rows reflect the filter).
+    private var filteredClusters: [MailCluster] {
+        let q = searchFilter.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return clusters }
+        return clusters.compactMap { cluster in
+            if cluster.representativeSubject.lowercased().contains(q) { return cluster }
+            let matches = cluster.messages.filter {
+                $0.subject.lowercased().contains(q) || $0.from.lowercased().contains(q)
+            }
+            guard !matches.isEmpty else { return nil }
+            return MailCluster(
+                id: cluster.id,
+                primary: cluster.primary,
+                secondary: cluster.secondary,
+                category: cluster.category,
+                messages: matches
+            )
         }
     }
 
