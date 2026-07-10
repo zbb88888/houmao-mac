@@ -220,6 +220,15 @@ struct ChatView: View {
                     .buttonStyle(.plain)
                     .help("Stop")
                 }
+                Button(action: {
+                    NotificationCenter.default.post(name: .houmaoEnterMailWindow, object: nil)
+                }) {
+                    Image(systemName: "envelope")
+                        .font(.system(size: 16))
+                        .foregroundColor(theme.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .help("邮件清理")
                 Button(action: { viewModel.renewChat() }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 16))
