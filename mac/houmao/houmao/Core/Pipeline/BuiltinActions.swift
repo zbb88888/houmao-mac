@@ -33,7 +33,7 @@ struct TranslateAction: PipelineAction {
 
 // MARK: - summarize
 
-/// `$summarize` — produces a concise summary in the input's original language.
+/// `$summarize` — produces a concise summary in Chinese.
 struct SummarizeAction: PipelineAction {
     let name = "summarize"
 
@@ -47,7 +47,7 @@ struct SummarizeAction: PipelineAction {
             apiKey: model.provider.apiKey
         )
         let prompt = """
-        Summarize the following text concisely, in its original language. Output only \
+        Summarize the following text concisely, in Chinese. Output only \
         the summary, with no preamble or labels.
 
         ---
