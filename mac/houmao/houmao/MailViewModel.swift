@@ -42,6 +42,9 @@ final class MailViewModel {
     var isMutating = false
     /// The last reversible action, surfaced as a banner with an 撤销 button.
     var undoAction: UndoAction?
+    /// Auto-dismisses `undoAction` after a few seconds so the banner doesn't
+    /// linger forever; cancelled/replaced whenever a new action is shown.
+    private var undoAutoDismiss: Task<Void, Never>?
     /// Content of the double-clicked message (nil → detail sheet hidden).
     var detail: DetailState?
     /// The id the detail request is for, so stale responses can be ignored.
@@ -121,7 +124,7 @@ final class MailViewModel {
             return
         }
         phase = .loading
-        undoAction = nil
+        dismissUndo()
         do {
             let ids = try await provider.listMessages(query: query, maxResults: maxResults)
             mailLog.info("listMessages returned \(ids.count) ids for query \(self.query, privacy: .public)")
@@ -267,7 +270,23 @@ final class MailViewModel {
         }
     }
 
-    func dismissUndo() { undoAction = nil }
+    func dismissUndo() {
+        undoAutoDismiss?.cancel()
+        undoAutoDismiss = nil
+        undoAction = nil
+    }
+
+    /// Show a reversible action banner that auto-hides after 5 seconds.
+    private func setUndo(_ action: UndoAction) {
+        undoAutoDismiss?.cancel()
+        undoAction = action
+        undoAutoDismiss = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            self?.undoAction = nil
+            self?.undoAutoDismiss = nil
+        }
+    }
 
     /// Run a mutation in place: keep the list visible, remove the affected rows,
     /// then expose an undo that reverses the change server-side and reloads.
@@ -282,12 +301,12 @@ final class MailViewModel {
         do {
             try await action()
             removeFromView(ids: Set(ids))
-            undoAction = UndoAction(label: label) { [weak self] in
+            setUndo(UndoAction(label: label) { [weak self] in
                 guard let self else { return }
-                self.undoAction = nil
+                self.dismissUndo()
                 do { try await reverse(); await self.load() }
                 catch { self.phase = .failed(error.localizedDescription) }
-            }
+            })
         } catch {
             phase = .failed(error.localizedDescription)
         }
