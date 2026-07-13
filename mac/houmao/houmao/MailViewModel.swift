@@ -152,8 +152,22 @@ final class MailViewModel {
         let grouped = MailGrouping.group(loadedMessages, customTags: AppSettings.shared.mailTags)
         mailLog.info("grouped \(self.loadedMessages.count) messages into \(grouped.count) clusters")
         clusters = grouped
-        // UX: keep the default state fully unselected; users explicitly decide.
+        // UX: preselect the first mail so the user can act on it immediately
+        // (e.g. hit AI / delete) without a manual first click.
+        selectFirst()
+    }
+
+    /// ID of the first mail in display order (first primary → first subgroup →
+    /// first cluster → its earliest message), or nil when the list is empty.
+    private var firstMessageID: String? {
+        groupedClusters.first?.subgroups.first?.clusters.first?.messages.first?.id
+    }
+
+    /// Reset the selection to just the first mail. Used on a fresh load and
+    /// after a batch removal so a mail is always ready to act on.
+    private func selectFirst() {
         selectedIDs.removeAll()
+        if let id = firstMessageID { selectedIDs.insert(id) }
     }
 
     // MARK: - Selection
@@ -392,6 +406,9 @@ final class MailViewModel {
         }
         loadedMessages.removeAll { ids.contains($0.id) }
         selectedIDs.subtract(ids)
+        // After a batch removal, preselect the new first mail so triage keeps
+        // flowing without a manual re-click.
+        selectFirst()
     }
 
     private func makeAuth(redirectURI: String) -> GoogleAuthProvider {
