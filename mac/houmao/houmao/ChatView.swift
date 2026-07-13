@@ -323,8 +323,8 @@ struct ChatView: View {
                 if !message.text.isEmpty {
                     Button("复制") { copyToPasteboard(message.text) }
                 }
-                if !isUser && viewModel.canRetryMail(message.id) {
-                    Button("重试") { viewModel.retryMail(message.id) }
+                if !isUser && viewModel.canDeepenMail(message.id) {
+                    Button("深入") { viewModel.deepenMail(message.id) }
                 }
             }
 

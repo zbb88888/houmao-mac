@@ -56,9 +56,10 @@ final class MainViewModel {
     /// window. Each entry is a finished `(question, reply, model)` turn.
     private var oneShotTurns: [(user: String, assistant: String, model: String)] = []
 
-    /// Per assistant-bubble retry action for mail analyses, so a failed bubble
-    /// can be re-run from its context menu (keyed by the assistant message id).
-    private var mailRetries: [UUID: () -> Void] = [:]
+    /// Per assistant-bubble "深入" context for mail analyses: the original mail
+    /// prompt (with bodies) that seeded the bubble, so a follow-up turn can go
+    /// deeper using the prior analysis as context (keyed by assistant msg id).
+    private var mailDeepen: [UUID: String] = [:]
 
     /// When set, the chat view parks this bubble at the TOP of the viewport on
     /// the next message-count change / window show, instead of scrolling to the
@@ -364,7 +365,7 @@ final class MainViewModel {
     ## 命令
     - `/chat`：打开多轮聊天窗口。最小输入框是一次性问答，多轮对话在聊天窗口进行。
     - `/issue <github-issue-url>`：调用本地 ghia，用本地仓库代码分析该 issue。需先设置 code dir，且 `<code dir>/<repo>` 存在该仓库克隆。
-    - `/pr <github-pr-url>`：同上，额外对 PR diff 做六步漏斗深度 review。
+    - `/pr <github-pr-url>`：同上，额外对 PR diff 做四阶段漏斗深度 review。
     - `/h`：显示简要帮助；`/h <问题>`：结合本文档让 AI 解答如何操作。
     - `@name <消息>`：临时指定 provider 别名或模型名。
 
@@ -502,16 +503,49 @@ final class MainViewModel {
         currentTask?.cancel()
         isLoading = false
         inputText = ""
-        mailRetries.removeAll()
+        mailDeepen.removeAll()
         topAnchorMessageID = nil
         chatStore.reset()
     }
 
-    /// Whether an assistant bubble is a mail analysis that can be retried.
-    func canRetryMail(_ id: UUID) -> Bool { mailRetries[id] != nil }
+    /// Whether an assistant bubble is a mail analysis that can be deepened.
+    func canDeepenMail(_ id: UUID) -> Bool { mailDeepen[id] != nil }
 
-    /// Re-run the mail analysis behind an assistant bubble (context-menu 重试).
-    func retryMail(_ id: UUID) { mailRetries[id]?() }
+    /// Follow-up “深入”: continue an existing mail-analysis bubble with a
+    /// “go deeper” prompt instead of re-running it (which just reproduced the
+    /// same content). The original mail context and the prior analysis are
+    /// passed as history so the model builds on it rather than repeating; the
+    /// elaboration streams as a new turn, itself deepenable.
+    func deepenMail(_ id: UUID) {
+        guard let source = mailDeepen[id],
+              let prior = chatStore.messages.first(where: { $0.id == id })?.text,
+              !prior.isEmpty,
+              let resolved = AppSettings.shared.resolveModel(named: nil) else { return }
+        let userID = chatStore.appendUser("进一步深入分析")
+        let assistantID = chatStore.startAssistant(streaming: true)
+        lastModelName = resolved.provider.name
+        // Chainable: the elaboration can itself be deepened again.
+        mailDeepen[assistantID] = source
+        topAnchorMessageID = userID
+        NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
+
+        let history = [
+            ChatMessage(role: "user", content: .text(source)),
+            ChatMessage(role: "assistant", content: .text(prior)),
+        ]
+        let deepenPrompt = "请在上一版分析的基础上进一步深入：展开之前一带而过或未覆盖的关键细节、潜在风险与边界情况，并给出更具体、可执行的下一步建议。不要重复已经说过的内容，用中文。"
+        let client = AiTxtClient(baseURL: resolved.provider.apiHost, model: resolved.model, apiKey: resolved.provider.apiKey)
+        Task {
+            do {
+                _ = try await client.askStream(question: deepenPrompt, attachments: [], history: history) { [weak self] token in
+                    Task { @MainActor in self?.chatStore.appendToken(assistantID, token) }
+                }
+            } catch {
+                chatStore.appendToken(assistantID, "\n\n深入分析失败：\(error.localizedDescription)")
+            }
+            chatStore.finish(assistantID)
+        }
+    }
 
     /// Render a `/issue` command and an immediate (non-LLM) reply as one chat
     /// turn, e.g. usage or configuration errors.
@@ -570,8 +604,9 @@ final class MainViewModel {
         let assistantID = chatStore.startAssistant(streaming: true)
         lastModelName = resolved.provider.name
         vmLog.info("mailAI: bubbles created mails=\(mails.count) github=\(github != nil) conv=\(self.chatStore.conversations.count) msgs=\(self.chatStore.messages.count) currentSet=\(self.chatStore.currentID != nil)")
-        // Register a retry so this bubble can be re-run from its context menu.
-        mailRetries[assistantID] = { [weak self] in self?.analyzeMailForChat(mails: mails, github: github) }
+        // Register the mail context so this bubble can later be “深入”-ed
+        // (a follow-up turn that builds on the analysis instead of re-running it).
+        mailDeepen[assistantID] = Self.mailThreadPrompt(mails)
         // Park this analysis's header bubble at the top of the chat viewport
         // (pushing prior history above the fold, leaving space for the reply)
         // and bring the chat window to the front.
