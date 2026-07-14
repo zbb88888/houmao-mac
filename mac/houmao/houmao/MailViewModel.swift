@@ -162,7 +162,7 @@ final class MailViewModel {
         mailLog.info("grouped \(self.loadedMessages.count) messages into \(grouped.count) clusters")
         clusters = grouped
         // UX: preselect the first mail so the user can act on it immediately
-        // (e.g. hit AI / delete) without a manual first click.
+        // (e.g. hit AI / delete, one at a time) without a manual first click.
         selectFirst()
     }
 
@@ -173,7 +173,8 @@ final class MailViewModel {
     }
 
     /// Reset the selection to just the first mail. Used on a fresh load and
-    /// after a batch removal so a mail is always ready to act on.
+    /// after a batch removal so a mail is always ready to act on — one at a time,
+    /// matching the habit of analyzing / deleting mails individually.
     private func selectFirst() {
         selectedIDs.removeAll()
         if let id = firstMessageID { selectedIDs.insert(id) }
@@ -228,8 +229,12 @@ final class MailViewModel {
 
     func isSelected(_ id: String) -> Bool { selectedIDs.contains(id) }
 
-    func isClusterFullySelected(_ cluster: MailCluster) -> Bool {
-        !cluster.messages.isEmpty && cluster.messages.allSatisfy { selectedIDs.contains($0.id) }
+    /// Whether *any* of the cluster's messages are selected. Drives the cluster
+    /// row's plain checked/unchecked checkbox, so a single auto-selected mail
+    /// still shows the (collapsed) cluster as checked — one consistent tick,
+    /// never a partial dash.
+    func isClusterSelected(_ cluster: MailCluster) -> Bool {
+        cluster.messages.contains { selectedIDs.contains($0.id) }
     }
 
     func toggleMessage(_ id: String) {
@@ -238,7 +243,7 @@ final class MailViewModel {
 
     func toggleCluster(_ cluster: MailCluster) {
         let ids = cluster.messages.map(\.id)
-        if isClusterFullySelected(cluster) {
+        if isClusterSelected(cluster) {
             ids.forEach { selectedIDs.remove($0) }
         } else {
             ids.forEach { selectedIDs.insert($0) }

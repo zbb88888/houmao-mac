@@ -365,7 +365,7 @@ struct MailView: View {
             VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
                 Toggle("", isOn: Binding(
-                    get: { viewModel.isClusterFullySelected(cluster) },
+                    get: { viewModel.isClusterSelected(cluster) },
                     set: { _ in viewModel.toggleCluster(cluster) }
                 ))
                 .labelsHidden()
