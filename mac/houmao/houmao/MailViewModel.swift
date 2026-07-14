@@ -166,18 +166,20 @@ final class MailViewModel {
         selectFirst()
     }
 
-    /// ID of the first mail in display order (first primary → first subgroup →
-    /// first cluster → its earliest message), or nil when the list is empty.
-    private var firstMessageID: String? {
-        groupedClusters.first?.subgroups.first?.clusters.first?.messages.first?.id
+    /// The first cluster in display order (first primary → first subgroup →
+    /// first cluster), or nil when the list is empty.
+    private var firstCluster: MailCluster? {
+        groupedClusters.first?.subgroups.first?.clusters.first
     }
 
-    /// Reset the selection to just the first mail. Used on a fresh load and
-    /// after a batch removal so a mail is always ready to act on — one at a time,
-    /// matching the habit of analyzing / deleting mails individually.
+    /// Reset the selection to the whole first cluster. Used on a fresh load and
+    /// after a batch removal so a full cluster is always ready to act on. The AI
+    /// reviews a cluster as one thread, so once reviewed the whole cluster should
+    /// clear in a single delete — not one message at a time.
     private func selectFirst() {
         selectedIDs.removeAll()
-        if let id = firstMessageID { selectedIDs.insert(id) }
+        guard let cluster = firstCluster else { return }
+        for message in cluster.messages { selectedIDs.insert(message.id) }
     }
 
     // MARK: - Selection
