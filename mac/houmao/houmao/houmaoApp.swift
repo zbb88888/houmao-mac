@@ -43,11 +43,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private(set) var mainViewModel: MainViewModel!
     private(set) var historyViewModel: HistoryViewModel!
     private(set) var mailViewModel: MailViewModel!
+    private(set) var prViewModel: PRViewModel!
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
     private var exitChatObserver: NSObjectProtocol?
     private var enterMailObserver: NSObjectProtocol?
     private var exitMailObserver: NSObjectProtocol?
+    private var enterPRObserver: NSObjectProtocol?
+    private var exitPRObserver: NSObjectProtocol?
     private var openMailDetailObserver: NSObjectProtocol?
     private var closeMailDetailObserver: NSObjectProtocol?
 
@@ -57,6 +60,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var chatWindow: NSWindow?
     /// Standalone Gmail cleanup window (`/mail`), same shell as the chat window.
     private var mailWindow: NSWindow?
+    /// Standalone PR panel window ("my PRs"), same shell as the mail window.
+    private var prWindow: NSWindow?
     /// Standalone message-detail window opened from the mail list (standard large
     /// window, not an in-place sheet).
     private var mailDetailWindow: NSWindow?
@@ -92,11 +97,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         mainViewModel = MainViewModel(usageTracker: tracker)
         historyViewModel = HistoryViewModel(store: store)
         mailViewModel = MailViewModel()
+        prViewModel = PRViewModel()
 
         setupPanel()
         setupShortcutMonitor()
         setupChatWindowObservers()
         setupMailWindowObservers()
+        setupPRWindowObservers()
 
         hotKeyManager = GlobalHotKeyManager.shared
         tracker.start()
@@ -294,6 +301,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             hideMailWindow()
             return false
         }
+        if sender == prWindow {
+            hidePRWindow()
+            return false
+        }
         if sender == mailDetailWindow {
             hideWindowSafely(sender)
             mailViewModel.closeDetail()
@@ -444,6 +455,91 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         mailDetailWindow = window
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    // MARK: PR window ("my PRs")
+
+    private func setupPRWindowObservers() {
+        enterPRObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoEnterPRWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.showPRWindow()
+        }
+        exitPRObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoExitPRWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.hidePRWindow()
+        }
+    }
+
+    private func makePRWindow() -> NSWindow {
+        // Shifted left (like the mail window) so it doesn't fully overlap the
+        // chat window (shifted right).
+        let rect = centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift)
+        let window = NSWindow(
+            contentRect: rect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "PR"
+        // Show a branch glyph in the title bar instead of the "pr" text.
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        // Force light appearance so the title renders black over the light theme.
+        window.appearance = NSAppearance(named: .aqua)
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 640, height: 420)
+        window.delegate = self
+        addBranchTitleGlyph(to: window)
+
+        let prView = PRView().environment(prViewModel)
+        window.contentViewController = NSHostingController(rootView: prView)
+        return window
+    }
+
+    /// Place a branch SF Symbol in the PR window's title bar (leading), used
+    /// instead of a text title.
+    private func addBranchTitleGlyph(to window: NSWindow) {
+        let accessory = NSTitlebarAccessoryViewController()
+        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+        let image = NSImage(systemSymbolName: "arrow.triangle.branch", accessibilityDescription: "PR")?
+            .withSymbolConfiguration(config)
+        let imageView = NSImageView(image: image ?? NSImage())
+        imageView.contentTintColor = .secondaryLabelColor
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        let container = NSView()
+        container.addSubview(imageView)
+        NSLayoutConstraint.activate([
+            imageView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 10),
+            imageView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -6),
+            imageView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            container.heightAnchor.constraint(equalToConstant: 22),
+        ])
+        accessory.view = container
+        accessory.layoutAttribute = .leading
+        window.addTitlebarAccessoryViewController(accessory)
+    }
+
+    private func showPRWindow() {
+        let window = prWindow ?? makePRWindow()
+        prWindow = window
+        // Only place/size the window the first time it's shown (see showChatWindow:
+        // resizing a visible window can crash SwiftUI's animated window-size path).
+        if !window.isVisible && !window.styleMask.contains(.fullScreen) {
+            window.setFrame(centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift), display: true)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        // Auto-refresh the PR list every time the panel opens, so the user sees
+        // up-to-date PR status without clicking 刷新.
+        Task { @MainActor in await prViewModel.load() }
+    }
+
+    private func hidePRWindow() {
+        guard let window = prWindow else { return }
+        hideWindowSafely(window)
     }
 
     func showMainPanel() {
