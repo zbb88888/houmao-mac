@@ -138,9 +138,23 @@ actor GoogleAuthProvider {
         ]
         if let secret = config.clientSecret { params["client_secret"] = secret }
 
-        let token = try await postToken(params)
-        applyAccessToken(token)
-        return token.access_token
+        do {
+            let token = try await postToken(params)
+            applyAccessToken(token)
+            return token.access_token
+        } catch let error as MailProviderError {
+            // A revoked or expired refresh token comes back as HTTP 400
+            // `invalid_grant`. That token is permanently dead — purge it (and any
+            // cached access token) so the app stops retrying a credential Google
+            // will never accept and instead falls back to a fresh OAuth flow.
+            if case .requestFailed(let body) = error, body.contains("invalid_grant") {
+                KeychainStore.delete(Self.keychainAccount)
+                accessToken = nil
+                accessTokenExpiry = nil
+                throw MailProviderError.notAuthenticated
+            }
+            throw error
+        }
     }
 
     // MARK: - Helpers

@@ -133,8 +133,17 @@ final class MailViewModel {
             hasLoaded = true
             phase = .review
         } catch MailProviderError.notAuthenticated {
-            mailLog.error("load: not authenticated")
-            phase = .needsConnection
+            // The stored session is gone — either we never connected, or the
+            // refresh token was revoked/expired and `validAccessToken()` just
+            // purged it. Auto re-run the OAuth flow so the user recovers in one
+            // step instead of hitting a dead-end error with a stale token.
+            mailLog.error("load: not authenticated; re-running OAuth")
+            self.auth = nil
+            if isConfigured {
+                await connect()
+            } else {
+                phase = .needsConnection
+            }
         } catch {
             mailLog.error("load failed: \(error.localizedDescription, privacy: .public)")
             phase = .failed(error.localizedDescription)
