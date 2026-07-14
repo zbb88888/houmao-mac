@@ -238,6 +238,15 @@ struct ChatView: View {
                 }
                 .buttonStyle(.plain)
                 .help("我的 PR")
+                Button(action: {
+                    NotificationCenter.default.post(name: .houmaoEnterIssueWindow, object: nil)
+                }) {
+                    Image(systemName: "smallcircle.filled.circle")
+                        .font(.system(size: 16))
+                        .foregroundColor(theme.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .help("我的 Issue")
                 Button(action: { viewModel.renewChat() }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 16))

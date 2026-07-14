@@ -23,6 +23,11 @@ extension Notification.Name {
     static let houmaoEnterPRWindow = Notification.Name("houmaoEnterPRWindow")
     /// Posted when the PR window should be closed.
     static let houmaoExitPRWindow = Notification.Name("houmaoExitPRWindow")
+    /// Posted when the Issue button is tapped so the app can open the standalone
+    /// Issue panel window (mirrors the PR window shell).
+    static let houmaoEnterIssueWindow = Notification.Name("houmaoEnterIssueWindow")
+    /// Posted when the Issue window should be closed.
+    static let houmaoExitIssueWindow = Notification.Name("houmaoExitIssueWindow")
     /// Posted when the user opens a message so the app can show the standalone
     /// mail-detail window (a standard large window, not an in-place sheet).
     static let houmaoOpenMailDetail = Notification.Name("houmaoOpenMailDetail")

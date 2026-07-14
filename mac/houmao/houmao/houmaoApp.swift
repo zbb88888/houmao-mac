@@ -44,6 +44,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private(set) var historyViewModel: HistoryViewModel!
     private(set) var mailViewModel: MailViewModel!
     private(set) var prViewModel: PRViewModel!
+    private(set) var issueViewModel: IssueViewModel!
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
     private var exitChatObserver: NSObjectProtocol?
@@ -51,6 +52,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var exitMailObserver: NSObjectProtocol?
     private var enterPRObserver: NSObjectProtocol?
     private var exitPRObserver: NSObjectProtocol?
+    private var enterIssueObserver: NSObjectProtocol?
+    private var exitIssueObserver: NSObjectProtocol?
     private var openMailDetailObserver: NSObjectProtocol?
     private var closeMailDetailObserver: NSObjectProtocol?
 
@@ -62,6 +65,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var mailWindow: NSWindow?
     /// Standalone PR panel window ("my PRs"), same shell as the mail window.
     private var prWindow: NSWindow?
+    /// Standalone Issue panel window ("my issues"), same shell as the PR window.
+    private var issueWindow: NSWindow?
     /// Standalone message-detail window opened from the mail list (standard large
     /// window, not an in-place sheet).
     private var mailDetailWindow: NSWindow?
@@ -98,12 +103,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         historyViewModel = HistoryViewModel(store: store)
         mailViewModel = MailViewModel()
         prViewModel = PRViewModel()
+        issueViewModel = IssueViewModel()
 
         setupPanel()
         setupShortcutMonitor()
         setupChatWindowObservers()
         setupMailWindowObservers()
         setupPRWindowObservers()
+        setupIssueWindowObservers()
 
         hotKeyManager = GlobalHotKeyManager.shared
         tracker.start()
@@ -305,6 +312,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             hidePRWindow()
             return false
         }
+        if sender == issueWindow {
+            hideIssueWindow()
+            return false
+        }
         if sender == mailDetailWindow {
             hideWindowSafely(sender)
             mailViewModel.closeDetail()
@@ -492,19 +503,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 640, height: 420)
         window.delegate = self
-        addBranchTitleGlyph(to: window)
+        addTitleGlyph(to: window, symbol: "arrow.triangle.branch", accessibilityDescription: "PR")
 
         let prView = PRView().environment(prViewModel)
         window.contentViewController = NSHostingController(rootView: prView)
         return window
     }
 
-    /// Place a branch SF Symbol in the PR window's title bar (leading), used
-    /// instead of a text title.
-    private func addBranchTitleGlyph(to window: NSWindow) {
+    /// Place an SF Symbol in a window's title bar (leading), used instead of a
+    /// text title.
+    private func addTitleGlyph(to window: NSWindow, symbol: String, accessibilityDescription: String) {
         let accessory = NSTitlebarAccessoryViewController()
         let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
-        let image = NSImage(systemSymbolName: "arrow.triangle.branch", accessibilityDescription: "PR")?
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: accessibilityDescription)?
             .withSymbolConfiguration(config)
         let imageView = NSImageView(image: image ?? NSImage())
         imageView.contentTintColor = .secondaryLabelColor
@@ -539,6 +550,67 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
 
     private func hidePRWindow() {
         guard let window = prWindow else { return }
+        hideWindowSafely(window)
+    }
+
+    // MARK: Issue window ("my issues")
+
+    private func setupIssueWindowObservers() {
+        enterIssueObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoEnterIssueWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.showIssueWindow()
+        }
+        exitIssueObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoExitIssueWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.hideIssueWindow()
+        }
+    }
+
+    private func makeIssueWindow() -> NSWindow {
+        // Shifted left (like the PR / mail windows) so it doesn't fully overlap
+        // the chat window (shifted right).
+        let rect = centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift)
+        let window = NSWindow(
+            contentRect: rect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Issue"
+        // Show a glyph in the title bar instead of the text title.
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        // Force light appearance so the title renders black over the light theme.
+        window.appearance = NSAppearance(named: .aqua)
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 640, height: 420)
+        window.delegate = self
+        addTitleGlyph(to: window, symbol: "smallcircle.filled.circle", accessibilityDescription: "Issue")
+
+        let issueView = IssueView().environment(issueViewModel)
+        window.contentViewController = NSHostingController(rootView: issueView)
+        return window
+    }
+
+    private func showIssueWindow() {
+        let window = issueWindow ?? makeIssueWindow()
+        issueWindow = window
+        // Only place/size the window the first time it's shown (see showChatWindow:
+        // resizing a visible window can crash SwiftUI's animated window-size path).
+        if !window.isVisible && !window.styleMask.contains(.fullScreen) {
+            window.setFrame(centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift), display: true)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        // Auto-refresh the issue list every time the panel opens.
+        Task { @MainActor in await issueViewModel.load() }
+    }
+
+    private func hideIssueWindow() {
+        guard let window = issueWindow else { return }
         hideWindowSafely(window)
     }
 
