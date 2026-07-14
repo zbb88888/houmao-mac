@@ -228,7 +228,7 @@ struct ChatView: View {
                         .foregroundColor(theme.textSecondary)
                 }
                 .buttonStyle(.plain)
-                .help("邮件清理")
+                .help("邮件")
                 Button(action: {
                     NotificationCenter.default.post(name: .houmaoEnterPRWindow, object: nil)
                 }) {
@@ -237,7 +237,7 @@ struct ChatView: View {
                         .foregroundColor(theme.textSecondary)
                 }
                 .buttonStyle(.plain)
-                .help("我的 PR")
+                .help("PR")
                 Button(action: {
                     NotificationCenter.default.post(name: .houmaoEnterIssueWindow, object: nil)
                 }) {
@@ -246,7 +246,7 @@ struct ChatView: View {
                         .foregroundColor(theme.textSecondary)
                 }
                 .buttonStyle(.plain)
-                .help("我的 Issue")
+                .help("Issue")
                 Button(action: { viewModel.renewChat() }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 16))
