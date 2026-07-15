@@ -306,6 +306,10 @@ final class MainViewModel {
             inputText = ""
             NotificationCenter.default.post(name: .houmaoEnterMailWindow, object: nil)
             return true
+        case "/do":
+            inputText = ""
+            NotificationCenter.default.post(name: .houmaoEnterDoWindow, object: nil)
+            return true
         default:
             break
         }
@@ -341,6 +345,7 @@ final class MainViewModel {
     ## 命令
     - `/chat` — 打开/切换多轮聊天窗口
     - `/mail` — 打开 Gmail 清理面板（聚类 + 批量移废纸篓）
+    - `/do` — 打开 Do 待办面板（工作/生活 两页，主题可增删）
     - `/issue <url>` — 用本地代码分析 GitHub issue
     - `/pr <url>` — 用本地代码 review GitHub PR diff
     - `/h` — 显示本帮助；`/h <问题>` — 结合文档让 AI 解答如何操作

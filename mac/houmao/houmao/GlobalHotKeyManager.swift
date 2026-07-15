@@ -28,6 +28,11 @@ extension Notification.Name {
     static let houmaoEnterIssueWindow = Notification.Name("houmaoEnterIssueWindow")
     /// Posted when the Issue window should be closed.
     static let houmaoExitIssueWindow = Notification.Name("houmaoExitIssueWindow")
+    /// Posted when the Do button (or `/do`) is used so the app can open the
+    /// standalone Do panel window (mirrors the Issue window shell).
+    static let houmaoEnterDoWindow = Notification.Name("houmaoEnterDoWindow")
+    /// Posted when the Do window should be closed.
+    static let houmaoExitDoWindow = Notification.Name("houmaoExitDoWindow")
     /// Posted when the user opens a message so the app can show the standalone
     /// mail-detail window (a standard large window, not an in-place sheet).
     static let houmaoOpenMailDetail = Notification.Name("houmaoOpenMailDetail")

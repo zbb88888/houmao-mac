@@ -247,6 +247,15 @@ struct ChatView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Issue")
+                Button(action: {
+                    NotificationCenter.default.post(name: .houmaoEnterDoWindow, object: nil)
+                }) {
+                    Image(systemName: "checklist")
+                        .font(.system(size: 16))
+                        .foregroundColor(theme.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .help("Do 待办")
                 Button(action: { viewModel.renewChat() }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 16))

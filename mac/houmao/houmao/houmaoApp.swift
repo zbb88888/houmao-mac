@@ -45,6 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private(set) var mailViewModel: MailViewModel!
     private(set) var prViewModel: PRViewModel!
     private(set) var issueViewModel: IssueViewModel!
+    private(set) var doViewModel: DoViewModel!
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
     private var exitChatObserver: NSObjectProtocol?
@@ -54,6 +55,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var exitPRObserver: NSObjectProtocol?
     private var enterIssueObserver: NSObjectProtocol?
     private var exitIssueObserver: NSObjectProtocol?
+    private var enterDoObserver: NSObjectProtocol?
+    private var exitDoObserver: NSObjectProtocol?
     private var openMailDetailObserver: NSObjectProtocol?
     private var closeMailDetailObserver: NSObjectProtocol?
 
@@ -67,6 +70,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var prWindow: NSWindow?
     /// Standalone Issue panel window ("my issues"), same shell as the PR window.
     private var issueWindow: NSWindow?
+    /// Standalone Do panel window (to-do organizer), same shell as the Issue window.
+    private var doWindow: NSWindow?
     /// Standalone message-detail window opened from the mail list (standard large
     /// window, not an in-place sheet).
     private var mailDetailWindow: NSWindow?
@@ -104,6 +109,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         mailViewModel = MailViewModel()
         prViewModel = PRViewModel()
         issueViewModel = IssueViewModel()
+        doViewModel = DoViewModel()
 
         setupPanel()
         setupShortcutMonitor()
@@ -111,6 +117,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         setupMailWindowObservers()
         setupPRWindowObservers()
         setupIssueWindowObservers()
+        setupDoWindowObservers()
 
         hotKeyManager = GlobalHotKeyManager.shared
         tracker.start()
@@ -314,6 +321,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         }
         if sender == issueWindow {
             hideIssueWindow()
+            return false
+        }
+        if sender == doWindow {
+            hideDoWindow()
             return false
         }
         if sender == mailDetailWindow {
@@ -611,6 +622,65 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
 
     private func hideIssueWindow() {
         guard let window = issueWindow else { return }
+        hideWindowSafely(window)
+    }
+
+    // MARK: Do window (to-do organizer)
+
+    private func setupDoWindowObservers() {
+        enterDoObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoEnterDoWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.showDoWindow()
+        }
+        exitDoObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoExitDoWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.hideDoWindow()
+        }
+    }
+
+    private func makeDoWindow() -> NSWindow {
+        // Shifted left (like the Issue / PR / mail windows) so it doesn't fully
+        // overlap the chat window (shifted right).
+        let rect = centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift)
+        let window = NSWindow(
+            contentRect: rect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Do"
+        // Show a glyph in the title bar instead of the text title.
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        // Force light appearance so the title renders black over the light theme.
+        window.appearance = NSAppearance(named: .aqua)
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 480, height: 420)
+        window.delegate = self
+        addTitleGlyph(to: window, symbol: "checklist", accessibilityDescription: "Do")
+
+        let doView = DoView().environment(doViewModel)
+        window.contentViewController = NSHostingController(rootView: doView)
+        return window
+    }
+
+    private func showDoWindow() {
+        let window = doWindow ?? makeDoWindow()
+        doWindow = window
+        // Only place/size the window the first time it's shown (see showChatWindow:
+        // resizing a visible window can crash SwiftUI's animated window-size path).
+        if !window.isVisible && !window.styleMask.contains(.fullScreen) {
+            window.setFrame(centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift), display: true)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func hideDoWindow() {
+        guard let window = doWindow else { return }
         hideWindowSafely(window)
     }
 

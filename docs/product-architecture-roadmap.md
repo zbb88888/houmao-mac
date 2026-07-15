@@ -2,7 +2,7 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
-> 最近更新：2026-07-07（聊天窗口精简：**隐藏标题栏文字**并**移除标题栏状态/进度链**（`postChatStatus`/`idleStatus`/`.houmaoChatStatusChanged` 全删；`N/6` 阶段进度、"生成回复中…"、会话标题不再显示）；邮件列表选中邮件点 AI 现**把聊天窗带到前台**并将本次分析的用户气泡顶到视口顶部（历史滚出可见区、下方留给回复；`MainViewModel.topAnchorMessageID` + `ChatView.applyTopAnchorIfNeeded`），见 [chat-ui-design.md](chat-ui-design.md) §8/§11.4）｜ 维护方式：每次提交涉及架构/功能变更时同步本文件。
+> 最近更新：2026-07-15（补录 **GitHub PR/Issue 面板**（§3.9 / Phase 8）：聊天窗按钮 / 独立窗口用 `gh` 展示我的 PR（open 展开、近三月 closed 折叠）与我相关的 Issue（指派给我 + 我创建的），共享 `Core/GitHub/GitHubCLI.swift`；以及 **Do 待办面板**（§3.8 / Phase 7）。｜ 维护方式：每次提交涉及架构/功能变更时同步本文件。
 
 ---
 
@@ -273,6 +273,28 @@ flowchart TB
 
 ---
 
+### 3.8 Do 待办面板：两固定领域 + 可编辑主题的纯文本 todo（✅ 已完成）
+
+**需求**：一个轻量待办组织器，聊天窗输入栏 `checklist` 按钮或 `/do` 命令唤起独立窗口。两级分类：**固定领域**（工作/生活，顶部自绘分段 tab，不可增删）→ **可编辑主题**（清单）→ 主题下的**可勾选条目**。同一时刻只显示一个主题的详情列表（master-detail）。默认主题：工作=`todo`/`学到老`，生活=`衣食住行`/`吃喝玩乐`。
+
+**易用性依据**：对齐主流实践——Things 的 Areas(稳定)›Projects、Apple 提醒事项/滴答清单的「侧栏选清单→看详情」。主题用 tab 下一行**胶囊/分段**切换（主题少时最简洁，符合当前极简风）；主题的增/改名/拖排/删集中在 popover（「管理清单」心智），删除含条目主题二次确认；主题胶囊带未完成计数徽章。
+
+**持久化（纯文本，人类可读可手改）**：Markdown 任务清单，每个领域一份文件 `~/Documents/houmao/do/{work,life}.md`（固定英文文件名作稳定身份，H1=显示名，`## 主题`，`- [ ]`未完 / `- [x]`完成）；任一变更即时整文件 `.atomic` 重写。格式与解析/序列化约定的单一事实来源见 [todo.md](todo.md)。**取舍**：不引 JSON/数据库；条目/主题的运行时 `id`（UUID）不落盘（格式无跨会话引用）；文件为 App 托管的规范格式，手改的自由文字会在下次保存被规范化丢弃。
+
+**抽象**：`Core/Do/DoModel.swift`（`DoItem`/`DoTopic`{`openCount`}/`DoTabKind`{`defaultTopics`}/`DoTab`）+ `Core/Do/DoStore.swift`（纯 Foundation，`static parse/serialize` 可独立单测；`load` 缺文件返空由 VM 播种 defaults）。`DoViewModel`（`@MainActor @Observable`，item/topic CRUD 每次变更即持久化）；`DoView`（tab / 主题胶囊 / `TopicManagerView` popover / 详情 addBar + itemRow 复选框）。接线与 Issue 面板同构（`GlobalHotKeyManager` 通知 + `houmaoApp` 窗口工厂 `makeDoWindow`，标题栏 glyph `checklist`）。
+
+---
+
+### 3.9 GitHub PR/Issue 面板：`gh` 驱动的「我的 PR / 我的 Issue」（✅ 已完成）
+
+**需求**：聊天窗输入栏加 PR（`arrow.triangle.pull`）/ Issue（`smallcircle.filled.circle`）按钮，各唤起一个独立窗口，用 `gh` 展示与我相关的条目：**PR** 面板 open 直接展开、近三个月 closed 默认折叠；**Issue** 面板分「指派给我」+「我创建的」两 section（都展开）。两面板均**按仓库分组**，行内左标题吃满宽 + 右 `MM-dd` + 左侧状态色条，**双击在浏览器打开**/右键复制链接。
+
+**数据源 = `gh` CLI 子进程**（非 ghia）：抽共享 helper `Core/GitHub/GitHubCLI.swift`（enum，`locateBinary()` 候选 `/opt/homebrew/bin/gh`→`/usr/local/bin`→`/usr/bin`（GUI app PATH 受限）+ 泛型 `runJSON<T:Decodable>(_ args)`，JSONDecoder `.iso8601`）；**认证复用用户 `gh auth login` 会话，不碰 token**。PR/Issue 的 provider 均调 `GitHubCLI.runJSON`。`gh search prs --author=@me --state=open/closed`（closed 查询含 merged，state 返 `merged`）；`gh search issues --author/--assignee=@me --state=open`（**默认不含 PR**）。
+
+**抽象**：`Core/GitHub/PullRequest.swift`(`PullRequestItem`) + `PullRequestProvider`；`Core/GitHub/Issue.swift`(`IssueItem`) + `IssueProvider`（`fetchAuthored`/`fetchAssigned`）。`PRViewModel`/`IssueViewModel`（root，`@MainActor @Observable`，Phase idle/loading/loaded/failed，`async let` 并发拉取；Issue 对 assigned **去重**排除已 authored）。`PRView`/`IssueView` 极简（无 header，靠 show→自动 load；失败态留「重试」）。接线同构：`GlobalHotKeyManager` `.houmaoEnter{PR,Issue}Window` + `houmaoApp` `make{PR,Issue}Window`（标题栏 glyph，`addTitleGlyph` 泛化共用），左移不遮聊天窗，每次 open 自动刷新。无单测（纯外部 `gh` 依赖）。
+
+---
+
 ## 4. 开发路线图与事项跟踪
 
 > 状态：✅ 完成 ｜ 🚧 进行中 ｜ ⬜ 待办。每刀都要求 `make build` + `make test` 零回归。
@@ -343,6 +365,29 @@ flowchart TB
 | 6.6 | ~~LLM 对每簇代表样本补摘要/重要度~~ **已移除**（`MailInsightAnalyzer` + 簇级展示），改为选中单封的「AI 分析」：在聊天栏插入任务气泡「分析邮件：<标题>」，摘要或自动路由 `/pr`、`/issue`（`MailViewModel.analyzeSelected` + `MainViewModel.analyzeMailForChat`）；点 AI 后**把聊天窗带到前台并将该用户气泡顶到视口顶部**（历史滚出可见区、下方留给回复），邮件窗自然落到后面 | ✅ |
 
 > **外部前置（唯一阻塞）**：`/mail` 端到端联调需在 Google Cloud Console 注册 **Desktop app** 类型 OAuth Client，将 Client ID 填入「设置（⌘,）→ Google OAuth (Gmail)」。分类/聚类/UI 无此依赖，已可离线编译+单测（全套 67 单测绿）。
+
+### Phase 7 — Do 待办面板（两固定领域 + 可编辑主题 + 纯文本持久化）✅
+
+> 见 §3.8 与格式设计 [todo.md](todo.md)。无外部依赖，纯本地。
+
+| # | 事项 | 状态 |
+|---|---|---|
+| 7.1 | `docs/todo.md` 纯文本 todo 格式设计（`# 领域`/`## 主题`/`- [ ]`·`- [x]`；解析/序列化约定与规范化副作用） | ✅ |
+| 7.2 | `Core/Do` 模型 + `DoStore`（纯 Foundation，`static parse/serialize`，`~/Documents/houmao/do/{work,life}.md` `.atomic` 重写）+ 单测 6 例 | ✅ |
+| 7.3 | `DoViewModel`（两固定领域 + 主题/条目 CRUD，每次变更即持久化，selection 运行时态） | ✅ |
+| 7.4 | `DoView`（顶部领域分段 + 主题胶囊 master-detail + 可勾选条目 + `TopicManagerView` popover 增删/改名/拖排/删含条目二次确认） | ✅ |
+| 7.5 | 接线：`/do` 命令 + 聊天窗 `checklist` 按钮 + `houmaoApp` 独立窗口（`makeDoWindow`，标题栏 glyph）+ 帮助文案 | ✅ |
+
+### Phase 8 — GitHub PR/Issue 面板（`gh` 驱动的「我的 PR / 我的 Issue」）✅
+
+> 见 §3.9。数据源 = `gh` CLI 子进程，复用用户 `gh auth login` 会话（不碰 token）；无单测（纯外部依赖）。
+
+| # | 事项 | 状态 |
+|---|---|---|
+| 8.1 | `Core/GitHub/GitHubCLI.swift` 共享 helper（`locateBinary()` + 泛型 `runJSON<T>`，PATH/brewPaths/`.iso8601`） | ✅ |
+| 8.2 | PR 面板：`PullRequest.swift` + `PullRequestProvider`（`gh search prs --author=@me`）+ `PRViewModel`（open/closed 并发）+ `PRView`（open 展开 / 近三月 closed 折叠，按 repo 分组，双击打开） | ✅ |
+| 8.3 | Issue 面板：`Issue.swift` + `IssueProvider`（authored/assigned，`gh search issues` 不含 PR）+ `IssueViewModel`（assigned 去重）+ `IssueView`（指派给我/我创建的两 section，按 repo 分组） | ✅ |
+| 8.4 | 接线：聊天窗 PR/Issue 按钮 + `GlobalHotKeyManager` 通知 + `houmaoApp` `make{PR,Issue}Window`（标题栏 glyph，`addTitleGlyph` 泛化共用，每次 open 自动刷新） | ✅ |
 
 ### 跨阶段：测试与质量
 
