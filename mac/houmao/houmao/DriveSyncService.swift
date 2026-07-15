@@ -71,13 +71,13 @@ final class DriveSyncService {
         }
     }
 
-    /// Resolve (and cache) the `houmao/do` folder id, creating the folders on
+    /// Resolve (and cache) the `houmao/待办` folder id, creating the folders on
     /// first use. Retries next time if resolution fails.
     private func doFolderID(_ client: GoogleDriveClient) async throws -> String {
         if let folderTask { return try await folderTask.value }
         let task = Task { () throws -> String in
             let root = try await client.ensureFolder(named: "houmao", parentID: nil)
-            return try await client.ensureFolder(named: "do", parentID: root)
+            return try await client.ensureFolder(named: "待办", parentID: root)
         }
         folderTask = task
         do {

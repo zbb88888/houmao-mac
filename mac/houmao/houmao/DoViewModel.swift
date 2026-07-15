@@ -63,11 +63,35 @@ final class DoViewModel {
         persist(selectedTab)
     }
 
-    func toggle(_ item: DoItem) {
+    /// Mark an active item done: stamp `completedAt`, move it out of the active
+    /// list into the current month's archive, and mirror both files to Drive.
+    func complete(_ item: DoItem) {
         guard let topicIndex = currentTopicIndex(),
               let itemIndex = itemIndex(item, in: topicIndex) else { return }
-        tabs[currentTabIndex].topics[topicIndex].items[itemIndex].done.toggle()
+        var completed = tabs[currentTabIndex].topics[topicIndex].items.remove(at: itemIndex)
+        completed.completedAt = Date()
+        let topicTitle = tabs[currentTabIndex].topics[topicIndex].title
+        archive(completed, topicTitle: topicTitle, kind: selectedTab)
         persist(selectedTab)
+    }
+
+    /// Append a completed item to its month's archive file (grouped by the topic
+    /// it belonged to) and mirror that archive file to Drive.
+    private func archive(_ item: DoItem, topicTitle: String, kind: DoTabKind) {
+        let month = DoStore.monthString(item.completedAt ?? Date())
+        var topics = store.loadArchive(kind, month: month)
+        if let i = topics.firstIndex(where: { $0.title == topicTitle }) {
+            topics[i].items.append(item)
+        } else {
+            topics.append(DoTopic(title: topicTitle, items: [item]))
+        }
+        do {
+            try store.saveArchive(kind, month: month, topics: topics)
+        } catch {
+            doVMLog.error("save archive failed: \(error.localizedDescription, privacy: .public)")
+        }
+        let text = DoStore.serializeArchive(title: kind.title, month: month, topics: topics)
+        driveSync?.scheduleMirror(name: kind.archiveFileName(month: month), content: text)
     }
 
     func deleteItem(_ item: DoItem) {
@@ -123,13 +147,13 @@ final class DoViewModel {
 
     private func persist(_ kind: DoTabKind) {
         guard let tab = tabs.first(where: { $0.kind == kind }) else { return }
-        let text = DoStore.serialize(title: kind.title, topics: tab.topics)
+        let text = DoStore.serializeActive(title: kind.title, topics: tab.topics)
         do {
             try store.save(kind, topics: tab.topics)
         } catch {
             doVMLog.error("save do failed: \(error.localizedDescription, privacy: .public)")
         }
         // Mirror to Drive when linked (no-op otherwise); debounced in the service.
-        driveSync?.scheduleMirror(name: kind.fileName, content: text)
+        driveSync?.scheduleMirror(name: kind.activeFileName, content: text)
     }
 }

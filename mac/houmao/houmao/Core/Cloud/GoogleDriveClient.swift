@@ -43,10 +43,10 @@ struct GoogleDriveClient: Sendable {
 
     // MARK: - File upsert
 
-    /// Create or overwrite `name` under `parentID` with `content` (text/markdown).
+    /// Create or overwrite `name` under `parentID` with `content` (text/plain).
     /// One-way mirror: the Drive copy is replaced with the latest local content.
     func upsertTextFile(name: String, content: String, parentID: String) async throws {
-        let mime = "text/markdown"
+        let mime = "text/plain"
         if let id = try await findFile(name: name, parentID: parentID, folder: false) {
             try await updateMedia(fileID: id, content: content, mime: mime)
         } else {

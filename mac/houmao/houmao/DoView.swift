@@ -156,18 +156,18 @@ struct DoView: View {
     @ViewBuilder private func itemRow(_ item: DoItem) -> some View {
         HStack(spacing: 10) {
             Button {
-                viewModel.toggle(item)
+                viewModel.complete(item)
             } label: {
-                Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
+                Image(systemName: "circle")
                     .font(.system(size: 16))
-                    .foregroundStyle(item.done ? theme.accent : theme.textSecondary)
+                    .foregroundStyle(theme.textSecondary)
             }
             .buttonStyle(.plain)
+            .help("标记完成（归档）")
 
             Text(item.text)
                 .font(.system(size: 14))
-                .strikethrough(item.done, color: theme.textSecondary)
-                .foregroundStyle(item.done ? theme.textSecondary : theme.textPrimary)
+                .foregroundStyle(theme.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
@@ -186,7 +186,7 @@ struct DoView: View {
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.divider))
         .contentShape(Rectangle())
         .contextMenu {
-            Button(item.done ? "标为未完成" : "标为完成") { viewModel.toggle(item) }
+            Button("标记完成（归档）") { viewModel.complete(item) }
             Button("删除", role: .destructive) { viewModel.deleteItem(item) }
         }
     }
