@@ -14,41 +14,28 @@ struct DoView: View {
     @State private var showingTopicManager: Bool = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            tabBar
+        @Bindable var viewModel = viewModel
+        return VStack(spacing: 0) {
+            // Fixed areas (工作/生活): a native segmented control bound to
+            // `selectedTab` — reliable two-way selection (the earlier custom
+            // buttons could get stuck after the first switch).
+            Picker("", selection: $viewModel.selectedTab) {
+                ForEach(DoTabKind.allCases) { kind in
+                    Text(kind.title).tag(kind)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 10)
+
             topicBar
             Divider().overlay(theme.divider)
             detail
         }
         .background(theme.background)
         .foregroundStyle(theme.textPrimary)
-    }
-
-    // MARK: - Area tabs (工作 / 生活)
-
-    private var tabBar: some View {
-        HStack(spacing: 8) {
-            ForEach(DoTabKind.allCases) { kind in
-                let selected = viewModel.selectedTab == kind
-                Button {
-                    viewModel.selectedTab = kind
-                } label: {
-                    Text(kind.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(
-                            selected ? theme.accent : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 8)
-                        )
-                        .foregroundStyle(selected ? theme.onAccent : theme.textSecondary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 10)
     }
 
     // MARK: - Topic pills + manage button
@@ -103,6 +90,7 @@ struct DoView: View {
                 in: Capsule()
             )
             .foregroundStyle(selected ? theme.onAccent : theme.textPrimary)
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
     }
