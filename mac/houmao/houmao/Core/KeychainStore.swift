@@ -25,7 +25,11 @@ enum KeychainStore {
 
         var add = base
         add[kSecValueData as String] = Data(value.utf8)
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        // Least at-rest exposure: never leaves this device (no iCloud Keychain
+        // sync / backup) and readable only while the device is unlocked. No
+        // user-presence ACL, so token refresh / auto-sync never prompts for a
+        // password (see docs/google-drive.md §7).
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         let status = SecItemAdd(add as CFDictionary, nil)
         if status != errSecSuccess {
             // Non-fatal: the in-memory value still works for the session.
