@@ -592,17 +592,20 @@ final class MainViewModel {
             showError("No provider configured. Open Settings (⌘,) to add one.")
             return
         }
-        guard let first = mails.first else { return }
-        let subject = first.subject.isEmpty ? "(无主题)" : first.subject
+        guard !mails.isEmpty else { return }
         chatStore.ensureCurrent()
+        // A cluster is one thread: collapse identical titles (ignoring Re:/Fwd:
+        // prefixes) to the single cluster title instead of repeating it per mail.
+        let titles = Self.uniqueCleanSubjects(mails)
         let userID: UUID
-        if mails.count == 1 {
-            userID = chatStore.appendUser("分析邮件：\(subject)")
+        if titles.count == 1 {
+            userID = mails.count == 1
+                ? chatStore.appendUser("分析邮件：\(titles[0])")
+                : chatStore.appendUser("分析邮件（共 \(mails.count) 封）：\(titles[0])")
         } else {
-            // List every message (numbered, time order) so the user sees exactly
-            // which mails go into this one combined analysis.
-            let list = mails.enumerated()
-                .map { "\($0.offset + 1). \($0.element.subject.isEmpty ? "(无主题)" : $0.element.subject)" }
+            // Mixed titles: list the distinct ones (numbered, first-seen order).
+            let list = titles.enumerated()
+                .map { "\($0.offset + 1). \($0.element)" }
                 .joined(separator: "\n")
             userID = chatStore.appendUser("分析邮件（共 \(mails.count) 封，按时间从早到晚）：\n\(list)")
         }
@@ -656,6 +659,29 @@ final class MainViewModel {
             chatStore.finish(assistantID)
             vmLog.info("mailAI: stream finished conv=\(self.chatStore.conversations.count) msgs=\(self.chatStore.messages.count) currentSet=\(self.chatStore.currentID != nil)")
         }
+    }
+
+    /// Distinct message subjects with common reply/forward prefixes stripped, in
+    /// first-seen order — so a thread (cluster) collapses to its one title.
+    private static func uniqueCleanSubjects(_ mails: [MailMessageDetail]) -> [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for mail in mails {
+            let title = cleanSubject(mail.subject)
+            if seen.insert(title).inserted { out.append(title) }
+        }
+        return out
+    }
+
+    /// Strip leading reply/forward prefixes (`Re:`, `Fwd:`, `回复：`…, repeated)
+    /// so `Re: X` and `X` are treated as the same topic.
+    private static func cleanSubject(_ raw: String) -> String {
+        var s = raw.trimmingCharacters(in: .whitespaces)
+        let prefixes = ["re:", "re：", "fwd:", "fw:", "回复:", "回复：", "转发:", "转发："]
+        while let p = prefixes.first(where: { s.lowercased().hasPrefix($0) }) {
+            s = String(s.dropFirst(p.count)).trimmingCharacters(in: .whitespaces)
+        }
+        return s.isEmpty ? "(无主题)" : s
     }
 
     /// Build the LLM prompt for a mail thread (one or more messages already
