@@ -20,7 +20,6 @@ struct HoumaoApp: App {
 
         Settings {
             SettingsView()
-                .environment(appDelegate.driveSyncService)
         }
     }
 }

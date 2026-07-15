@@ -62,7 +62,11 @@ struct SettingsKeyHandler: NSViewRepresentable {
 
 struct SettingsView: View {
     private var settings = AppSettings.shared
-    @Environment(DriveSyncService.self) private var driveSync
+    /// Resolved lazily from the app delegate. Not a required
+    /// `@Environment(DriveSyncService.self)`: the Settings scene may build before
+    /// that environment value exists, and a missing required environment object
+    /// crashes on read.
+    private var driveSync: DriveSyncService? { AppDelegate.shared?.driveSyncService }
 
     @State private var copyOnSelection = false
     @State private var reposRoot = ""
@@ -202,11 +206,11 @@ struct SettingsView: View {
                     Text("Google Drive 同步")
                         .font(.system(size: 13, weight: .semibold))
                     Spacer()
-                    if driveSync.isConnected {
+                    if driveSync?.isConnected == true {
                         Text("已连接").font(.system(size: 11)).foregroundColor(.secondary)
                     } else {
-                        Button("连接") { Task { try? await driveSync.connect() } }
-                            .disabled(!driveSync.isConfigured)
+                        Button("连接") { Task { try? await driveSync?.connect() } }
+                            .disabled(driveSync?.isConfigured != true)
                     }
                 }
                 Text(driveStatusText)
@@ -439,6 +443,7 @@ struct SettingsView: View {
 
     /// One-line status for the Drive sync row.
     private var driveStatusText: String {
+        guard let driveSync else { return "" }
         if !driveSync.isConfigured { return "先在上方填写 Google OAuth Client ID" }
         switch driveSync.status {
         case .idle:
