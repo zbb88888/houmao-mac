@@ -229,9 +229,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// resizable and supports native full screen — a real office surface, not
     /// the floating input box.
     private func makeChatWindow() -> NSWindow {
-        // Golden-ratio size, shifted right so it doesn't fully overlap the mail
-        // window (which is shifted left) — lets the user click between them.
-        let rect = centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: windowSideShift)
+        // Initial frame; `placePanelOnFirstShow` cascades it before the window is
+        // first shown so panels don't perfectly overlap.
+        let rect = centeredGoldenRect(on: screenContainingMouse())
 
         let window = NSWindow(
             contentRect: rect,
@@ -265,13 +265,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         let window = chatWindow ?? makeChatWindow()
         chatWindow = window
 
-        // Only place/size the window the first time it's shown. Resizing a window
-        // that's already on screen drives SwiftUI's animated window-size path
-        // (`NSHostingView.updateAnimatedWindowSize`), which can throw mid-layout
-        // and abort the app; it would also yank a window the user has positioned.
-        if !window.isVisible && !window.styleMask.contains(.fullScreen) {
-            window.setFrame(centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: windowSideShift), display: true)
-        }
+        placePanelOnFirstShow(window)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         NotificationCenter.default.post(name: .houmaoChatWindowDidShow, object: nil)
@@ -373,8 +367,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     }
 
     private func makeMailWindow() -> NSWindow {
-        // Shifted left so it doesn't fully overlap the chat window (shifted right).
-        let rect = centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift)
+        let rect = centeredGoldenRect(on: screenContainingMouse())
         let window = NSWindow(
             contentRect: rect,
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -397,16 +390,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     }
 
     /// A window rect centered on `screen`, sized to the golden ratio (0.618) of
-    /// the usable screen in each dimension. `offsetXFraction` nudges it
-    /// horizontally by that fraction of the screen width (kept fully on screen),
-    /// so the chat and mail windows can sit side-shifted instead of fully
-    /// overlapping — leaving a clickable strip of each to switch between them.
-    private func centeredGoldenRect(on screen: NSScreen, offsetXFraction: CGFloat = 0) -> NSRect {
+    /// the usable screen in each dimension.
+    private func centeredGoldenRect(on screen: NSScreen) -> NSRect {
         let visible = screen.visibleFrame
         let golden = 0.618
         let width = visible.width * golden
         let height = visible.height * golden
-        var x = visible.midX - width / 2 + visible.width * offsetXFraction
+        var x = visible.midX - width / 2
         x = min(max(x, visible.minX), visible.maxX - width)
         return NSRect(
             x: x,
@@ -416,19 +406,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         )
     }
 
-    /// Horizontal shift (fraction of screen width) applied oppositely to the chat
-    /// and mail windows so they don't fully overlap. 0.09 exposes a ~18% strip of
-    /// each, comfortably clickable, while both stay entirely on screen.
-    private let windowSideShift: CGFloat = 0.09
+    /// All independent panel windows (each toggled by its own button / command).
+    /// Used to cascade a newly shown panel so several can stay visible at once.
+    private var panelWindows: [NSWindow] {
+        [chatWindow, mailWindow, prWindow, issueWindow, doWindow].compactMap { $0 }
+    }
+
+    /// Place a panel window the first time it's shown. Each panel is an
+    /// independent window; rather than stacking them all at the same golden-rect
+    /// spot (where a newly opened panel perfectly covers an existing one and
+    /// looks mutually exclusive), cascade by the number of already-visible
+    /// sibling panels so multiple panels stay visible together. No-op once the
+    /// window is on screen (never yanks a window the user has moved) or while
+    /// full screen — showing a visible window would also drive SwiftUI's animated
+    /// window-size path, which can abort mid-layout.
+    private func placePanelOnFirstShow(_ window: NSWindow) {
+        guard !window.isVisible, !window.styleMask.contains(.fullScreen) else { return }
+        let visible = screenContainingMouse().visibleFrame
+        let base = centeredGoldenRect(on: screenContainingMouse())
+        let step: CGFloat = 32
+        let siblings = panelWindows.filter { $0 !== window && $0.isVisible }.count
+        var x = base.origin.x + CGFloat(siblings) * step
+        var y = base.origin.y - CGFloat(siblings) * step
+        x = min(max(x, visible.minX), visible.maxX - base.width)
+        y = min(max(y, visible.minY), visible.maxY - base.height)
+        window.setFrame(NSRect(x: x, y: y, width: base.width, height: base.height), display: true)
+    }
 
     private func showMailWindow() {
         let window = mailWindow ?? makeMailWindow()
         mailWindow = window
-        // Only place/size the window the first time it's shown (see showChatWindow:
-        // resizing a visible window can crash SwiftUI's animated window-size path).
-        if !window.isVisible && !window.styleMask.contains(.fullScreen) {
-            window.setFrame(centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift), display: true)
-        }
+        placePanelOnFirstShow(window)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         // Auto-refresh the mail list once when `/mail` opens the window, so the
@@ -495,9 +503,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     }
 
     private func makePRWindow() -> NSWindow {
-        // Shifted left (like the mail window) so it doesn't fully overlap the
-        // chat window (shifted right).
-        let rect = centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift)
+        let rect = centeredGoldenRect(on: screenContainingMouse())
         let window = NSWindow(
             contentRect: rect,
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -547,11 +553,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private func showPRWindow() {
         let window = prWindow ?? makePRWindow()
         prWindow = window
-        // Only place/size the window the first time it's shown (see showChatWindow:
-        // resizing a visible window can crash SwiftUI's animated window-size path).
-        if !window.isVisible && !window.styleMask.contains(.fullScreen) {
-            window.setFrame(centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift), display: true)
-        }
+        placePanelOnFirstShow(window)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         // Auto-refresh the PR list every time the panel opens, so the user sees
@@ -580,9 +582,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     }
 
     private func makeIssueWindow() -> NSWindow {
-        // Shifted left (like the PR / mail windows) so it doesn't fully overlap
-        // the chat window (shifted right).
-        let rect = centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift)
+        let rect = centeredGoldenRect(on: screenContainingMouse())
         let window = NSWindow(
             contentRect: rect,
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -609,11 +609,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private func showIssueWindow() {
         let window = issueWindow ?? makeIssueWindow()
         issueWindow = window
-        // Only place/size the window the first time it's shown (see showChatWindow:
-        // resizing a visible window can crash SwiftUI's animated window-size path).
-        if !window.isVisible && !window.styleMask.contains(.fullScreen) {
-            window.setFrame(centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift), display: true)
-        }
+        placePanelOnFirstShow(window)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         // Auto-refresh the issue list every time the panel opens.
@@ -641,9 +637,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     }
 
     private func makeDoWindow() -> NSWindow {
-        // Shifted left (like the Issue / PR / mail windows) so it doesn't fully
-        // overlap the chat window (shifted right).
-        let rect = centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift)
+        let rect = centeredGoldenRect(on: screenContainingMouse())
         let window = NSWindow(
             contentRect: rect,
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -670,11 +664,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private func showDoWindow() {
         let window = doWindow ?? makeDoWindow()
         doWindow = window
-        // Only place/size the window the first time it's shown (see showChatWindow:
-        // resizing a visible window can crash SwiftUI's animated window-size path).
-        if !window.isVisible && !window.styleMask.contains(.fullScreen) {
-            window.setFrame(centeredGoldenRect(on: screenContainingMouse(), offsetXFraction: -windowSideShift), display: true)
-        }
+        placePanelOnFirstShow(window)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
     }
