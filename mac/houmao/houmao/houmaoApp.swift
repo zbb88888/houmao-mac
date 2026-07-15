@@ -20,6 +20,7 @@ struct HoumaoApp: App {
 
         Settings {
             SettingsView()
+                .environment(appDelegate.driveSyncService)
         }
     }
 }
@@ -46,6 +47,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private(set) var prViewModel: PRViewModel!
     private(set) var issueViewModel: IssueViewModel!
     private(set) var doViewModel: DoViewModel!
+    private(set) var driveSyncService: DriveSyncService!
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
     private var exitChatObserver: NSObjectProtocol?
@@ -109,7 +111,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         mailViewModel = MailViewModel()
         prViewModel = PRViewModel()
         issueViewModel = IssueViewModel()
-        doViewModel = DoViewModel()
+        driveSyncService = DriveSyncService()
+        doViewModel = DoViewModel(driveSync: driveSyncService)
+
 
         setupPanel()
         setupShortcutMonitor()

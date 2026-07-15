@@ -15,6 +15,7 @@
 		19995B918BCCADB57F626B12 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8673CCE45ECC5F8DD4FB2F8 /* AppSettings.swift */; };
 		19C9F6D85879AF6FE6299FDA /* Pipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A267C3C5EF1066D16826CA8 /* Pipeline.swift */; };
 		1BD52E52CE5AC31258FF66CD /* PipelineAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 304C34344F48BD99E3B1E19F /* PipelineAction.swift */; };
+		223F3D73BAAFBEB978332DF7 /* GoogleOAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4454B959A3E129D68B60A48 /* GoogleOAuth.swift */; };
 		2307134B590D569C23CDA014 /* PKCE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE2BE89827B69CB8810ED90 /* PKCE.swift */; };
 		24DCBC6420DBD1C3035066D0 /* BuiltinActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4A5F4FE9A82E9E6B84B1D1 /* BuiltinActions.swift */; };
 		38FB8BE9EE5B9462670FCCB3 /* DoModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A48DDBAD78C16C718439A964 /* DoModel.swift */; };
@@ -22,6 +23,7 @@
 		3C37F1672D96FD7F9FC6D41C /* PipelineParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2F991A07308DE37AEDB329 /* PipelineParser.swift */; };
 		40F5C9585B7DA82FBF8FE31B /* ConversationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 866890AB80CBCD0C2B1C2E96 /* ConversationStore.swift */; };
 		43269FE26BD3EC1A4D306903 /* houmaoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9AEEE5D5E88D810CC2F4E7 /* houmaoApp.swift */; };
+		45BB71A6A1FCC011DB16DCF3 /* DriveSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA706AC6792CC4A0F598242 /* DriveSyncService.swift */; };
 		467DB8A781549DF107ED7F84 /* PullRequestProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9455B3DDA0038D2AEFD01BA /* PullRequestProvider.swift */; };
 		48548AA7258DA25481EC0C04 /* GoogleAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B81BFC7008DECB0341CF0F7 /* GoogleAuthTests.swift */; };
 		489DBD824B8D8BEA8C368FC3 /* MailProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D294FA5BEF072740B48A5A69 /* MailProvider.swift */; };
@@ -46,6 +48,7 @@
 		9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */; };
 		9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31DADFF4D45E07705B344E48 /* MainViewModel.swift */; };
 		A3C3D1FF66B9D838943E282F /* PipelineRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A46DDBD2FAFB7BCD7D2052 /* PipelineRunner.swift */; };
+		A3F3D323A860BB6F2F4B2DE7 /* GoogleDriveClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9322360092582E2D57E0A8EA /* GoogleDriveClient.swift */; };
 		AECB395DA8A3BE73BAE85940 /* IssueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9702C3846547B34B062749E2 /* IssueView.swift */; };
 		BBC8AD771EC5E1307BD9ADE8 /* DoStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7446DD4F007CB7535C445E4 /* DoStoreTests.swift */; };
 		C37CC0717D7D7421F9FD869A /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E57CA19726AD9EFFBBB555B3 /* Conversation.swift */; };
@@ -134,8 +137,10 @@
 		8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoTests.swift; sourceTree = "<group>"; };
 		8FE2BE89827B69CB8810ED90 /* PKCE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PKCE.swift; sourceTree = "<group>"; };
 		9014401F2CE5CEA21AF65771 /* houmaoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = houmaoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9322360092582E2D57E0A8EA /* GoogleDriveClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveClient.swift; sourceTree = "<group>"; };
 		9702C3846547B34B062749E2 /* IssueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueView.swift; sourceTree = "<group>"; };
 		97C554DC6180330C830A49B6 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
+		9AA706AC6792CC4A0F598242 /* DriveSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveSyncService.swift; sourceTree = "<group>"; };
 		9F3002824A3E520F4E31E75A /* GoogleAuthProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthProvider.swift; sourceTree = "<group>"; };
 		A48DDBAD78C16C718439A964 /* DoModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoModel.swift; sourceTree = "<group>"; };
 		AA4D01DBF553FC3A1D20709F /* MailMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailMessage.swift; sourceTree = "<group>"; };
@@ -153,6 +158,7 @@
 		D19148038642034373C73C39 /* ChatStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStoreTests.swift; sourceTree = "<group>"; };
 		D1E1C6995CBCF2A576AFAF5A /* PRView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRView.swift; sourceTree = "<group>"; };
 		D294FA5BEF072740B48A5A69 /* MailProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailProvider.swift; sourceTree = "<group>"; };
+		D4454B959A3E129D68B60A48 /* GoogleOAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleOAuth.swift; sourceTree = "<group>"; };
 		D9455B3DDA0038D2AEFD01BA /* PullRequestProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestProvider.swift; sourceTree = "<group>"; };
 		E24D96DD2B2427B4C062FF2B /* PRViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRViewModel.swift; sourceTree = "<group>"; };
 		E57CA19726AD9EFFBBB555B3 /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
@@ -197,6 +203,14 @@
 			path = Pipeline;
 			sourceTree = "<group>";
 		};
+		439ACDEF0A310E1A498FB65F /* Cloud */ = {
+			isa = PBXGroup;
+			children = (
+				9322360092582E2D57E0A8EA /* GoogleDriveClient.swift */,
+			);
+			path = Cloud;
+			sourceTree = "<group>";
+		};
 		444E935E4C485CFCE6BB81BF /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -220,6 +234,7 @@
 				D0ACFAC2F8E8BEF91D60F434 /* Theme.swift */,
 				3441AFF45DCD74D4CC31DF63 /* Auth */,
 				A7F084AFFA2F5E2A0E6A91C0 /* Chat */,
+				439ACDEF0A310E1A498FB65F /* Cloud */,
 				E6094ECBBBC71EBF383ADF74 /* Clustering */,
 				B8989D279D6141FB8660A67B /* Do */,
 				05392B653CD5AD88A5021B8E /* GitHub */,
@@ -311,7 +326,9 @@
 				3743A8B5A8F2BE869F0343E5 /* ChatView.swift */,
 				75656A1E45DD56E213B78B7A /* DoView.swift */,
 				3DDB602B846EE84FE42E451E /* DoViewModel.swift */,
+				9AA706AC6792CC4A0F598242 /* DriveSyncService.swift */,
 				6E00EBE3D61489D710C85775 /* GlobalHotKeyManager.swift */,
+				D4454B959A3E129D68B60A48 /* GoogleOAuth.swift */,
 				2C9AEEE5D5E88D810CC2F4E7 /* houmaoApp.swift */,
 				CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */,
 				862143F6F82F5ABC375AD59C /* IssueAnalyzer.swift */,
@@ -458,10 +475,13 @@
 				E6307AAEE5E78BF7E137AF9D /* DoStore.swift in Sources */,
 				E9B766D322AA9E214006F364 /* DoView.swift in Sources */,
 				09CF7407F06F28202E487462 /* DoViewModel.swift in Sources */,
+				45BB71A6A1FCC011DB16DCF3 /* DriveSyncService.swift in Sources */,
 				FF55E3E733966FAFC6B86BA1 /* GitHubCLI.swift in Sources */,
 				720B6BF62E68556D13CB61E0 /* GlobalHotKeyManager.swift in Sources */,
 				D07C2B26D7B703F84593C50D /* GmailProvider.swift in Sources */,
 				DB3E772578359D1761A17CE5 /* GoogleAuthProvider.swift in Sources */,
+				A3F3D323A860BB6F2F4B2DE7 /* GoogleDriveClient.swift in Sources */,
+				223F3D73BAAFBEB978332DF7 /* GoogleOAuth.swift in Sources */,
 				03EC79C73AD3CEA674FB1445 /* HistoryStore.swift in Sources */,
 				86152D287A639E44D19E8D75 /* HistoryViewModel.swift in Sources */,
 				9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */,

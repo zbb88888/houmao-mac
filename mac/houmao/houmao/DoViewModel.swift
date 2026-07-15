@@ -17,9 +17,13 @@ final class DoViewModel {
     private var selectedTopicID: [DoTabKind: UUID] = [:]
 
     private let store: DoStore
+    /// Optional cloud mirror; when connected, each local save is also pushed to
+    /// Google Drive (one-way, debounced). See `DriveSyncService`.
+    private let driveSync: DriveSyncService?
 
-    init(store: DoStore = DoStore()) {
+    init(store: DoStore = DoStore(), driveSync: DriveSyncService? = nil) {
         self.store = store
+        self.driveSync = driveSync
         tabs = DoTabKind.allCases.map { kind in
             var topics = store.load(kind)
             if topics.isEmpty {
@@ -119,10 +123,13 @@ final class DoViewModel {
 
     private func persist(_ kind: DoTabKind) {
         guard let tab = tabs.first(where: { $0.kind == kind }) else { return }
+        let text = DoStore.serialize(title: kind.title, topics: tab.topics)
         do {
             try store.save(kind, topics: tab.topics)
         } catch {
             doVMLog.error("save do failed: \(error.localizedDescription, privacy: .public)")
         }
+        // Mirror to Drive when linked (no-op otherwise); debounced in the service.
+        driveSync?.scheduleMirror(name: kind.fileName, content: text)
     }
 }

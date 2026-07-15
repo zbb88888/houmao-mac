@@ -62,6 +62,7 @@ struct SettingsKeyHandler: NSViewRepresentable {
 
 struct SettingsView: View {
     private var settings = AppSettings.shared
+    @Environment(DriveSyncService.self) private var driveSync
 
     @State private var copyOnSelection = false
     @State private var reposRoot = ""
@@ -186,6 +187,33 @@ struct SettingsView: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
+            }
+            .padding(8)
+            .background(Color.primary.opacity(0.04))
+            .cornerRadius(6)
+
+            Divider()
+
+            // Google Drive sync — reuses the shared Google OAuth above (one
+            // consent covers Gmail + Drive). Connect once, then the Do panel
+            // auto-mirrors work.md / life.md to a `houmao/do` Drive folder.
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Google Drive 同步")
+                        .font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                    if driveSync.isConnected {
+                        Text("已连接").font(.system(size: 11)).foregroundColor(.secondary)
+                    } else {
+                        Button("连接") { Task { try? await driveSync.connect() } }
+                            .disabled(!driveSync.isConfigured)
+                    }
+                }
+                Text(driveStatusText)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
             .padding(8)
             .background(Color.primary.opacity(0.04))
@@ -407,5 +435,20 @@ struct SettingsView: View {
         settings.googleClientID = googleClientIDDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         settings.googleClientSecret = googleClientSecretDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         editingGoogleOAuth = false
+    }
+
+    /// One-line status for the Drive sync row.
+    private var driveStatusText: String {
+        if !driveSync.isConfigured { return "先在上方填写 Google OAuth Client ID" }
+        switch driveSync.status {
+        case .idle:
+            return driveSync.isConnected
+                ? "已连接 · todo 变更自动同步到 Drive（houmao/do）"
+                : "连接后 todo（work.md / life.md）将自动同步到 Drive"
+        case .uploading:
+            return "正在上传到 Drive…"
+        case .failed(let message):
+            return "上传失败：\(message)"
+        }
     }
 }

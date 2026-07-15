@@ -15,6 +15,14 @@ actor GoogleAuthProvider {
     enum Scope {
         /// Read + modify labels / move to Trash. Cannot permanently delete.
         static let gmailModify = "https://www.googleapis.com/auth/gmail.modify"
+        /// Per-file Drive access: the app can only see / manage files it created
+        /// (minimal scope; fits the app-managed mirror model). No broad Drive read.
+        static let driveFile = "https://www.googleapis.com/auth/drive.file"
+
+        /// The full set the app requests at connect time. A single shared refresh
+        /// token covers every feature (Gmail cleanup + Drive sync), so whichever
+        /// entry point runs the consent flow grants both — no per-feature tokens.
+        static let appDefault = [gmailModify, driveFile]
     }
 
     /// Keychain account holding the shared Google refresh token.

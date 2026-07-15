@@ -96,20 +96,12 @@ final class MailViewModel {
             return
         }
         phase = .connecting
-        let receiver = LoopbackAuthReceiver()
         do {
-            let port = try await receiver.start()
-            mailLog.info("OAuth loopback listening on 127.0.0.1:\(port)")
-            let auth = makeAuth(redirectURI: receiver.redirectURI)
-            try await auth.connect { url in
-                NSWorkspace.shared.open(url)
-                return try await receiver.waitForRedirect()
-            }
+            let auth = try await GoogleOAuth.connect(scopes: GoogleAuthProvider.Scope.appDefault)
             mailLog.info("OAuth token exchange succeeded; loading mail")
             self.auth = auth
             await load()
         } catch {
-            receiver.stop()
             mailLog.error("OAuth connect failed: \(error.localizedDescription, privacy: .public)")
             phase = .failed(error.localizedDescription)
         }
@@ -433,7 +425,7 @@ final class MailViewModel {
             clientID: settings.googleClientID,
             clientSecret: settings.googleClientSecret.isEmpty ? nil : settings.googleClientSecret,
             redirectURI: redirectURI,
-            scopes: [GoogleAuthProvider.Scope.gmailModify]
+            scopes: GoogleAuthProvider.Scope.appDefault
         ))
     }
 

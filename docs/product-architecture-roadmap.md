@@ -2,7 +2,7 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
-> 最近更新：2026-07-15（补录 **GitHub PR/Issue 面板**（§3.9 / Phase 8）：聊天窗按钮 / 独立窗口用 `gh` 展示我的 PR（open 展开、近三月 closed 折叠）与我相关的 Issue（指派给我 + 我创建的），共享 `Core/GitHub/GitHubCLI.swift`；以及 **Do 待办面板**（§3.8 / Phase 7）。｜ 维护方式：每次提交涉及架构/功能变更时同步本文件。
+> 最近更新：2026-07-15（新增 **Google Drive 同步（Phase 4.1/4.2 ✅）**：todo（Do 面板 `work.md`/`life.md`）每次本地保存后**防抖单向镜像**到 Drive `houmao/do` 文件夹；`Core/Cloud/GoogleDriveClient`（v3 REST）+ `DriveSyncService` + 抽出的 `GoogleOAuth` 共享连接 helper（Mail 复用）；Drive 用 `drive.file` 最小 scope，与 Gmail **共用一次 OAuth 同意/同一 refresh token**（`Scope.appDefault`）；设置页加「Google Drive 同步」连接入口。聊天气泡右键收藏留后续 4.3。｜ 也含 GitHub PR/Issue 面板（§3.9 / Phase 8）与 Do 待办面板（§3.8 / Phase 7）。维护方式：每次提交涉及架构/功能变更时同步本文件。
 
 ---
 
@@ -333,13 +333,18 @@ flowchart TB
 | 3.2 | `ContentSink` 协议（泛化 `NoteWriting`；本地 `.md` 实现） | ⬜ |
 | 3.3 | 消息多选 + 右键菜单（收藏触发落盘/分享/提醒占位） | ⬜ |
 
-### Phase 4 — 云存储与收藏 ⬜
+### Phase 4 — 云存储与收藏 🚧
+
+> 按数据产生源分两条：用户输入数据（如 todo）默认全量自动同步；聊天气泡走「右键收藏」（后续）。Drive 用 `drive.file` 最小 scope，与 Gmail 共用同一次 OAuth 同意（`Scope.appDefault = [gmailModify, driveFile]`，单一共享 refresh token）。
 
 | # | 事项 | 状态 |
 |---|---|---|
-| 4.1 | `CloudStorageProvider` 协议 + OAuth 基建 + `DirectoryMapping`（本地↔Drive 目录、只增不改） | ⬜ |
-| 4.2 | `GoogleDriveSink`（上传媒体、`files.create` 新增 `.md` 到映射目录） | ⬜ |
-| 4.3 | 「收藏到云文档」工作流（Markdown 拼接 + AI 摘要文件名） | ⬜ |
+| 4.1 | Google Drive 接入：`Core/Cloud/GoogleDriveClient`（v3 REST，find-or-create 文件夹 + `upsertTextFile` 覆盖式）+ `GoogleOAuth` 共享连接 helper（抽出 Mail 复用）+ `Scope.driveFile`/`appDefault` | ✅ |
+| 4.2 | todo 全量自动同步：`DriveSyncService`（`@MainActor @Observable`，连接/防抖镜像/状态；`houmao/do` 文件夹缓存）+ `DoViewModel` 每次本地保存后单向镜像 `work.md`/`life.md` 到 Drive；设置页「Google Drive 同步」连接入口+状态 | ✅ |
+| 4.3 | 聊天气泡右键（单选/多选）保存到 Drive（`ContentSink` 收藏工作流） | ⬜ |
+| 4.4 | `DirectoryMapping`（本地↔Drive 目录映射，规划中；当前为单向镜像固定 `houmao/do`） | ⬜ |
+
+> **外部前置（阻塞真机联调）**：需在 Google Cloud Console 给该 OAuth Client **启用 Drive API** 并在同意屏加 `drive.file` scope；已连 Gmail 的用户需重新授权一次以补 Drive 权限（scope 已合并）。代码可离线编译。
 
 ### Phase 5 — iOS Shell ⬜
 
