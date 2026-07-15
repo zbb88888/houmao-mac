@@ -5,9 +5,10 @@ import os.log
 private let driveLog = Logger(subsystem: "com.houmao", category: "DriveSync")
 
 /// Coordinates one-way mirroring of local app files to Google Drive. Used by the
-/// Do panel to auto-upload the to-do Markdown files (`work.md` / `life.md`) after
-/// each local save (debounced). Data flows local → Drive only; nothing is
-/// downloaded or merged. Files land under a `houmao/do` folder the app creates.
+/// Do panel to auto-upload the to-do files (`工作.txt` / `生活.txt` and monthly
+/// archives) after each local save (debounced). Data flows local → Drive only;
+/// nothing is downloaded or merged. Files land under a `houmao/待办` folder the
+/// app creates.
 @MainActor
 @Observable
 final class DriveSyncService {
@@ -38,7 +39,7 @@ final class DriveSyncService {
     /// that also covers Drive. Throws on failure.
     func connect() async throws {
         guard isConfigured else { throw DriveError.notAuthenticated }
-        _ = try await GoogleOAuth.connect(scopes: GoogleAuthProvider.Scope.appDefault)
+        _ = try await GoogleOAuth.connect()
         folderTask = nil
         driveLog.info("Drive connected")
     }
@@ -89,13 +90,7 @@ final class DriveSyncService {
     }
 
     private func makeClient() -> GoogleDriveClient {
-        let settings = AppSettings.shared
-        let auth = GoogleAuthProvider(config: .init(
-            clientID: settings.googleClientID,
-            clientSecret: settings.googleClientSecret.isEmpty ? nil : settings.googleClientSecret,
-            redirectURI: "http://127.0.0.1:0",
-            scopes: GoogleAuthProvider.Scope.appDefault
-        ))
+        let auth = GoogleOAuth.makeProvider(redirectURI: "http://127.0.0.1:0")
         return GoogleDriveClient(accessTokenProvider: { try await auth.validAccessToken() })
     }
 }

@@ -16,10 +16,10 @@ enum DriveError: Error, LocalizedError {
 }
 
 /// Minimal Google Drive v3 client for the app-managed mirror: find-or-create a
-/// folder and upsert a small text (Markdown) file by name. Pure Foundation
-/// (`URLSession`); the access token is injected so this stays independent of the
-/// auth actor. Uses the `drive.file` scope, so `files.list` only ever returns
-/// files this app created — exactly the app-managed set we manage.
+/// folder and upsert a small text file by name (`text/plain`, Markdown content).
+/// Pure Foundation (`URLSession`); the access token is injected so this stays
+/// independent of the auth actor. Uses the `drive.file` scope, so `files.list`
+/// only ever returns files this app created — exactly the set we manage.
 struct GoogleDriveClient: Sendable {
     /// Supplies a fresh OAuth access token (refreshes as needed).
     let accessTokenProvider: @Sendable () async throws -> String

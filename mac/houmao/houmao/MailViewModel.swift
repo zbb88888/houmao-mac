@@ -97,7 +97,7 @@ final class MailViewModel {
         }
         phase = .connecting
         do {
-            let auth = try await GoogleOAuth.connect(scopes: GoogleAuthProvider.Scope.appDefault)
+            let auth = try await GoogleOAuth.connect()
             mailLog.info("OAuth token exchange succeeded; loading mail")
             self.auth = auth
             await load()
@@ -419,21 +419,11 @@ final class MailViewModel {
         selectFirst()
     }
 
-    private func makeAuth(redirectURI: String) -> GoogleAuthProvider {
-        let settings = AppSettings.shared
-        return GoogleAuthProvider(config: .init(
-            clientID: settings.googleClientID,
-            clientSecret: settings.googleClientSecret.isEmpty ? nil : settings.googleClientSecret,
-            redirectURI: redirectURI,
-            scopes: GoogleAuthProvider.Scope.appDefault
-        ))
-    }
-
     /// Build a Gmail provider from the current (or Keychain-backed) auth.
     private func makeProvider() -> GmailProvider? {
         let auth = self.auth ?? {
             // Refresh-only provider for a returning session (redirect unused).
-            let a = makeAuth(redirectURI: "http://127.0.0.1:0")
+            let a = GoogleOAuth.makeProvider(redirectURI: "http://127.0.0.1:0")
             self.auth = a
             return a
         }()
