@@ -67,7 +67,6 @@ final class MailViewModel {
     /// it never triggers a Gmail refetch — it only narrows what's on screen.
     var searchFilter: String = ""
 
-    private var auth: GoogleAuthProvider?
     /// Raw fetched messages, kept so `regroup()` can re-cluster without refetching.
     private var loadedMessages: [MailMessage] = []
 
@@ -81,9 +80,7 @@ final class MailViewModel {
 
     /// Whether a Gmail session already exists (refresh token in Keychain), so
     /// opening `/mail` can auto-refresh without prompting a fresh OAuth flow.
-    var isConnected: Bool {
-        KeychainStore.get(GoogleAuthProvider.keychainAccount)?.isEmpty == false
-    }
+    var isConnected: Bool { GoogleAccount.isConnected }
 
     var selectedCount: Int { selectedIDs.count }
 
@@ -97,9 +94,8 @@ final class MailViewModel {
         }
         phase = .connecting
         do {
-            let auth = try await GoogleOAuth.connect()
+            try await GoogleAccount.connect()
             mailLog.info("OAuth token exchange succeeded; loading mail")
-            self.auth = auth
             await load()
         } catch {
             mailLog.error("OAuth connect failed: \(error.localizedDescription, privacy: .public)")
@@ -130,7 +126,6 @@ final class MailViewModel {
             // purged it. Auto re-run the OAuth flow so the user recovers in one
             // step instead of hitting a dead-end error with a stale token.
             mailLog.error("load: not authenticated; re-running OAuth")
-            self.auth = nil
             if isConfigured {
                 await connect()
             } else {
@@ -419,15 +414,9 @@ final class MailViewModel {
         selectFirst()
     }
 
-    /// Build a Gmail provider from the current (or Keychain-backed) auth.
+    /// Build a Gmail provider backed by the shared Google account's token.
     private func makeProvider() -> GmailProvider? {
-        let auth = self.auth ?? {
-            // Refresh-only provider for a returning session (redirect unused).
-            let a = GoogleOAuth.makeProvider(redirectURI: "http://127.0.0.1:0")
-            self.auth = a
-            return a
-        }()
         guard isConfigured else { return nil }
-        return GmailProvider(accessTokenProvider: { try await auth.validAccessToken() })
+        return GmailProvider(accessTokenProvider: { try await GoogleAccount.accessToken() })
     }
 }

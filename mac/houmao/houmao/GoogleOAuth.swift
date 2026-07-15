@@ -44,3 +44,33 @@ enum GoogleOAuth {
         return auth
     }
 }
+
+/// The app's **single shared Google client**: Gmail and Drive both obtain access
+/// tokens from the same `GoogleAuthProvider`, so there's one refresh-token
+/// lifecycle and one in-memory access-token cache — no duplicate refreshes and
+/// no per-request provider churn. The interactive consent runs through
+/// `GoogleOAuth.connect`; afterwards the shared provider is rebuilt so it uses
+/// the freshly granted token / current Client config.
+@MainActor
+enum GoogleAccount {
+    private static var provider = GoogleOAuth.makeProvider(redirectURI: "http://127.0.0.1:0")
+
+    /// A valid access token, refreshing from the shared refresh token as needed.
+    /// The refresh runs on `GoogleAuthProvider`'s actor (off the main thread);
+    /// this only awaits it.
+    static func accessToken() async throws -> String {
+        try await provider.validAccessToken()
+    }
+
+    /// Whether a Google session exists (shared refresh token in the Keychain).
+    static var isConnected: Bool {
+        KeychainStore.get(GoogleAuthProvider.keychainAccount)?.isEmpty == false
+    }
+
+    /// Run interactive consent, then rebuild the shared provider so it picks up
+    /// the new token / current Client config immediately.
+    static func connect() async throws {
+        _ = try await GoogleOAuth.connect()
+        provider = GoogleOAuth.makeProvider(redirectURI: "http://127.0.0.1:0")
+    }
+}

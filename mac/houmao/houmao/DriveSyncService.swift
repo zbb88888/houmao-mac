@@ -23,9 +23,7 @@ final class DriveSyncService {
     /// An OAuth Client ID must be configured (shared with Gmail).
     var isConfigured: Bool { !AppSettings.shared.googleClientID.isEmpty }
     /// A Google session exists (shared refresh token in the Keychain).
-    var isConnected: Bool {
-        KeychainStore.get(GoogleAuthProvider.keychainAccount)?.isEmpty == false
-    }
+    var isConnected: Bool { GoogleAccount.isConnected }
 
     /// Cached `houmao/do` folder id resolution (shared across files, so two
     /// near-simultaneous uploads don't each create a duplicate folder).
@@ -39,7 +37,7 @@ final class DriveSyncService {
     /// that also covers Drive. Throws on failure.
     func connect() async throws {
         guard isConfigured else { throw DriveError.notAuthenticated }
-        _ = try await GoogleOAuth.connect()
+        try await GoogleAccount.connect()
         folderTask = nil
         driveLog.info("Drive connected")
     }
@@ -90,7 +88,6 @@ final class DriveSyncService {
     }
 
     private func makeClient() -> GoogleDriveClient {
-        let auth = GoogleOAuth.makeProvider(redirectURI: "http://127.0.0.1:0")
-        return GoogleDriveClient(accessTokenProvider: { try await auth.validAccessToken() })
+        GoogleDriveClient(accessTokenProvider: { try await GoogleAccount.accessToken() })
     }
 }
