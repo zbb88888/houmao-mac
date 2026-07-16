@@ -24,40 +24,35 @@ struct GoalsView: View {
     }
 
     private var list: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button {
-                    detailID = viewModel.createGoal().id
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(theme.textSecondary)
+        ScrollView {
+            LazyVStack(spacing: 6) {
+                ForEach(viewModel.goals) { goal in
+                    row(goal)
                 }
-                .buttonStyle(.plain)
-                .help("新建目标")
-                Spacer()
+                addRow
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            Divider().overlay(theme.divider)
-
-            if viewModel.goals.isEmpty {
-                VStack { Spacer()
-                    Text("还没有目标，点 + 新建")
-                        .font(.callout).foregroundStyle(theme.textSecondary)
-                    Spacer() }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 6) {
-                        ForEach(viewModel.goals) { goal in
-                            row(goal)
-                        }
-                    }
-                    .padding(16)
-                }
-            }
+            .padding(16)
         }
+    }
+
+    /// The only "add" affordance: a bottom row that creates a new goal and opens
+    /// its detail (matches the Do panel's add row).
+    private var addRow: some View {
+        Button {
+            detailID = viewModel.createGoal().id
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "plus.circle")
+                    .font(.system(size: 16))
+                    .foregroundStyle(theme.textSecondary)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("新建目标")
     }
 
     private func row(_ goal: GoalDoc) -> some View {
@@ -68,6 +63,16 @@ struct GoalsView: View {
             Text(goal.title)
                 .font(.system(size: 14))
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button {
+                viewModel.deleteGoal(goal.id)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(theme.textSecondary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .help("删除")
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
