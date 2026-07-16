@@ -250,10 +250,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             backing: .buffered,
             defer: false
         )
-        window.title = ""
+        window.title = "chat"
         window.titlebarAppearsTransparent = true
-        // No title text — the chat window shows a clean, empty title bar.
-        window.titleVisibility = .hidden
+        // Force light appearance so the title renders black over the light theme.
+        window.appearance = NSAppearance(named: .aqua)
         window.isMovableByWindowBackground = false
         window.collectionBehavior = [.fullScreenPrimary]
         window.isReleasedWhenClosed = false
@@ -525,9 +525,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             backing: .buffered,
             defer: false
         )
-        window.title = "PR"
-        // Show a branch glyph in the title bar instead of the "pr" text.
-        window.titleVisibility = .hidden
+        window.title = "pr"
         window.titlebarAppearsTransparent = true
         // Force light appearance so the title renders black over the light theme.
         window.appearance = NSAppearance(named: .aqua)
@@ -535,34 +533,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 640, height: 420)
         window.delegate = self
-        addTitleGlyph(to: window, symbol: "arrow.triangle.branch", accessibilityDescription: "PR")
 
         let prView = PRView().environment(prViewModel)
         window.contentViewController = NSHostingController(rootView: prView)
         return window
-    }
-
-    /// Place an SF Symbol in a window's title bar (leading), used instead of a
-    /// text title.
-    private func addTitleGlyph(to window: NSWindow, symbol: String, accessibilityDescription: String) {
-        let accessory = NSTitlebarAccessoryViewController()
-        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: accessibilityDescription)?
-            .withSymbolConfiguration(config)
-        let imageView = NSImageView(image: image ?? NSImage())
-        imageView.contentTintColor = .secondaryLabelColor
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        let container = NSView()
-        container.addSubview(imageView)
-        NSLayoutConstraint.activate([
-            imageView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 10),
-            imageView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -6),
-            imageView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            container.heightAnchor.constraint(equalToConstant: 22),
-        ])
-        accessory.view = container
-        accessory.layoutAttribute = .leading
-        window.addTitlebarAccessoryViewController(accessory)
     }
 
     private func showPRWindow() {
@@ -604,9 +578,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             backing: .buffered,
             defer: false
         )
-        window.title = "Issue"
-        // Show a glyph in the title bar instead of the text title.
-        window.titleVisibility = .hidden
+        window.title = "issue"
         window.titlebarAppearsTransparent = true
         // Force light appearance so the title renders black over the light theme.
         window.appearance = NSAppearance(named: .aqua)
@@ -614,7 +586,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 640, height: 420)
         window.delegate = self
-        addTitleGlyph(to: window, symbol: "smallcircle.filled.circle", accessibilityDescription: "Issue")
 
         let issueView = IssueView().environment(issueViewModel)
         window.contentViewController = NSHostingController(rootView: issueView)
@@ -659,9 +630,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             backing: .buffered,
             defer: false
         )
-        window.title = "Do"
-        // Show a glyph in the title bar instead of the text title.
-        window.titleVisibility = .hidden
+        window.title = "todo"
         window.titlebarAppearsTransparent = true
         // Force light appearance so the title renders black over the light theme.
         window.appearance = NSAppearance(named: .aqua)
@@ -669,7 +638,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 480, height: 420)
         window.delegate = self
-        addTitleGlyph(to: window, symbol: "checklist", accessibilityDescription: "Do")
 
         let doView = DoView().environment(doViewModel)
         window.contentViewController = NSHostingController(rootView: doView)
@@ -772,15 +740,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             backing: .buffered,
             defer: false
         )
-        window.title = "编辑器"
-        window.titleVisibility = .hidden
+        window.title = "md"
         window.titlebarAppearsTransparent = true
         window.appearance = NSAppearance(named: .aqua)
         window.collectionBehavior = [.fullScreenPrimary]
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 480, height: 400)
         window.delegate = self
-        addTitleGlyph(to: window, symbol: "square.and.pencil", accessibilityDescription: "编辑器")
+
         return window
     }
 
