@@ -374,16 +374,9 @@ struct MailView: View {
                 let subject = cluster.representativeSubject.isEmpty ? "(无主题)" : cluster.representativeSubject
                 Text(subject)
                     .lineLimit(1)
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) {
-                        if let message = cluster.messages.first {
-                            Task { await viewModel.openDetail(message) }
-                        }
-                    }
                     .contextMenu {
                         Button("复制主题") { copyToPasteboard(subject) }
                     }
-                    .help("双击查看邮件内容；右键可复制主题")
 
                 Spacer()
 
@@ -402,6 +395,13 @@ struct MailView: View {
                 }
             }
             .padding(10)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) {
+                if let message = cluster.messages.first {
+                    Task { await viewModel.openDetail(message) }
+                }
+            }
+            .help("双击查看邮件内容；右键可复制主题")
 
             if expanded.contains(cluster.id) {
                 ForEach(cluster.messages) { message in
@@ -430,19 +430,19 @@ struct MailView: View {
                 Text(subject).lineLimit(1).font(.callout)
                 Text(message.from).lineLimit(1).font(.caption).foregroundStyle(theme.textSecondary)
             }
-            .contentShape(Rectangle())
-            .onTapGesture(count: 2) { Task { await viewModel.openDetail(message) } }
             .contextMenu {
                 Button("复制主题") { copyToPasteboard(subject) }
                 Button("复制发件人") { copyToPasteboard(message.from) }
             }
-            .help("双击查看邮件内容；右键可复制")
             Spacer()
             if message.hasListUnsubscribe {
                 Image(systemName: "bell.slash").font(.caption).foregroundStyle(theme.textSecondary)
             }
         }
         .padding(.vertical, 3)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { Task { await viewModel.openDetail(message) } }
+        .help("双击查看邮件内容；右键可复制")
     }
 
     /// Color per primary category: PR / issue get distinct hues, 未分类 is muted,
