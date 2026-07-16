@@ -24,6 +24,16 @@ struct MarkdownParserTests {
         ])
     }
 
+    @Test func longerOuterFenceWrapsInnerFences() {
+        // A four-backtick fence must survive inner ``` blocks unbroken, so the
+        // AI's "fixed Markdown" (which may contain its own code fences) renders
+        // as one copyable block.
+        let source = "````markdown\n# T\n```swift\ncode\n```\n````"
+        #expect(MarkdownParser.parse(source) == [
+            .codeBlock(language: "markdown", code: "# T\n```swift\ncode\n```")
+        ])
+    }
+
     @Test func unterminatedFenceStillRenders() {
         // A still-streaming code block (no closing fence) must not be dropped.
         let source = "```\npartial"

@@ -36,6 +36,7 @@ struct MarkdownEditorView: View {
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
     private var isHelp: Bool { trimmedQuery == "/h" }
+    private var isCheck: Bool { trimmedQuery == "/check" }
     /// The assist overlay shows only while the search box is focused and holds a
     /// query — it never covers the editor during normal typing.
     private var showPanel: Bool { searchFocused && !trimmedQuery.isEmpty }
@@ -69,6 +70,18 @@ struct MarkdownEditorView: View {
                 .foregroundStyle(theme.textSecondary)
             Spacer()
             searchField
+            // AI fix: send the whole document to the chat with a fixed
+            // "repair Markdown format" prompt; the fixed text comes back as a
+            // chat bubble for the user to copy back in.
+            Button {
+                AppDelegate.shared?.mainViewModel.fixMarkdownForChat(model.text)
+            } label: {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(theme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .help("AI 修复 Markdown 格式（结果发到聊天气泡，复制回来）")
             // Save-and-close: closing the window also saves, so this is the
             // explicit affordance for "done". Routed through a notification so
             // the app delegate owns the single editor window's lifecycle.
@@ -93,7 +106,7 @@ struct MarkdownEditorView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11))
                 .foregroundStyle(theme.textSecondary)
-            TextField("搜索 · /h 帮助", text: $query)
+            TextField("搜索 · /h · /check", text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .frame(width: 150)
@@ -117,13 +130,48 @@ struct MarkdownEditorView: View {
 
     @ViewBuilder private var assistPanel: some View {
         Group {
-            if isHelp { helpPanel } else { resultsPanel }
+            if isHelp { helpPanel }
+            else if isCheck { checkPanel }
+            else { resultsPanel }
         }
         .frame(width: 300)
         .background(theme.background)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.divider))
         .shadow(color: .black.opacity(0.18), radius: 8, y: 2)
+    }
+
+    /// `/check` — static Markdown format lint results (read-only helper).
+    @ViewBuilder private var checkPanel: some View {
+        let issues = MarkdownLint.check(model.text)
+        VStack(alignment: .leading, spacing: 0) {
+            Text(issues.isEmpty ? "格式良好 ✓" : "\(issues.count) 处格式问题")
+                .font(.system(size: 11))
+                .foregroundStyle(theme.textSecondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+            if !issues.isEmpty {
+                Divider().overlay(theme.divider)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(issues.enumerated()), id: \.offset) { _, issue in
+                            HStack(alignment: .top, spacing: 8) {
+                                Text("\(issue.line)")
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundStyle(theme.textSecondary)
+                                    .frame(minWidth: 26, alignment: .trailing)
+                                Text(issue.message)
+                                    .font(.system(size: 12))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+                .frame(maxHeight: 240)
+            }
+        }
     }
 
     /// Lines of the document containing the query (case-insensitive), capped so a

@@ -15,6 +15,7 @@
 		19995B918BCCADB57F626B12 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8673CCE45ECC5F8DD4FB2F8 /* AppSettings.swift */; };
 		19C9F6D85879AF6FE6299FDA /* Pipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A267C3C5EF1066D16826CA8 /* Pipeline.swift */; };
 		1BD52E52CE5AC31258FF66CD /* PipelineAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 304C34344F48BD99E3B1E19F /* PipelineAction.swift */; };
+		216ED3F039A732943119F1B8 /* MarkdownLintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BEA31CD84A4FEC595CF0E0 /* MarkdownLintTests.swift */; };
 		223F3D73BAAFBEB978332DF7 /* GoogleOAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4454B959A3E129D68B60A48 /* GoogleOAuth.swift */; };
 		2307134B590D569C23CDA014 /* PKCE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE2BE89827B69CB8810ED90 /* PKCE.swift */; };
 		24DCBC6420DBD1C3035066D0 /* BuiltinActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4A5F4FE9A82E9E6B84B1D1 /* BuiltinActions.swift */; };
@@ -70,6 +71,7 @@
 		E6307AAEE5E78BF7E137AF9D /* DoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF770DEDDD5BFF9DB5667622 /* DoStore.swift */; };
 		E9B766D322AA9E214006F364 /* DoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75656A1E45DD56E213B78B7A /* DoView.swift */; };
 		EF957138A8BB21781964CC02 /* TextClusteringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0C55C88E57A6F6BC2D2641 /* TextClusteringTests.swift */; };
+		F4445288DDD0A3A2ACA2CDC6 /* MarkdownLint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 602B51DB006F185A0CC211BF /* MarkdownLint.swift */; };
 		F46213BE55659AC254D5DA13 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C554DC6180330C830A49B6 /* Message.swift */; };
 		F796883257E05BF2207103FE /* houmaoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6A21B56C31A9618F79441D /* houmaoUITests.swift */; };
 		F91C0061C677A89D66AD3817 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD58C3AFB563B123BF6B396A /* MainView.swift */; };
@@ -96,6 +98,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		01BEA31CD84A4FEC595CF0E0 /* MarkdownLintTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownLintTests.swift; sourceTree = "<group>"; };
 		03D9C94B2FABF2B254493D98 /* ChatModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModeTests.swift; sourceTree = "<group>"; };
 		08126500EB5DAEF6E3EA0261 /* AiTxtClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiTxtClient.swift; sourceTree = "<group>"; };
 		0AE08487E764F95B66219AEB /* MailGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailGroupingTests.swift; sourceTree = "<group>"; };
@@ -123,6 +126,7 @@
 		5BF08A509F2FFE9FEE779D39 /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
 		5DEA0EA2BAF153958FC236CB /* UsageTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageTracker.swift; sourceTree = "<group>"; };
 		5E94C815AAEDD8E48836C96E /* ChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStore.swift; sourceTree = "<group>"; };
+		602B51DB006F185A0CC211BF /* MarkdownLint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownLint.swift; sourceTree = "<group>"; };
 		619FF54E8FF017D104ECBFEF /* MailGrouping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailGrouping.swift; sourceTree = "<group>"; };
 		6217DF1DFAFCB0989F9FC1EC /* houmaoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = houmaoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6CCB93719A995CD96D314473 /* LoopbackAuthReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopbackAuthReceiver.swift; sourceTree = "<group>"; };
@@ -241,6 +245,7 @@
 				B8989D279D6141FB8660A67B /* Do */,
 				05392B653CD5AD88A5021B8E /* GitHub */,
 				6DB684EBD2F5289AA6367718 /* Mail */,
+				D692112BB8565F622B5BE3B9 /* Markdown */,
 				3EEFF6E530A72EDE07E33109 /* Pipeline */,
 			);
 			path = Core;
@@ -276,6 +281,7 @@
 				8B81BFC7008DECB0341CF0F7 /* GoogleAuthTests.swift */,
 				8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */,
 				0AE08487E764F95B66219AEB /* MailGroupingTests.swift */,
+				01BEA31CD84A4FEC595CF0E0 /* MarkdownLintTests.swift */,
 				B7AB34ACA01BB70F852F37F3 /* MarkdownParserTests.swift */,
 				1463CB9916AB39A21F23ECAA /* PipelineParserTests.swift */,
 				3F0C55C88E57A6F6BC2D2641 /* TextClusteringTests.swift */,
@@ -301,6 +307,14 @@
 				AF770DEDDD5BFF9DB5667622 /* DoStore.swift */,
 			);
 			path = Do;
+			sourceTree = "<group>";
+		};
+		D692112BB8565F622B5BE3B9 /* Markdown */ = {
+			isa = PBXGroup;
+			children = (
+				602B51DB006F185A0CC211BF /* MarkdownLint.swift */,
+			);
+			path = Markdown;
 			sourceTree = "<group>";
 		};
 		E38EE195051B6A0E81163D80 /* houmaoUITests */ = {
@@ -503,6 +517,7 @@
 				F91C0061C677A89D66AD3817 /* MainView.swift in Sources */,
 				9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */,
 				A2A78E52D199EBDB29AFCC07 /* MarkdownEditorView.swift in Sources */,
+				F4445288DDD0A3A2ACA2CDC6 /* MarkdownLint.swift in Sources */,
 				5A6C6C32968E7A922C953FA0 /* MarkdownView.swift in Sources */,
 				F46213BE55659AC254D5DA13 /* Message.swift in Sources */,
 				E0508EFE430B2A031BE608FC /* NoteWriting.swift in Sources */,
@@ -542,6 +557,7 @@
 				BBC8AD771EC5E1307BD9ADE8 /* DoStoreTests.swift in Sources */,
 				48548AA7258DA25481EC0C04 /* GoogleAuthTests.swift in Sources */,
 				7E06D06B246B6D758C185C38 /* MailGroupingTests.swift in Sources */,
+				216ED3F039A732943119F1B8 /* MarkdownLintTests.swift in Sources */,
 				E1541F22D20877460D696EB9 /* MarkdownParserTests.swift in Sources */,
 				67770692576258B01B0A7366 /* PipelineParserTests.swift in Sources */,
 				EF957138A8BB21781964CC02 /* TextClusteringTests.swift in Sources */,

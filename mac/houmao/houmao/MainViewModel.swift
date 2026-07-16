@@ -661,6 +661,64 @@ final class MainViewModel {
         }
     }
 
+    /// Send the editor's whole Markdown document to the chat as an auto-fix
+    /// request: a short labeled user bubble plus a streamed reply containing the
+    /// fixed document, which the user copies back into the editor. Uses a fixed
+    /// "repair Markdown format" prompt (structural fixes the static linter leaves
+    /// to the AI).
+    func fixMarkdownForChat(_ markdown: String) {
+        guard !markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard let resolved = AppSettings.shared.resolveModel(named: nil) else {
+            showError("No provider configured. Open Settings (⌘,) to add one.")
+            return
+        }
+        chatStore.ensureCurrent()
+        let userID = chatStore.appendUser("修复 Markdown 格式")
+        let assistantID = chatStore.startAssistant(streaming: true)
+        lastModelName = resolved.provider.name
+        topAnchorMessageID = userID
+        NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
+
+        let prompt = Self.markdownFixPrompt(markdown)
+        let client = AiTxtClient(
+            baseURL: resolved.provider.apiHost,
+            model: resolved.model,
+            apiKey: resolved.provider.apiKey
+        )
+        currentTask?.cancel()
+        currentTask = Task {
+            do {
+                let reply = try await client.askStream(question: prompt, attachments: [], history: []) { [weak self] token in
+                    Task { @MainActor in self?.chatStore.appendToken(assistantID, token) }
+                }
+                guard !Task.isCancelled else { return }
+                chatStore.updateText(assistantID, reply)
+            } catch is CancellationError {
+                vmLog.info("Markdown fix cancelled by user")
+            } catch {
+                vmLog.error("Markdown fix failed: \(error.localizedDescription)")
+                chatStore.updateText(assistantID, "Error: \(error.localizedDescription)")
+            }
+            chatStore.finish(assistantID)
+        }
+    }
+
+    /// The fixed prompt for the editor's AI "repair Markdown format" button. The
+    /// result is wrapped in a fenced code block so the chat renders it with a
+    /// one-click Copy button that yields the raw fixed source (the outer fence is
+    /// longer than any inner ``` so embedded code blocks stay intact).
+    private static func markdownFixPrompt(_ markdown: String) -> String {
+        """
+        你是 Markdown 格式修复助手。请修复下面文档的 Markdown 格式问题（如标题 # 后缺空格、列表符号后缺空格、代码围栏未闭合、空链接、行尾多余空格、硬 Tab、表格对齐等），**保持原有文字内容与语义完全不变**，只调整格式。
+
+        把修复后的**完整 Markdown 全文**包在一个代码块里输出，方便一键复制：外层用四个反引号 ````markdown 起、四个反引号结束；若文档内部本身出现连续四个及以上反引号，就把外层围栏再加长到比它多一个。代码块前后不要任何解释文字。
+
+        <文档>
+        \(markdown)
+        </文档>
+        """
+    }
+
     /// Distinct message subjects with common reply/forward prefixes stripped, in
     /// first-seen order — so a thread (cluster) collapses to its one title.
     private static func uniqueCleanSubjects(_ mails: [MailMessageDetail]) -> [String] {

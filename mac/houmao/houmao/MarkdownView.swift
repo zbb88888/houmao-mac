@@ -58,15 +58,20 @@ enum MarkdownParser {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
             // Fenced code block — collect verbatim until the closing fence (or
-            // EOF, so a still-streaming block renders immediately).
+            // EOF, so a still-streaming block renders immediately). Fences are
+            // variable-length (CommonMark): a block opened with N backticks is
+            // closed only by a line of ≥N backticks with nothing else, so a
+            // longer outer fence (e.g. ````) can wrap inner ``` blocks unbroken.
             if trimmed.hasPrefix("```") {
                 flushParagraph()
-                let lang = String(trimmed.dropFirst(3))
+                let openLen = trimmed.prefix(while: { $0 == "`" }).count
+                let lang = String(trimmed.dropFirst(openLen))
                     .trimmingCharacters(in: .whitespaces)
                 var code: [String] = []
                 i += 1
                 while i < lines.count {
-                    if lines[i].trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+                    let t = lines[i].trimmingCharacters(in: .whitespaces)
+                    if !t.isEmpty, t.allSatisfy({ $0 == "`" }), t.count >= openLen {
                         i += 1
                         break
                     }
