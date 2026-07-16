@@ -67,17 +67,38 @@ struct DoStore: Sendable {
     // MARK: - Active format (pure)
 
     /// Parse an active file: `## ` opens a topic; `- [ ] text <!--yyyy-MM-dd-->`
-    /// adds an item (creation date from the comment, or now if absent).
+    /// adds an item (creation date from the comment, or now if absent). Lines
+    /// indented under an item (two-space continuation) form that item's body.
     static func parseActive(_ text: String) -> [DoTopic] {
         var topics: [DoTopic] = []
-        for rawLine in text.split(whereSeparator: \.isNewline) {
+        var bodyLines: [String] = []
+
+        func flushBody() {
+            defer { bodyLines = [] }
+            guard let ti = topics.indices.last, let ii = topics[ti].items.indices.last else { return }
+            while let last = bodyLines.last, last.trimmingCharacters(in: .whitespaces).isEmpty {
+                bodyLines.removeLast()
+            }
+            guard !bodyLines.isEmpty else { return }
+            topics[ti].items[ii].body = bodyLines.joined(separator: "\n")
+        }
+
+        for rawLine in text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
             let line = String(rawLine)
-            if let title = topicTitle(line) {
+            let indented = line.hasPrefix(" ") || line.hasPrefix("\t")
+            if !indented, let title = topicTitle(line) {
+                flushBody()
                 topics.append(DoTopic(title: title))
-            } else if let item = activeItem(line), !topics.isEmpty {
+            } else if !indented, let item = activeItem(line), !topics.isEmpty {
+                flushBody()
                 topics[topics.count - 1].items.append(item)
+            } else if let ti = topics.indices.last, !topics[ti].items.isEmpty {
+                // Continuation line: belongs to the current item's body. Strip one
+                // level of indent (the two spaces added on serialize).
+                bodyLines.append(stripBodyIndent(line))
             }
         }
+        flushBody()
         return topics
     }
 
@@ -87,6 +108,12 @@ struct DoStore: Sendable {
             out += "\n## \(topic.title)\n"
             for item in topic.items {
                 out += "- [ ] \(item.text) <!--\(dayFormatter.string(from: item.createdAt))-->\n"
+                if !item.body.isEmpty {
+                    for bodyLine in item.body.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
+                        let l = String(bodyLine)
+                        out += l.isEmpty ? "\n" : "  \(l)\n"
+                    }
+                }
             }
         }
         return out
@@ -125,6 +152,14 @@ struct DoStore: Sendable {
     private static func topicTitle(_ line: String) -> String? {
         guard line.hasPrefix("## ") else { return nil }
         return String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Remove up to two leading spaces (the indent added to body lines on
+    /// serialize), leaving the body line's own indentation intact.
+    private static func stripBodyIndent(_ line: String) -> String {
+        if line.hasPrefix("  ") { return String(line.dropFirst(2)) }
+        if line.hasPrefix(" ") { return String(line.dropFirst(1)) }
+        return line
     }
 
     /// `- [ ] text <!--yyyy-MM-dd-->` → item. `- [x]` (unexpected in an active

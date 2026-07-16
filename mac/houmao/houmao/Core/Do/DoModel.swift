@@ -13,13 +13,18 @@ import Foundation
 /// moved to the monthly archive with both timestamps recorded.
 struct DoItem: Identifiable, Equatable, Sendable {
     let id: UUID
+    /// The item's title — the single line shown in the list row.
     var text: String
+    /// Optional free-form Markdown detail, shown/edited only when the row is
+    /// opened for full-text editing. Empty when the item has no detail.
+    var body: String
     var createdAt: Date
     var completedAt: Date?
 
-    init(id: UUID = UUID(), text: String, createdAt: Date = Date(), completedAt: Date? = nil) {
+    init(id: UUID = UUID(), text: String, body: String = "", createdAt: Date = Date(), completedAt: Date? = nil) {
         self.id = id
         self.text = text
+        self.body = body
         self.createdAt = createdAt
         self.completedAt = completedAt
     }

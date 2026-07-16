@@ -56,10 +56,13 @@ final class DoViewModel {
 
     // MARK: - Item operations (on the current topic)
 
-    func addItem(_ text: String) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let topicIndex = currentTopicIndex() else { return }
-        tabs[currentTabIndex].topics[topicIndex].items.append(DoItem(text: trimmed))
+    /// Create an item from full editor text (first line = title, rest = body).
+    /// A blank title is a no-op (a to-do needs a title).
+    func addItem(fullText: String) {
+        guard let topicIndex = currentTopicIndex() else { return }
+        let (title, body) = Self.splitFullText(fullText)
+        guard !title.isEmpty else { return }
+        tabs[currentTabIndex].topics[topicIndex].items.append(DoItem(text: title, body: body))
         persist(selectedTab)
     }
 
@@ -99,6 +102,36 @@ final class DoViewModel {
               let itemIndex = itemIndex(item, in: topicIndex) else { return }
         tabs[currentTabIndex].topics[topicIndex].items.remove(at: itemIndex)
         persist(selectedTab)
+    }
+
+    /// Commit full-text edits from the inline editor. The first line becomes the
+    /// title, the rest becomes the Markdown body. An empty title deletes the item.
+    func updateItem(_ item: DoItem, fullText: String) {
+        guard let topicIndex = currentTopicIndex(),
+              let itemIndex = itemIndex(item, in: topicIndex) else { return }
+        let (title, body) = Self.splitFullText(fullText)
+        if title.isEmpty {
+            // A to-do is identified by its first-line title; without one the item
+            // is invalid (and would be dropped on reload anyway), so remove it.
+            tabs[currentTabIndex].topics[topicIndex].items.remove(at: itemIndex)
+            persist(selectedTab)
+            return
+        }
+        tabs[currentTabIndex].topics[topicIndex].items[itemIndex].text = title
+        tabs[currentTabIndex].topics[topicIndex].items[itemIndex].body = body
+        persist(selectedTab)
+    }
+
+    /// Split editor text into a first-line title and the remaining body (trailing
+    /// blank lines trimmed).
+    nonisolated static func splitFullText(_ text: String) -> (title: String, body: String) {
+        let parts = text.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+        let title = parts.first.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+        var body = parts.count > 1 ? String(parts[1]) : ""
+        while body.hasSuffix("\n") || body.hasSuffix(" ") {
+            body.removeLast()
+        }
+        return (title, body)
     }
 
     // MARK: - Topic operations (on the current area)

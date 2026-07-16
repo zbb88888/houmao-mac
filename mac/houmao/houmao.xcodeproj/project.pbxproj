@@ -47,6 +47,7 @@
 		8F1FEBBA064AF43072562A25 /* IssueAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 862143F6F82F5ABC375AD59C /* IssueAnalyzer.swift */; };
 		9ECC92EB82D4341BB61401DA /* IMETextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */; };
 		9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31DADFF4D45E07705B344E48 /* MainViewModel.swift */; };
+		A2A78E52D199EBDB29AFCC07 /* MarkdownEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFD4E59ACAF55DEB8DDCF684 /* MarkdownEditorView.swift */; };
 		A3C3D1FF66B9D838943E282F /* PipelineRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A46DDBD2FAFB7BCD7D2052 /* PipelineRunner.swift */; };
 		A3F3D323A860BB6F2F4B2DE7 /* GoogleDriveClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9322360092582E2D57E0A8EA /* GoogleDriveClient.swift */; };
 		AECB395DA8A3BE73BAE85940 /* IssueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9702C3846547B34B062749E2 /* IssueView.swift */; };
@@ -147,6 +148,7 @@
 		AA74CC29AAEB1E1C6F8B8E3C /* IssueViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueViewModel.swift; sourceTree = "<group>"; };
 		AC6A21B56C31A9618F79441D /* houmaoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoUITests.swift; sourceTree = "<group>"; };
 		AF770DEDDD5BFF9DB5667622 /* DoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoStore.swift; sourceTree = "<group>"; };
+		AFD4E59ACAF55DEB8DDCF684 /* MarkdownEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditorView.swift; sourceTree = "<group>"; };
 		B7446DD4F007CB7535C445E4 /* DoStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoStoreTests.swift; sourceTree = "<group>"; };
 		B7AB34ACA01BB70F852F37F3 /* MarkdownParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownParserTests.swift; sourceTree = "<group>"; };
 		B8673CCE45ECC5F8DD4FB2F8 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
@@ -339,6 +341,7 @@
 				0DF08D164A5D2EA8C9127D54 /* MailViewModel.swift */,
 				FD58C3AFB563B123BF6B396A /* MainView.swift */,
 				31DADFF4D45E07705B344E48 /* MainViewModel.swift */,
+				AFD4E59ACAF55DEB8DDCF684 /* MarkdownEditorView.swift */,
 				5BF08A509F2FFE9FEE779D39 /* MarkdownView.swift */,
 				D1E1C6995CBCF2A576AFAF5A /* PRView.swift */,
 				E24D96DD2B2427B4C062FF2B /* PRViewModel.swift */,
@@ -499,6 +502,7 @@
 				510D19CDB94F4643747B3C60 /* MailViewModel.swift in Sources */,
 				F91C0061C677A89D66AD3817 /* MainView.swift in Sources */,
 				9FDCD38EBDB4210CA731E6D8 /* MainViewModel.swift in Sources */,
+				A2A78E52D199EBDB29AFCC07 /* MarkdownEditorView.swift in Sources */,
 				5A6C6C32968E7A922C953FA0 /* MarkdownView.swift in Sources */,
 				F46213BE55659AC254D5DA13 /* Message.swift in Sources */,
 				E0508EFE430B2A031BE608FC /* NoteWriting.swift in Sources */,

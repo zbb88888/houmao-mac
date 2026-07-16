@@ -33,6 +33,14 @@ extension Notification.Name {
     static let houmaoEnterDoWindow = Notification.Name("houmaoEnterDoWindow")
     /// Posted when the Do window should be closed.
     static let houmaoExitDoWindow = Notification.Name("houmaoExitDoWindow")
+    /// Posted when the editor button is tapped so the app can open the shared,
+    /// general-purpose Markdown editor window with a blank scratch document
+    /// (saved to the daily notes file). Views that need to edit specific content
+    /// call `AppDelegate.presentMarkdownEditor` directly instead.
+    static let houmaoEnterEditorWindow = Notification.Name("houmaoEnterEditorWindow")
+    /// Posted by the editor's save button to persist the current document and
+    /// close the shared editor window.
+    static let houmaoCommitEditor = Notification.Name("houmaoCommitEditor")
     /// Posted when the user opens a message so the app can show the standalone
     /// mail-detail window (a standard large window, not an in-place sheet).
     static let houmaoOpenMailDetail = Notification.Name("houmaoOpenMailDetail")

@@ -2,7 +2,9 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
-> 最近更新：2026-07-15（新增 **Google Drive 同步（Phase 4.1/4.2 ✅）**：todo（Do 面板 `work.md`/`life.md`）每次本地保存后**防抖单向镜像**到 Drive `houmao/do` 文件夹；`Core/Cloud/GoogleDriveClient`（v3 REST）+ `DriveSyncService` + 抽出的 `GoogleOAuth` 共享连接 helper（Mail 复用）；Drive 用 `drive.file` 最小 scope，与 Gmail **共用一次 OAuth 同意/同一 refresh token**（`Scope.appDefault`）；设置页加「Google Drive 同步」连接入口。聊天气泡右键收藏留后续 4.3。｜ 也含 GitHub PR/Issue 面板（§3.9 / Phase 8）与 Do 待办面板（§3.8 / Phase 7）。维护方式：每次提交涉及架构/功能变更时同步本文件。
+> 最近更新：2026-07-16（**通用 Markdown 编辑器（§3.10）**：houmao 唯一、通用、独立的编辑器窗口 `MarkdownEditorView` + `AppDelegate.presentMarkdownEditor(title:text:onSave:)`（单例窗口，`markdownEditorModel` 承载当前文档/保存去处）；聊天输入栏加 `square.and.pencil` 按钮唤起空白编辑器（保存→**按 md 标题命名**写 `~/Documents/houmao/notes/<标题>.md`）；**任何内容编辑优先复用它**。Do 面板 `+`/双击已有行改为唤起该编辑器（不再内联/无草稿），`DoViewModel.addItem(fullText:)`/`updateItem(_:fullText:)` 提交，标题空即删；保存图标或关闭窗口都=保存。｜ 也含 §3.8 Do 条目 body 与 §3.9 GitHub 面板。）
+> 2026-07-16（**Do 面板条目升级**：`DoItem` 加 `body`（可选 md 正文），行只显示标题、**双击整行**打开自适应高度的 md 全文编辑（首行=标题/其余=正文，失焦提交/Esc 取消/清空标题即删）；去掉「添加待办」输入框，新增改由**列表底部 `+` 按钮**新建空行并进入编辑——编辑入口仅「+新建 / 双击已有」两个。正文以**活动文件缩进两格续行**持久化；归档单行格式未动（完成暂丢正文，见 §3.8 / [todo.md](todo.md) §7）。详见 §3.8。）
+> 2026-07-15（新增 **Google Drive 同步（Phase 4.1/4.2 ✅）**：todo（Do 面板 `work.md`/`life.md`）每次本地保存后**防抖单向镜像**到 Drive `houmao/do` 文件夹；`Core/Cloud/GoogleDriveClient`（v3 REST）+ `DriveSyncService` + 抽出的 `GoogleOAuth` 共享连接 helper（Mail 复用）；Drive 用 `drive.file` 最小 scope，与 Gmail **共用一次 OAuth 同意/同一 refresh token**（`Scope.appDefault`）；设置页加「Google Drive 同步」连接入口。聊天气泡右键收藏留后续 4.3。｜ 也含 GitHub PR/Issue 面板（§3.9 / Phase 8）与 Do 待办面板（§3.8 / Phase 7）。维护方式：每次提交涉及架构/功能变更时同步本文件。
 
 ---
 
@@ -275,13 +277,23 @@ flowchart TB
 
 ### 3.8 Do 待办面板：两固定领域 + 可编辑主题的纯文本 todo（✅ 已完成）
 
-**需求**：一个轻量待办组织器，聊天窗输入栏 `checklist` 按钮或 `/do` 命令唤起独立窗口。两级分类：**固定领域**（工作/生活，顶部自绘分段 tab，不可增删）→ **可编辑主题**（清单）→ 主题下的**可勾选条目**。同一时刻只显示一个主题的详情列表（master-detail）。默认主题：工作=`todo`/`学到老`，生活=`衣食住行`/`吃喝玩乐`。
+**需求**：一个轻量待办组织器，聊天窗输入栏 `checklist` 按钮或 `/do` 命令唤起独立窗口。两级分类：**固定领域**（工作/生活，顶部自绘分段 tab，不可增删）→ **可编辑主题**（清单）→ 主题下的**条目**。同一时刻只显示一个主题的详情列表（master-detail）。默认主题：工作=`todo`/`学到老`，生活=`衣食住行`/`吃喝玩乐`。
+
+**条目交互（title + 可选 md 正文）**：每行只显示标题（`DoItem.text`）+ 左侧完成圆圈 + 右侧删除。**编辑入口仅两个**（无独立「添加待办」输入框），且均唤起 §3.10 的**通用 Markdown 编辑器窗口**：① 列表底部 `+` 按钮打开空白编辑器（保存首行非空则新建条目）；② 已有行**双击**打开编辑器（预填 首行=标题、其余=正文）。保存=提交（首行=标题/其余=正文），标题清空则删除。保存图标或关闭编辑器窗口都会落盘。
 
 **易用性依据**：对齐主流实践——Things 的 Areas(稳定)›Projects、Apple 提醒事项/滴答清单的「侧栏选清单→看详情」。主题用 tab 下一行**胶囊/分段**切换（主题少时最简洁，符合当前极简风）；主题的增/改名/拖排/删集中在 popover（「管理清单」心智），删除含条目主题二次确认；主题胶囊带未完成计数徽章。
 
-**持久化（纯文本，人类可读可手改）**：Markdown 任务清单，每个领域一份文件 `~/Documents/houmao/do/{work,life}.md`（固定英文文件名作稳定身份，H1=显示名，`## 主题`，`- [ ]`未完 / `- [x]`完成）；任一变更即时整文件 `.atomic` 重写。格式与解析/序列化约定的单一事实来源见 [todo.md](todo.md)。**取舍**：不引 JSON/数据库；条目/主题的运行时 `id`（UUID）不落盘（格式无跨会话引用）；文件为 App 托管的规范格式，手改的自由文字会在下次保存被规范化丢弃。
+**持久化（纯文本，人类可读可手改）**：活动/归档分离的 Markdown（扩展名 `.txt`）。**活动**每领域一份 `~/Documents/houmao/do/{工作,生活}.txt`（仅未完成项，`- [ ] 文本 <!--yyyy-MM-dd-->` 尾注=创建日；条目下方**缩进两格的续行**=该条 md 正文）；**归档**按 tab×月滚动 `工作·yyyy-MM·归档.txt`（完成即入档，单行 `- 文本 · 起 D · 止 D`）。任一变更即时整文件 `.atomic` 重写 + 防抖镜像 Drive。格式与解析/序列化约定的单一事实来源见 [todo.md](todo.md)。**取舍**：不引 JSON/数据库；条目/主题的运行时 `id`（UUID）不落盘（格式无跨会话引用）；文件为 App 托管的规范格式，手改的自由文字会在下次保存被规范化丢弃。
 
-**抽象**：`Core/Do/DoModel.swift`（`DoItem`/`DoTopic`{`openCount`}/`DoTabKind`{`defaultTopics`}/`DoTab`）+ `Core/Do/DoStore.swift`（纯 Foundation，`static parse/serialize` 可独立单测；`load` 缺文件返空由 VM 播种 defaults）。`DoViewModel`（`@MainActor @Observable`，item/topic CRUD 每次变更即持久化）；`DoView`（tab / 主题胶囊 / `TopicManagerView` popover / 详情 addBar + itemRow 复选框）。接线与 Issue 面板同构（`GlobalHotKeyManager` 通知 + `houmaoApp` 窗口工厂 `makeDoWindow`，标题栏 glyph `checklist`）。
+**抽象**：`Core/Do/DoModel.swift`（`DoItem`{`text`/`body`/`createdAt`/`completedAt?`}/`DoTopic`{`openCount`}/`DoTabKind`{`activeFileName`/`archiveFileName(month:)`/`legacyFileName`/`defaultTopics`}/`DoTab`）+ `Core/Do/DoStore.swift`（纯 Foundation，活动/归档两套 `static parse/serialize` 可独立单测；`load` 缺文件回空由 VM 播种 defaults，旧版 `work.md`/`life.md` 首次迁移）。`DoViewModel`（`@MainActor @Observable`；item/topic CRUD 每次变更即持久化；`addItem(fullText:)`/`updateItem(_:fullText:)` 拆首行=标题/其余=正文）；`DoView`（tab / 主题胶囊 / `TopicManagerView` popover / 详情列表 + 底部 `+` addRow；`+`/双击调 `AppDelegate.presentMarkdownEditor` 唤起通用编辑器）。接线与 Issue 面板同构（`GlobalHotKeyManager` 通知 + `houmaoApp` 窗口工厂 `makeDoWindow`，标题栏 glyph `checklist`）。
+
+---
+
+### 3.10 通用 Markdown 编辑器：houmao 唯一的内容编辑器（✅ 已完成）
+
+**需求**：一个**独立、通用、全局唯一**的 Markdown 编辑器窗口；聊天输入栏加 `square.and.pencil` 按钮唤起。**任何内容编辑优先复用它**（Do 条目、将来的笔记/收藏等），不再各写各的内联编辑。保存语义：窗口内 `square.and.arrow.down` 保存图标 **或**关闭窗口（红点/⌘W）都=保存（无独立丢弃路径，延续 app 内「关闭即提交」的一致行为）。
+
+**抽象**：`MarkdownEditorView.swift`（shell）——`MarkdownEditorModel`（`@MainActor @Observable`，承载 `text`/`title`/`onSave` 保存去处）+ `MarkdownEditorView`（`@Bindable model`，填满窗口的 `TextEditor` + 顶部保存按钮，按钮 post `.houmaoCommitEditor`）。`houmaoApp` 持**单例** `markdownEditorWindow` + `markdownEditorModel`：`presentMarkdownEditor(title:text:onSave:)`（复用窗口、换 content/model，present 前先 `save()` 旧文档）、`finishMarkdownEditor()`（保存+隐藏，供保存按钮与 `windowShouldClose` 复用）、`presentScratchEditor()`（聊天栏空白入口，保存→**按 md 标题命名整文件**写 `~/Documents/houmao/notes/<标题>.md`，`markdownTitle` 取首行去 `#` 并规范化文件名）。参数化 `onSave` 让不同视图各自决定落点：Do 传 `viewModel.addItem/updateItem`，聊天栏传标题命名写入。接线：`GlobalHotKeyManager` 加 `.houmaoEnterEditorWindow`/`.houmaoCommitEditor`；ChatView 输入栏 Do 按钮后加编辑器按钮。
 
 ---
 

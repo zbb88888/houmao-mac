@@ -45,6 +45,34 @@ struct DoStoreTests {
         #expect(reparsed[1].items.isEmpty)
     }
 
+    @Test func activeRoundTripPreservesBody() {
+        let topics = [
+            DoTopic(title: "todo", items: [
+                DoItem(text: "写周报", body: "要点：\n- 进度\n- 计划", createdAt: makeDate("2026-07-02")),
+                DoItem(text: "无正文", createdAt: makeDate("2026-07-03")),
+            ]),
+        ]
+        let serialized = DoStore.serializeActive(title: "工作", topics: topics)
+        #expect(serialized.contains("  要点："))
+        #expect(serialized.contains("  - 进度"))
+
+        let reparsed = DoStore.parseActive(serialized)
+        #expect(reparsed.count == 1)
+        #expect(reparsed[0].items.count == 2)
+        #expect(reparsed[0].items[0].text == "写周报")
+        #expect(reparsed[0].items[0].body == "要点：\n- 进度\n- 计划")
+        #expect(reparsed[0].items[1].text == "无正文")
+        #expect(reparsed[0].items[1].body.isEmpty)
+    }
+
+    @Test func splitFullTextSeparatesTitleAndBody() {
+        #expect(DoViewModel.splitFullText("标题").title == "标题")
+        #expect(DoViewModel.splitFullText("标题").body.isEmpty)
+        let both = DoViewModel.splitFullText("标题\n正文一\n正文二\n\n")
+        #expect(both.title == "标题")
+        #expect(both.body == "正文一\n正文二")
+    }
+
     // MARK: - Archive format
 
     @Test func archiveRoundTripRecordsStartAndEnd() {

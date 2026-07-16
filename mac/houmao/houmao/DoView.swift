@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 /// The Do panel: two fixed areas (工作/生活) as a top segmented control, the
 /// selected area's user-editable topics as a pill row (only one topic's detail
@@ -10,7 +9,6 @@ struct DoView: View {
     @Environment(DoViewModel.self) private var viewModel
     private var theme: Theme { AppTheme.current }
 
-    @State private var newItemText: String = ""
     @State private var showingTopicManager: Bool = false
 
     var body: some View {
@@ -110,50 +108,52 @@ struct DoView: View {
                 }
             }
         } else {
-            VStack(spacing: 0) {
-                addBar
-                itemList
-            }
+            itemList
         }
-    }
-
-    private var addBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "plus")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(theme.textSecondary)
-            TextField("添加待办…", text: $newItemText)
-                .textFieldStyle(.plain)
-                .font(.system(size: 14))
-                .onSubmit(addItem)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(theme.surface.opacity(0.5))
-        .overlay(alignment: .bottom) { Divider().overlay(theme.divider) }
     }
 
     @ViewBuilder private var itemList: some View {
         let items = viewModel.currentTopic?.items ?? []
-        if items.isEmpty {
-            centered {
-                Text("暂无待办，从上方添加")
-                    .font(.callout)
-                    .foregroundStyle(theme.textSecondary)
-            }
-        } else {
-            ScrollView {
-                LazyVStack(spacing: 6) {
-                    ForEach(items) { item in
-                        itemRow(item)
-                    }
+        ScrollView {
+            LazyVStack(spacing: 6) {
+                ForEach(items) { item in
+                    itemRow(item)
                 }
-                .padding(16)
+                addRow
             }
+            .padding(16)
         }
     }
 
+    /// The only "add" affordance: opens the shared Markdown editor on a blank
+    /// document; saving with a non-empty first line appends a new item.
+    private var addRow: some View {
+        Button {
+            addItem()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "plus.circle")
+                    .font(.system(size: 16))
+                    .foregroundStyle(theme.textSecondary)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("新建待办")
+    }
+
     @ViewBuilder private func itemRow(_ item: DoItem) -> some View {
+        displayRow(item)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(theme.surface.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.divider))
+    }
+
+    @ViewBuilder private func displayRow(_ item: DoItem) -> some View {
         HStack(spacing: 10) {
             Button {
                 viewModel.complete(item)
@@ -180,20 +180,31 @@ struct DoView: View {
             .buttonStyle(.plain)
             .help("删除")
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(theme.surface.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.divider))
         .contentShape(Rectangle())
+        .onTapGesture(count: 2) { editItem(item) }
         .contextMenu {
+            Button("编辑") { editItem(item) }
             Button("标记完成（归档）") { viewModel.complete(item) }
             Button("删除", role: .destructive) { viewModel.deleteItem(item) }
         }
     }
 
+    /// Open the shared Markdown editor to create a new item.
+    @MainActor
     private func addItem() {
-        viewModel.addItem(newItemText)
-        newItemText = ""
+        AppDelegate.shared?.presentMarkdownEditor(title: "新建待办", text: "") { newText in
+            viewModel.addItem(fullText: newText)
+        }
+    }
+
+    /// Open the shared Markdown editor on an existing item (first line = title,
+    /// the rest = body). Saving commits; an empty title deletes the item.
+    @MainActor
+    private func editItem(_ item: DoItem) {
+        let full = item.body.isEmpty ? item.text : "\(item.text)\n\(item.body)"
+        AppDelegate.shared?.presentMarkdownEditor(title: "编辑待办", text: full) { newText in
+            viewModel.updateItem(item, fullText: newText)
+        }
     }
 
     // MARK: - Helpers

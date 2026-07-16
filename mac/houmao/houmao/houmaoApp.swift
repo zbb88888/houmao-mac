@@ -58,6 +58,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var exitIssueObserver: NSObjectProtocol?
     private var enterDoObserver: NSObjectProtocol?
     private var exitDoObserver: NSObjectProtocol?
+    private var enterEditorObserver: NSObjectProtocol?
+    private var commitEditorObserver: NSObjectProtocol?
     private var openMailDetailObserver: NSObjectProtocol?
     private var closeMailDetailObserver: NSObjectProtocol?
 
@@ -73,6 +75,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var issueWindow: NSWindow?
     /// Standalone Do panel window (to-do organizer), same shell as the Issue window.
     private var doWindow: NSWindow?
+    /// The one shared, general-purpose Markdown editor window (houmao's single
+    /// editor). Reused across all callers; the current document/sink lives in
+    /// `markdownEditorModel`.
+    private var markdownEditorWindow: NSWindow?
+    private var markdownEditorModel: MarkdownEditorModel?
     /// Standalone message-detail window opened from the mail list (standard large
     /// window, not an in-place sheet).
     private var mailDetailWindow: NSWindow?
@@ -121,6 +128,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         setupPRWindowObservers()
         setupIssueWindowObservers()
         setupDoWindowObservers()
+        setupEditorWindowObservers()
 
         hotKeyManager = GlobalHotKeyManager.shared
         tracker.start()
@@ -324,6 +332,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             hideDoWindow()
             return false
         }
+        if sender == markdownEditorWindow {
+            MainActor.assumeIsolated { finishMarkdownEditor() }
+            return false
+        }
         if sender == mailDetailWindow {
             hideWindowSafely(sender)
             mailViewModel.closeDetail()
@@ -412,7 +424,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// All independent panel windows (each toggled by its own button / command).
     /// Used to cascade a newly shown panel so several can stay visible at once.
     private var panelWindows: [NSWindow] {
-        [chatWindow, mailWindow, prWindow, issueWindow, doWindow].compactMap { $0 }
+        [chatWindow, mailWindow, prWindow, issueWindow, doWindow, markdownEditorWindow].compactMap { $0 }
     }
 
     /// Place a panel window the first time it's shown. Each panel is an
@@ -675,6 +687,109 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private func hideDoWindow() {
         guard let window = doWindow else { return }
         hideWindowSafely(window)
+    }
+
+    // MARK: Markdown editor window (shared, general-purpose)
+
+    private func setupEditorWindowObservers() {
+        enterEditorObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoEnterEditorWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.presentScratchEditor() }
+        }
+        commitEditorObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoCommitEditor, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.finishMarkdownEditor() }
+        }
+    }
+
+    /// Open the shared editor on a blank scratch document that, when saved, is
+    /// written as a whole file named after its Markdown title (the chat-bar
+    /// entry point).
+    @MainActor
+    private func presentScratchEditor() {
+        presentMarkdownEditor(title: "编辑器", text: "") { [weak self] text in
+            self?.saveScratchMarkdown(text)
+        }
+    }
+
+    /// Persist scratch-editor text as `~/Documents/houmao/notes/<title>.md`,
+    /// naming the file after the document's Markdown title (first line, heading
+    /// markers stripped). No-op when there is no title.
+    private func saveScratchMarkdown(_ text: String) {
+        let title = Self.markdownTitle(text)
+        guard !title.isEmpty else { return }
+        Task.detached {
+            let fm = FileManager.default
+            guard let documents = try? fm.url(
+                for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+            ) else { return }
+            let dir = documents.appendingPathComponent("houmao/notes", isDirectory: true)
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            let url = dir.appendingPathComponent("\(title).md")
+            try? Data(text.utf8).write(to: url, options: .atomic)
+        }
+    }
+
+    /// The document's title = its first non-empty line with any leading Markdown
+    /// heading `#`s removed, sanitized to a safe filename (illegal characters
+    /// dropped, length clamped).
+    private static func markdownTitle(_ text: String) -> String {
+        let firstLine = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+        var title = firstLine.trimmingCharacters(in: .whitespaces)
+        while title.hasPrefix("#") { title.removeFirst() }
+        let illegal = CharacterSet(charactersIn: "/\\:*?\"<>|").union(.controlCharacters).union(.newlines)
+        title = title.components(separatedBy: illegal).joined(separator: " ")
+        title = title.trimmingCharacters(in: .whitespaces)
+        if title.count > 60 { title = String(title.prefix(60)).trimmingCharacters(in: .whitespaces) }
+        return title
+    }
+
+    /// Present houmao's single Markdown editor on `text`, routing the result to
+    /// `onSave` when committed or closed. Any document already open in the editor
+    /// is saved first before the window is repurposed.
+    @MainActor
+    func presentMarkdownEditor(title: String, text: String, onSave: @escaping (String) -> Void) {
+        markdownEditorModel?.save()
+
+        let model = MarkdownEditorModel(title: title, text: text, onSave: onSave)
+        markdownEditorModel = model
+
+        let window = markdownEditorWindow ?? makeEditorWindow()
+        markdownEditorWindow = window
+        window.contentViewController = NSHostingController(rootView: MarkdownEditorView(model: model))
+        placePanelOnFirstShow(window)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func makeEditorWindow() -> NSWindow {
+        let rect = centeredGoldenRect(on: screenContainingMouse())
+        let window = NSWindow(
+            contentRect: rect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "编辑器"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.appearance = NSAppearance(named: .aqua)
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 480, height: 400)
+        window.delegate = self
+        addTitleGlyph(to: window, symbol: "square.and.pencil", accessibilityDescription: "编辑器")
+        return window
+    }
+
+    /// Save the current document and hide the editor window (reused next time).
+    @MainActor
+    private func finishMarkdownEditor() {
+        markdownEditorModel?.save()
+        markdownEditorModel = nil
+        if let window = markdownEditorWindow { hideWindowSafely(window) }
     }
 
     func showMainPanel() {
