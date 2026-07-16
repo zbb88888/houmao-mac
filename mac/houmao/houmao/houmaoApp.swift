@@ -46,18 +46,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private(set) var prViewModel: PRViewModel!
     private(set) var issueViewModel: IssueViewModel!
     private(set) var doViewModel: DoViewModel!
+    private(set) var goalsViewModel: GoalsViewModel!
     private(set) var driveSyncService: DriveSyncService!
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
     private var exitChatObserver: NSObjectProtocol?
     private var enterMailObserver: NSObjectProtocol?
-    private var exitMailObserver: NSObjectProtocol?
     private var enterPRObserver: NSObjectProtocol?
-    private var exitPRObserver: NSObjectProtocol?
     private var enterIssueObserver: NSObjectProtocol?
-    private var exitIssueObserver: NSObjectProtocol?
     private var enterDoObserver: NSObjectProtocol?
-    private var exitDoObserver: NSObjectProtocol?
+    private var enterGoalsObserver: NSObjectProtocol?
     private var enterEditorObserver: NSObjectProtocol?
     private var commitEditorObserver: NSObjectProtocol?
     private var openMailDetailObserver: NSObjectProtocol?
@@ -75,6 +73,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var issueWindow: NSWindow?
     /// Standalone Do panel window (to-do organizer), same shell as the Issue window.
     private var doWindow: NSWindow?
+    /// Standalone goal-management window (goals + Mermaid detail), same shell.
+    private var goalsWindow: NSWindow?
     /// The one shared, general-purpose Markdown editor window (houmao's single
     /// editor). Reused across all callers; the current document/sink lives in
     /// `markdownEditorModel`.
@@ -119,6 +119,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         issueViewModel = IssueViewModel()
         driveSyncService = DriveSyncService()
         doViewModel = DoViewModel(driveSync: driveSyncService)
+        goalsViewModel = GoalsViewModel()
 
 
         setupPanel()
@@ -129,6 +130,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         setupIssueWindowObservers()
         setupDoWindowObservers()
         setupEditorWindowObservers()
+        setupGoalsWindowObservers()
 
         hotKeyManager = GlobalHotKeyManager.shared
         tracker.start()
@@ -332,6 +334,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             hideDoWindow()
             return false
         }
+        if sender == goalsWindow {
+            hideGoalsWindow()
+            return false
+        }
         if sender == markdownEditorWindow {
             MainActor.assumeIsolated { finishMarkdownEditor() }
             return false
@@ -354,11 +360,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             forName: .houmaoEnterMailWindow, object: nil, queue: .main
         ) { [weak self] _ in
             self?.showMailWindow()
-        }
-        exitMailObserver = NotificationCenter.default.addObserver(
-            forName: .houmaoExitMailWindow, object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.hideMailWindow()
         }
         openMailDetailObserver = NotificationCenter.default.addObserver(
             forName: .houmaoOpenMailDetail, object: nil, queue: .main
@@ -424,7 +425,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// All independent panel windows (each toggled by its own button / command).
     /// Used to cascade a newly shown panel so several can stay visible at once.
     private var panelWindows: [NSWindow] {
-        [chatWindow, mailWindow, prWindow, issueWindow, doWindow, markdownEditorWindow].compactMap { $0 }
+        [chatWindow, mailWindow, prWindow, issueWindow, doWindow, markdownEditorWindow, goalsWindow].compactMap { $0 }
     }
 
     /// Place a panel window the first time it's shown. Each panel is an
@@ -510,11 +511,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         ) { [weak self] _ in
             self?.showPRWindow()
         }
-        exitPRObserver = NotificationCenter.default.addObserver(
-            forName: .houmaoExitPRWindow, object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.hidePRWindow()
-        }
     }
 
     private func makePRWindow() -> NSWindow {
@@ -563,11 +559,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         ) { [weak self] _ in
             self?.showIssueWindow()
         }
-        exitIssueObserver = NotificationCenter.default.addObserver(
-            forName: .houmaoExitIssueWindow, object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.hideIssueWindow()
-        }
     }
 
     private func makeIssueWindow() -> NSWindow {
@@ -615,11 +606,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         ) { [weak self] _ in
             self?.showDoWindow()
         }
-        exitDoObserver = NotificationCenter.default.addObserver(
-            forName: .houmaoExitDoWindow, object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.hideDoWindow()
-        }
     }
 
     private func makeDoWindow() -> NSWindow {
@@ -654,6 +640,50 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
 
     private func hideDoWindow() {
         guard let window = doWindow else { return }
+        hideWindowSafely(window)
+    }
+
+    // MARK: Goals window (goal-management graph)
+
+    private func setupGoalsWindowObservers() {
+        enterGoalsObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoEnterGoalsWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.showGoalsWindow()
+        }
+    }
+
+    private func makeGoalsWindow() -> NSWindow {
+        let rect = centeredGoldenRect(on: screenContainingMouse())
+        let window = NSWindow(
+            contentRect: rect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "goals"
+        window.titlebarAppearsTransparent = true
+        window.appearance = NSAppearance(named: .aqua)
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 560, height: 460)
+        window.delegate = self
+
+        let goalsView = GoalsView().environment(goalsViewModel)
+        window.contentViewController = NSHostingController(rootView: goalsView)
+        return window
+    }
+
+    private func showGoalsWindow() {
+        let window = goalsWindow ?? makeGoalsWindow()
+        goalsWindow = window
+        placePanelOnFirstShow(window)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func hideGoalsWindow() {
+        guard let window = goalsWindow else { return }
         hideWindowSafely(window)
     }
 

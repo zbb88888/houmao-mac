@@ -14,11 +14,13 @@
 		19525F5C6A412974C104EE6F /* PullRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECEC7E214884ADE991FEBB63 /* PullRequest.swift */; };
 		19995B918BCCADB57F626B12 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8673CCE45ECC5F8DD4FB2F8 /* AppSettings.swift */; };
 		19C9F6D85879AF6FE6299FDA /* Pipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A267C3C5EF1066D16826CA8 /* Pipeline.swift */; };
+		1B90789F6315B158641657D1 /* GoalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE43C962577EBC6B576F3AC0 /* GoalStore.swift */; };
 		1BD52E52CE5AC31258FF66CD /* PipelineAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 304C34344F48BD99E3B1E19F /* PipelineAction.swift */; };
 		216ED3F039A732943119F1B8 /* MarkdownLintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BEA31CD84A4FEC595CF0E0 /* MarkdownLintTests.swift */; };
 		223F3D73BAAFBEB978332DF7 /* GoogleOAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4454B959A3E129D68B60A48 /* GoogleOAuth.swift */; };
 		2307134B590D569C23CDA014 /* PKCE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE2BE89827B69CB8810ED90 /* PKCE.swift */; };
 		24DCBC6420DBD1C3035066D0 /* BuiltinActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4A5F4FE9A82E9E6B84B1D1 /* BuiltinActions.swift */; };
+		291064C93540929130EB50FF /* GoalDoc.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5907ACC57D6A9F607140EA2 /* GoalDoc.swift */; };
 		38FB8BE9EE5B9462670FCCB3 /* DoModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A48DDBAD78C16C718439A964 /* DoModel.swift */; };
 		39D57155CF6966C808689D94 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0BC36FC5E119006A965686E /* Assets.xcassets */; };
 		3C37F1672D96FD7F9FC6D41C /* PipelineParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2F991A07308DE37AEDB329 /* PipelineParser.swift */; };
@@ -32,6 +34,8 @@
 		4DC903D4DC0CF422B37647D4 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99D44385EF33EF2316E4ADA /* KeychainStore.swift */; };
 		510D19CDB94F4643747B3C60 /* MailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF08D164A5D2EA8C9127D54 /* MailViewModel.swift */; };
 		51B22447BCA96ED141D2470F /* houmaoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */; };
+		53E52E2A56CCDEDAFEDCF4B6 /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F374AC073507B5ED713A7A0B /* GoalsView.swift */; };
+		5808D1A4CE77A91F5B40E3FA /* GoalStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D183538AC21F5B9616795BCB /* GoalStoreTests.swift */; };
 		5A6C6C32968E7A922C953FA0 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BF08A509F2FFE9FEE779D39 /* MarkdownView.swift */; };
 		5A7AE58EBAE004BB530D8F11 /* Issue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8A9D4BE88C04C4910EDB300 /* Issue.swift */; };
 		6080F1F56A8D693403F8CA75 /* MailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A898812C4E745A5A78DA3D1 /* MailView.swift */; };
@@ -40,7 +44,9 @@
 		67770692576258B01B0A7366 /* PipelineParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1463CB9916AB39A21F23ECAA /* PipelineParserTests.swift */; };
 		6C057AA5E9D3A3A9D7F9AFED /* Attachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16A32AF2D3C92FD4642119D6 /* Attachment.swift */; };
 		720B6BF62E68556D13CB61E0 /* GlobalHotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E00EBE3D61489D710C85775 /* GlobalHotKeyManager.swift */; };
+		7BCC7378EFB78D96135F32DD /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B6FBBF210405FD2A93700550 /* mermaid.min.js */; };
 		7E06D06B246B6D758C185C38 /* MailGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE08487E764F95B66219AEB /* MailGroupingTests.swift */; };
+		83909B786E4D1134A3537B78 /* GoalsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652BE0188586A29CB70DCE38 /* GoalsViewModel.swift */; };
 		86152D287A639E44D19E8D75 /* HistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F2FF595A63FBBFCE32E347 /* HistoryViewModel.swift */; };
 		883DAB948F62AD5BD468436D /* PRViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E24D96DD2B2427B4C062FF2B /* PRViewModel.swift */; };
 		8C4AE05803D40E41CAC8831D /* SelectToCopyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 410FF4A6A10475DBEC89ECF4 /* SelectToCopyManager.swift */; };
@@ -60,6 +66,7 @@
 		D07C2B26D7B703F84593C50D /* GmailProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D9F37F0171267C0C74A5BE5 /* GmailProvider.swift */; };
 		D23123A0AE23E2F18E0D45A1 /* houmaoUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8482DAE51378989DE1B24152 /* houmaoUITestsLaunchTests.swift */; };
 		D33C6358E4575392165EF1F0 /* MailMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4D01DBF553FC3A1D20709F /* MailMessage.swift */; };
+		D4A8EB492FDE1314B24B0502 /* MermaidView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6357EAD0D83E7206BE088B1E /* MermaidView.swift */; };
 		D51E182E30B4A8A52AC8176D /* LoopbackAuthReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CCB93719A995CD96D314473 /* LoopbackAuthReceiver.swift */; };
 		D5E3519D846F8C01540F5659 /* ChatStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19148038642034373C73C39 /* ChatStoreTests.swift */; };
 		DB3E772578359D1761A17CE5 /* GoogleAuthProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3002824A3E520F4E31E75A /* GoogleAuthProvider.swift */; };
@@ -129,6 +136,8 @@
 		602B51DB006F185A0CC211BF /* MarkdownLint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownLint.swift; sourceTree = "<group>"; };
 		619FF54E8FF017D104ECBFEF /* MailGrouping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailGrouping.swift; sourceTree = "<group>"; };
 		6217DF1DFAFCB0989F9FC1EC /* houmaoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = houmaoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6357EAD0D83E7206BE088B1E /* MermaidView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MermaidView.swift; sourceTree = "<group>"; };
+		652BE0188586A29CB70DCE38 /* GoalsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsViewModel.swift; sourceTree = "<group>"; };
 		6CCB93719A995CD96D314473 /* LoopbackAuthReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopbackAuthReceiver.swift; sourceTree = "<group>"; };
 		6E00EBE3D61489D710C85775 /* GlobalHotKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotKeyManager.swift; sourceTree = "<group>"; };
 		75259439A55CE9D1A9179843 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -151,8 +160,10 @@
 		AA4D01DBF553FC3A1D20709F /* MailMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailMessage.swift; sourceTree = "<group>"; };
 		AA74CC29AAEB1E1C6F8B8E3C /* IssueViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueViewModel.swift; sourceTree = "<group>"; };
 		AC6A21B56C31A9618F79441D /* houmaoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoUITests.swift; sourceTree = "<group>"; };
+		AE43C962577EBC6B576F3AC0 /* GoalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalStore.swift; sourceTree = "<group>"; };
 		AF770DEDDD5BFF9DB5667622 /* DoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoStore.swift; sourceTree = "<group>"; };
 		AFD4E59ACAF55DEB8DDCF684 /* MarkdownEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditorView.swift; sourceTree = "<group>"; };
+		B6FBBF210405FD2A93700550 /* mermaid.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = mermaid.min.js; sourceTree = "<group>"; };
 		B7446DD4F007CB7535C445E4 /* DoStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoStoreTests.swift; sourceTree = "<group>"; };
 		B7AB34ACA01BB70F852F37F3 /* MarkdownParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownParserTests.swift; sourceTree = "<group>"; };
 		B8673CCE45ECC5F8DD4FB2F8 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
@@ -161,6 +172,7 @@
 		CDFCF205D358DA2ADF1105B2 /* TextClustering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextClustering.swift; sourceTree = "<group>"; };
 		CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMETextField.swift; sourceTree = "<group>"; };
 		D0ACFAC2F8E8BEF91D60F434 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		D183538AC21F5B9616795BCB /* GoalStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalStoreTests.swift; sourceTree = "<group>"; };
 		D19148038642034373C73C39 /* ChatStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStoreTests.swift; sourceTree = "<group>"; };
 		D1E1C6995CBCF2A576AFAF5A /* PRView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRView.swift; sourceTree = "<group>"; };
 		D294FA5BEF072740B48A5A69 /* MailProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailProvider.swift; sourceTree = "<group>"; };
@@ -170,6 +182,8 @@
 		E57CA19726AD9EFFBBB555B3 /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
 		E99D44385EF33EF2316E4ADA /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		ECEC7E214884ADE991FEBB63 /* PullRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequest.swift; sourceTree = "<group>"; };
+		F374AC073507B5ED713A7A0B /* GoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsView.swift; sourceTree = "<group>"; };
+		F5907ACC57D6A9F607140EA2 /* GoalDoc.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalDoc.swift; sourceTree = "<group>"; };
 		F598AC90045D4ECF6A978FEF /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
 		FD58C3AFB563B123BF6B396A /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -244,6 +258,7 @@
 				E6094ECBBBC71EBF383ADF74 /* Clustering */,
 				B8989D279D6141FB8660A67B /* Do */,
 				05392B653CD5AD88A5021B8E /* GitHub */,
+				6F54EB7FA777BA0D91C56E6B /* Goals */,
 				6DB684EBD2F5289AA6367718 /* Mail */,
 				D692112BB8565F622B5BE3B9 /* Markdown */,
 				3EEFF6E530A72EDE07E33109 /* Pipeline */,
@@ -262,6 +277,15 @@
 			path = Mail;
 			sourceTree = "<group>";
 		};
+		6F54EB7FA777BA0D91C56E6B /* Goals */ = {
+			isa = PBXGroup;
+			children = (
+				F5907ACC57D6A9F607140EA2 /* GoalDoc.swift */,
+				AE43C962577EBC6B576F3AC0 /* GoalStore.swift */,
+			);
+			path = Goals;
+			sourceTree = "<group>";
+		};
 		7281214FAC24114FFF5CD1DB = {
 			isa = PBXGroup;
 			children = (
@@ -278,6 +302,7 @@
 				03D9C94B2FABF2B254493D98 /* ChatModeTests.swift */,
 				D19148038642034373C73C39 /* ChatStoreTests.swift */,
 				B7446DD4F007CB7535C445E4 /* DoStoreTests.swift */,
+				D183538AC21F5B9616795BCB /* GoalStoreTests.swift */,
 				8B81BFC7008DECB0341CF0F7 /* GoogleAuthTests.swift */,
 				8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */,
 				0AE08487E764F95B66219AEB /* MailGroupingTests.swift */,
@@ -334,6 +359,14 @@
 			path = Clustering;
 			sourceTree = "<group>";
 		};
+		F7AB8B55143DACA14AA71950 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B6FBBF210405FD2A93700550 /* mermaid.min.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		FB272FED30A621D6D038D168 /* houmao */ = {
 			isa = PBXGroup;
 			children = (
@@ -344,6 +377,8 @@
 				3DDB602B846EE84FE42E451E /* DoViewModel.swift */,
 				9AA706AC6792CC4A0F598242 /* DriveSyncService.swift */,
 				6E00EBE3D61489D710C85775 /* GlobalHotKeyManager.swift */,
+				F374AC073507B5ED713A7A0B /* GoalsView.swift */,
+				652BE0188586A29CB70DCE38 /* GoalsViewModel.swift */,
 				D4454B959A3E129D68B60A48 /* GoogleOAuth.swift */,
 				2C9AEEE5D5E88D810CC2F4E7 /* houmaoApp.swift */,
 				CF1E2ACA41DCEED508C09B0F /* IMETextField.swift */,
@@ -357,12 +392,14 @@
 				31DADFF4D45E07705B344E48 /* MainViewModel.swift */,
 				AFD4E59ACAF55DEB8DDCF684 /* MarkdownEditorView.swift */,
 				5BF08A509F2FFE9FEE779D39 /* MarkdownView.swift */,
+				6357EAD0D83E7206BE088B1E /* MermaidView.swift */,
 				D1E1C6995CBCF2A576AFAF5A /* PRView.swift */,
 				E24D96DD2B2427B4C062FF2B /* PRViewModel.swift */,
 				410FF4A6A10475DBEC89ECF4 /* SelectToCopyManager.swift */,
 				75259439A55CE9D1A9179843 /* SettingsView.swift */,
 				5DEA0EA2BAF153958FC236CB /* UsageTracker.swift */,
 				660CBF3C5C106B8B483E6A5D /* Core */,
+				F7AB8B55143DACA14AA71950 /* Resources */,
 			);
 			path = houmao;
 			sourceTree = "<group>";
@@ -468,6 +505,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				39D57155CF6966C808689D94 /* Assets.xcassets in Resources */,
+				7BCC7378EFB78D96135F32DD /* mermaid.min.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -496,6 +534,10 @@
 				FF55E3E733966FAFC6B86BA1 /* GitHubCLI.swift in Sources */,
 				720B6BF62E68556D13CB61E0 /* GlobalHotKeyManager.swift in Sources */,
 				D07C2B26D7B703F84593C50D /* GmailProvider.swift in Sources */,
+				291064C93540929130EB50FF /* GoalDoc.swift in Sources */,
+				1B90789F6315B158641657D1 /* GoalStore.swift in Sources */,
+				53E52E2A56CCDEDAFEDCF4B6 /* GoalsView.swift in Sources */,
+				83909B786E4D1134A3537B78 /* GoalsViewModel.swift in Sources */,
 				DB3E772578359D1761A17CE5 /* GoogleAuthProvider.swift in Sources */,
 				A3F3D323A860BB6F2F4B2DE7 /* GoogleDriveClient.swift in Sources */,
 				223F3D73BAAFBEB978332DF7 /* GoogleOAuth.swift in Sources */,
@@ -519,6 +561,7 @@
 				A2A78E52D199EBDB29AFCC07 /* MarkdownEditorView.swift in Sources */,
 				F4445288DDD0A3A2ACA2CDC6 /* MarkdownLint.swift in Sources */,
 				5A6C6C32968E7A922C953FA0 /* MarkdownView.swift in Sources */,
+				D4A8EB492FDE1314B24B0502 /* MermaidView.swift in Sources */,
 				F46213BE55659AC254D5DA13 /* Message.swift in Sources */,
 				E0508EFE430B2A031BE608FC /* NoteWriting.swift in Sources */,
 				2307134B590D569C23CDA014 /* PKCE.swift in Sources */,
@@ -555,6 +598,7 @@
 				FABDF015DB6FD14520C41E4F /* ChatModeTests.swift in Sources */,
 				D5E3519D846F8C01540F5659 /* ChatStoreTests.swift in Sources */,
 				BBC8AD771EC5E1307BD9ADE8 /* DoStoreTests.swift in Sources */,
+				5808D1A4CE77A91F5B40E3FA /* GoalStoreTests.swift in Sources */,
 				48548AA7258DA25481EC0C04 /* GoogleAuthTests.swift in Sources */,
 				7E06D06B246B6D758C185C38 /* MailGroupingTests.swift in Sources */,
 				216ED3F039A732943119F1B8 /* MarkdownLintTests.swift in Sources */,

@@ -48,6 +48,10 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if let binding = viewModel.documentBinding {
+                docEditBanner(binding.title)
+                Divider().overlay(theme.divider)
+            }
             chatMessageList
             Divider().overlay(theme.divider)
             chatInputBar
@@ -74,6 +78,32 @@ struct ChatView: View {
             }
         }
         .preferredColorScheme(.light)
+    }
+
+    // MARK: - Document-edit banner
+
+    /// Shown while the chat is bound to a source document: names the document and
+    /// offers a one-click "save the AI's latest full version back to the file".
+    @ViewBuilder private func docEditBanner(_ title: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "doc.text")
+                .font(.system(size: 13))
+                .foregroundColor(theme.textSecondary)
+            Text("编辑文档：\(title)")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(theme.textPrimary)
+                .lineLimit(1)
+            Spacer()
+            Button(action: { viewModel.saveDocumentFromChat() }) {
+                Text("保存到原文档")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .controlSize(.small)
+            .help("把 AI 最新一版完整文档写回原文件")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(theme.surface)
     }
 
     // MARK: - Message list
@@ -265,6 +295,15 @@ struct ChatView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Markdown 编辑器")
+                Button(action: {
+                    NotificationCenter.default.post(name: .houmaoEnterGoalsWindow, object: nil)
+                }) {
+                    Image(systemName: "scope")
+                        .font(.system(size: 16))
+                        .foregroundColor(theme.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .help("目标管理图")
                 Button(action: { viewModel.renewChat() }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 16))

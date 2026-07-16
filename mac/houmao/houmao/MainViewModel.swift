@@ -68,6 +68,11 @@ final class MainViewModel {
     /// below. The chat view clears it once applied.
     var topAnchorMessageID: UUID?
 
+    /// When set, the chat is in "document edit" mode: it is bound to a source
+    /// document; every first turn is primed with the document, and the chat's
+    /// "保存到原文档" button writes the AI's fixed full text back via `onSave`.
+    var documentBinding: ChatDocumentBinding?
+
     /// The minimal input box is a one-shot Q/A surface. Once the user has had
     /// `autoChatThreshold` turns in it, the next submission auto-upgrades to the
     /// standalone chat window (carrying prior turns over as context).
@@ -309,6 +314,10 @@ final class MainViewModel {
         case "/do":
             inputText = ""
             NotificationCenter.default.post(name: .houmaoEnterDoWindow, object: nil)
+            return true
+        case "/goals":
+            inputText = ""
+            NotificationCenter.default.post(name: .houmaoEnterGoalsWindow, object: nil)
             return true
         default:
             break
@@ -703,6 +712,87 @@ final class MainViewModel {
         }
     }
 
+    // MARK: - Document-bound chat (edit a source document via chat)
+
+    /// Binds the chat to a source document while in "document edit" mode.
+    struct ChatDocumentBinding {
+        let title: String
+        var markdown: String
+        let onSave: (String) -> Void
+    }
+
+    /// Open the standalone chat bound to a source document: a fresh conversation
+    /// primed (on its first turn) with the document, whose "保存到原文档" button
+    /// writes the AI's updated full text back through `onSave`. Used by the goal
+    /// panel — chat is the action, the document is the outcome.
+    func startDocumentChat(title: String, markdown: String, onSave: @escaping (String) -> Void) {
+        documentBinding = ChatDocumentBinding(title: title, markdown: markdown, onSave: onSave)
+        chatStore.newConversation()
+        oneShotTurns.removeAll()
+        topAnchorMessageID = nil
+        panel = .chat
+        NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
+    }
+
+    /// Extract the latest assistant reply's fenced document block and write it
+    /// back to the bound source. No-op (with a hint) when there is no reply or
+    /// the reply has no fenced block.
+    func saveDocumentFromChat() {
+        guard var binding = documentBinding else { return }
+        guard let reply = chatStore.messages.last(where: { $0.role == .assistant && !$0.text.isEmpty })?.text else {
+            showError("还没有可保存的修改结果，先让 AI 给出修改。")
+            return
+        }
+        guard let doc = Self.extractFencedBlock(reply) else {
+            showError("AI 回复里没有找到文档代码块。请让它把完整全文放进 ```markdown 代码块。")
+            return
+        }
+        binding.markdown = doc
+        documentBinding = binding
+        binding.onSave(doc)
+    }
+
+    /// The content of the first fenced code block (variable-length fence aware),
+    /// used to pull the updated document out of the AI's reply.
+    private static func extractFencedBlock(_ text: String) -> String? {
+        let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
+        var i = 0
+        while i < lines.count {
+            let t = lines[i].trimmingCharacters(in: .whitespaces)
+            let ticks = t.prefix(while: { $0 == "`" }).count
+            if ticks >= 3 {
+                var code: [String] = []
+                i += 1
+                while i < lines.count {
+                    let c = lines[i].trimmingCharacters(in: .whitespaces)
+                    if !c.isEmpty, c.allSatisfy({ $0 == "`" }), c.count >= ticks { break }
+                    code.append(lines[i]); i += 1
+                }
+                let joined = code.joined(separator: "\n")
+                return joined.isEmpty ? nil : joined
+            }
+            i += 1
+        }
+        return nil
+    }
+
+    /// The per-first-turn prompt for the document-bound chat: gives the AI the
+    /// current document and asks it to apply the user's request and return the
+    /// full updated document in a fenced block (so it can be saved back).
+    private static func documentEditPrompt(doc: String, request: String) -> String {
+        """
+        你正在协助修改一份 Markdown 文档（目标文档：正文 + 结尾一段 ```mermaid 流程图）。请根据用户要求修改它，**保持未提及的内容不变**；需要时更新 mermaid 图（例如把已完成的步骤节点标记为完成、补充拆解步骤）。
+
+        把修改后的**完整文档全文**包在一个代码块里输出，方便一键保存：外层用四个反引号 ````markdown 起、四个反引号结束；若文档内部本身有连续四个及以上反引号，就把外层围栏再加长一个。代码块之外可用一两句话说明改了什么。
+
+        <当前文档>
+        \(doc)
+        </当前文档>
+
+        用户要求：\(request)
+        """
+    }
+
     /// The fixed prompt for the editor's AI "repair Markdown format" button. The
     /// result is wrapped in a fenced code block so the chat renders it with a
     /// one-click Copy button that yields the raw fixed source (the outer fence is
@@ -805,6 +895,7 @@ final class MainViewModel {
         panel = .none
         inputText = ""
         oneShotTurns.removeAll()
+        documentBinding = nil
         NotificationCenter.default.post(name: .houmaoExitChatWindow, object: nil)
     }
 
@@ -849,7 +940,11 @@ final class MainViewModel {
         // The bubble shows the user's question; `context` (e.g. the help doc) is
         // prepended only to what's sent to the LLM, not displayed.
         let sentQuestion: String
-        if let context {
+        if documentBinding != nil, chatStore.historyMessages.isEmpty {
+            // First turn of a document-bound chat: prime the LLM with the source
+            // document so it can return an updated full version to save back.
+            sentQuestion = Self.documentEditPrompt(doc: documentBinding!.markdown, request: question)
+        } else if let context {
             sentQuestion = "参考以下 houmao 使用文档回答用户问题，给出具体、可操作的步骤。\n\n<文档>\n\(context)\n</文档>\n\n用户问题：\(question)"
         } else {
             sentQuestion = question
