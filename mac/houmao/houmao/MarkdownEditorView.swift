@@ -61,15 +61,10 @@ struct MarkdownEditorView: View {
         .onAppear { editorFocused = true }
     }
 
-    // MARK: Header (title · search · save)
+    // MARK: Header (buttons left · search right; the window title carries the name)
 
     private var header: some View {
         HStack(spacing: 10) {
-            Text(model.title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(theme.textSecondary)
-            Spacer()
-            searchField
             // AI fix: send the whole document to the chat with a fixed
             // "repair Markdown format" prompt; the fixed text comes back as a
             // chat bubble for the user to copy back in.
@@ -95,6 +90,8 @@ struct MarkdownEditorView: View {
             .buttonStyle(.plain)
             .keyboardShortcut("s", modifiers: .command)
             .help("保存并关闭（关闭窗口同样保存）")
+            Spacer()
+            searchField
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

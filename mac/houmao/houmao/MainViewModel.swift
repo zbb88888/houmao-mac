@@ -315,7 +315,7 @@ final class MainViewModel {
             inputText = ""
             NotificationCenter.default.post(name: .houmaoEnterDoWindow, object: nil)
             return true
-        case "/goals":
+        case "/goal":
             inputText = ""
             NotificationCenter.default.post(name: .houmaoEnterGoalsWindow, object: nil)
             return true

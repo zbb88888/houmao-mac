@@ -661,7 +661,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             backing: .buffered,
             defer: false
         )
-        window.title = "goals"
+        window.title = "goal"
         window.titlebarAppearsTransparent = true
         window.appearance = NSAppearance(named: .aqua)
         window.collectionBehavior = [.fullScreenPrimary]

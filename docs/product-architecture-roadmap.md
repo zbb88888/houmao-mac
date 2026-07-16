@@ -2,7 +2,8 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
-> 最近更新：2026-07-16（**目标管理图面板 P1（§3.11，todo 升级版）**：目标=一份 md 文档（正文 + 结尾 ```mermaid 图）；`goals` 窗口列表只显示 title，双击详情=**只读渲染的 mermaid 图**（`MermaidView`=`WKWebView`+离线打包 `Resources/mermaid.min.js`），详情 AI 按钮→**文档绑定 chat**（`MainViewModel.ChatDocumentBinding`/`startDocumentChat`/`saveDocumentFromChat`，ChatView 顶部「编辑文档」横幅+「保存到原文档」）改文档并写回 `~/Documents/houmao/goals/<stem>.md`。核心理念：**人不碰内容，chat 是动作，文档落地是目的**。P2/P3（完成态细化/Drive 镜像/内联渲染）未做；WebView 渲染待真机验证。｜ 也含 §3.10 通用 Markdown 编辑器、§3.8 Do 条目 body、§3.9 GitHub 面板。）
+> 最近更新：2026-07-16（**面板窗口一致性约定（ADR-11）**：把窗口/header 规范固化——窗口标题=英文小写**单数**文字（chat/mail/pr/issue/todo/md/goal，非 glyph）；header=**图标按钮靠左（无文字）+ Spacer + 搜索框靠右**，不放描述性标题（窗口标题栏已含）；关闭走 `windowShouldClose→hideXxxWindow`，不加从不 post 的 exit 通知占位。据此：`goals`→`goal`/`/goal`；md 编辑器 与 goal 面板 header 改齐 mail 范式并去文字；清掉 Mail/PR/Issue/Do 的死 exit 通知+observer。**新增独立窗口一律照 ADR-11。**）
+> 2026-07-16（**目标管理图面板 P1（§3.11，todo 升级版）**：目标=一份 md 文档（正文 + 结尾 ```mermaid 图）；`goal` 窗口列表只显示 title，双击详情=**只读渲染的 mermaid 图**（`MermaidView`=`WKWebView`+离线打包 `Resources/mermaid.min.js`），详情 AI 按钮→**文档绑定 chat**（`MainViewModel.ChatDocumentBinding`/`startDocumentChat`/`saveDocumentFromChat`，ChatView 顶部「编辑文档」横幅+「保存到原文档」）改文档并写回 `~/Documents/houmao/goals/<stem>.md`。核心理念：**人不碰内容，chat 是动作，文档落地是目的**。P2/P3（完成态细化/Drive 镜像/内联渲染）未做；WebView 渲染待真机验证。｜ 也含 §3.10 通用 Markdown 编辑器、§3.8 Do 条目 body、§3.9 GitHub 面板。）
 > 2026-07-16（**通用 Markdown 编辑器（§3.10）**：houmao 唯一、通用、独立的编辑器窗口 `MarkdownEditorView` + `AppDelegate.presentMarkdownEditor(title:text:onSave:)`（单例窗口，`markdownEditorModel` 承载当前文档/保存去处）；聊天输入栏加 `square.and.pencil` 按钮唤起空白编辑器（保存→**按 md 标题命名**写 `~/Documents/houmao/notes/<标题>.md`）；**任何内容编辑优先复用它**。Do 面板 `+`/双击已有行改为唤起该编辑器（不再内联/无草稿），`DoViewModel.addItem(fullText:)`/`updateItem(_:fullText:)` 提交，标题空即删；保存图标或关闭窗口都=保存。｜ 也含 §3.8 Do 条目 body 与 §3.9 GitHub 面板。）
 > 2026-07-16（**Do 面板条目升级**：`DoItem` 加 `body`（可选 md 正文），行只显示标题、**双击整行**打开自适应高度的 md 全文编辑（首行=标题/其余=正文，失焦提交/Esc 取消/清空标题即删）；去掉「添加待办」输入框，新增改由**列表底部 `+` 按钮**新建空行并进入编辑——编辑入口仅「+新建 / 双击已有」两个。正文以**活动文件缩进两格续行**持久化；归档单行格式未动（完成暂丢正文，见 §3.8 / [todo.md](todo.md) §7）。详见 §3.8。）
 > 2026-07-15（新增 **Google Drive 同步（Phase 4.1/4.2 ✅）**：todo（Do 面板 `work.md`/`life.md`）每次本地保存后**防抖单向镜像**到 Drive `houmao/do` 文件夹；`Core/Cloud/GoogleDriveClient`（v3 REST）+ `DriveSyncService` + 抽出的 `GoogleOAuth` 共享连接 helper（Mail 复用）；Drive 用 `drive.file` 最小 scope，与 Gmail **共用一次 OAuth 同意/同一 refresh token**（`Scope.appDefault`）；设置页加「Google Drive 同步」连接入口。聊天气泡右键收藏留后续 4.3。｜ 也含 GitHub PR/Issue 面板（§3.9 / Phase 8）与 Do 待办面板（§3.8 / Phase 7）。维护方式：每次提交涉及架构/功能变更时同步本文件。
@@ -312,13 +313,13 @@ flowchart TB
 
 **定位（todo 的升级版）**：核心是 **LLM + 文档 + chat** 的工作流——**人不负责内容/格式，chat 是动作，"文档落地"是目的**（正因如此 md 编辑器才极简、无实时预览）。每个**目标 = 一份 Markdown 文档**：正文描述 + 结尾一段 ```mermaid 图（用方法论/流程可视化达成目标的步骤）。
 
-**页面**：聊天栏 `scope` 按钮或 `/goals` 唤起独立窗口（标题 `goals`）。列表**只显示目标 title**；双击 → 详情**只显示那张图**（只读渲染）；详情右上 **AI 按钮**（`sparkles`）→ 进**文档绑定 chat** 更新目标。"标记步骤完成" = 对 AI 说（如"第 2 步完成了"）→ AI 重写文档里的 mermaid 标记该节点 → 保存 → 重开详情看新图。**明确不做**（用户砍）：图上点节点交互、实时渲染。
+**页面**：聊天栏 `scope` 按钮或 `/goal` 唤起独立窗口（标题 `goal`）。列表**只显示目标 title**；双击 → 详情**只显示那张图**（只读渲染）；详情右上 **AI 按钮**（`sparkles`）→ 进**文档绑定 chat** 更新目标。"标记步骤完成" = 对 AI 说（如"第 2 步完成了"）→ AI 重写文档里的 mermaid 标记该节点 → 保存 → 重开详情看新图。**明确不做**（用户砍）：图上点节点交互、实时渲染。
 
 **Mermaid 渲染**：唯一现实路径 = `WKWebView` + **离线打包** mermaid.js（`Resources/mermaid.min.js`，v10.9.3 UMD，~3.2MB；xcodegen `sources:[houmao]` 自动打进 bundle 作资源）。`MermaidView`（`NSViewRepresentable`）**把 mermaid.js 内联进 HTML**（规避 `file://` 子资源加载），`<pre class="mermaid">` + `mermaid.run()`，`loadHTMLString(baseURL:nil)`。图类型选 **flowchart**（只读，也便于后续标"完成"样式）。**取舍**：不引 mermaid-cli（要 Node+无头 Chrome，比 gh/ghia 还重）；渲染耦合 WebKit 仅限目标详情，不动聊天/编辑器。
 
 **文档绑定 chat（复用聊天窗，本次新增的通用件）**：`MainViewModel.ChatDocumentBinding{title, markdown, onSave}` + `var documentBinding`。`startDocumentChat(title:markdown:onSave:)` 开新会话+绑定+唤起聊天窗；`executeChatTurn` 的**首个绑定轮**（history 为空）注入 `documentEditPrompt`（给 AI 当前全文 + 要求，产出 ````markdown 完整全文），后续靠多轮历史。ChatView 顶部 `docEditBanner`（"编辑文档：<title>" + **「保存到原文档」按钮**）；点保存 → `saveDocumentFromChat()` 抽最后 assistant 回复的第一个变长围栏块（`extractFencedBlock`）→ `onSave` 写回 `.md`；`exitChatMode` 清绑定。**与 md 编辑器 AI 修复的区别**：后者手动 copy 回；目标这里**绑定文档、显式按钮自动写回**。
 
-**抽象**：`Core/Goals/GoalDoc.swift`（`parseTitle`/`parseMermaid` 变长围栏，纯逻辑可单测）+ `GoalStore.swift`（一目标一 `<stem>.md`，`~/Documents/houmao/goals/`，按 title 排序）。`GoalsViewModel`（`@MainActor @Observable`，`reload`/`createGoal`/`save`/`deleteGoal`）；`GoalsView`（列表 title 行双击 → `GoalDetailView` 只读 `MermaidView` + 返回 + AI 按钮）。接线同 Do：`GlobalHotKeyManager .houmaoEnterGoalsWindow` + `houmaoApp` `makeGoalsWindow`（标题 `goals`）；`MainViewModel.handleToolCommand` 加 `/goals`。单测 `GoalStoreTests`（4 例；坑：中文 title `localizedCompare` 按拼音排序）。
+**抽象**：`Core/Goals/GoalDoc.swift`（`parseTitle`/`parseMermaid` 变长围栏，纯逻辑可单测）+ `GoalStore.swift`（一目标一 `<stem>.md`，`~/Documents/houmao/goals/`，按 title 排序）。`GoalsViewModel`（`@MainActor @Observable`，`reload`/`createGoal`/`save`/`deleteGoal`）；`GoalsView`（列表 title 行双击 → `GoalDetailView` 只读 `MermaidView` + 返回 + AI 按钮）。接线同 Do：`GlobalHotKeyManager .houmaoEnterGoalsWindow` + `houmaoApp` `makeGoalsWindow`（标题 `goal`）；`MainViewModel.handleToolCommand` 加 `/goal`。单测 `GoalStoreTests`（4 例；坑：中文 title `localizedCompare` 按拼音排序）。
 
 **分阶段**：**P1（本次）** = 面板骨架 + goals 目录 md 持久化 + 列表 title + 双击只读渲染 + 文档绑定 chat 写回。**P2/P3（未做）** = 完成态约定/交互细化、Drive 镜像（需新建"目标"子目录，现只本地）、编辑器/聊天内联渲染 mermaid、归档浏览。**注**：WebView 渲染尚未在真机 GUI 验证，只保证编译。
 
@@ -433,7 +434,7 @@ flowchart TB
 | 9.2 | `MermaidView`（`WKWebView` + 离线打包 `Resources/mermaid.min.js`，内联 HTML 渲染，只读） | ✅ P1（待真机验证渲染） |
 | 9.3 | `GoalsViewModel` + `GoalsView`（列表 title 双击 → 详情只读图 + AI 按钮） | ✅ P1 |
 | 9.4 | 文档绑定 chat：`ChatDocumentBinding`/`startDocumentChat`/`saveDocumentFromChat` + ChatView「编辑文档」横幅与「保存到原文档」 | ✅ P1 |
-| 9.5 | 接线：聊天窗 `scope` 按钮 + `.houmaoEnter/ExitGoalsWindow` + `makeGoalsWindow`（标题 `goals`）+ `/goals` | ✅ P1 |
+| 9.5 | 接线：聊天窗 `scope` 按钮 + `.houmaoEnterGoalsWindow` + `makeGoalsWindow`（标题 `goal`）+ `/goal` | ✅ P1 |
 | 9.6 | 完成态约定与交互细化 / Drive 镜像（"目标"子目录）/ 编辑器·聊天内联渲染 mermaid / 归档浏览 | ⬜ P2·P3 |
 
 ### 跨阶段：测试与质量
@@ -525,6 +526,16 @@ flowchart TB
   2. **渲染只有 WKWebView 一条现实路径**：无原生 Swift mermaid 渲染器；mermaid-cli 需 Node + 无头 Chrome（比 gh/ghia 的子进程还重，违背 ADR-1 精神）。故内置 mermaid.js（`Resources/mermaid.min.js`）+ WebKit，**仅限目标详情**，不污染聊天/编辑器渲染。
   3. **砍掉交互式图与实时预览**：需求「标记节点完成」不做图上点击（WebKit↔Swift 桥脆弱、`mindmap` 点击支持弱），改为**对话让 AI 重写 mermaid**——与"人不碰内容、chat 是动作、文档落地是目的"的产品理念一致（也是 md 编辑器极简、无预览的同一逻辑）。
 - **代价 / 边界**：引入 WebKit 依赖 + ~3.2MB 打包资源；完成态目前编码进 mermaid 文本、靠 AI 维护（P2 再定 `:::done` 之类约定）；Drive 镜像、内联渲染留 P3。**与 md 编辑器 AI 修复的区别**：后者手动 copy 回；目标绑定文档、显式按钮**自动写回**。
+
+### ADR-11：面板窗口一致性约定（新增独立窗口一律照此实现）
+
+- **背景**：面板窗口（chat / mail / pr / issue / todo / md / goal …）各自演化易漂移（曾出现 glyph 标题 vs 文字标题、header 文字标签冗余、从不 post 的 exit 通知占位）。本 ADR 固化统一约定，**新增任何独立窗口都必须照此实现**。
+- **约定**：
+  1. **窗口标题**：用**英文小写单数名词**（`chat`/`mail`/`pr`/`issue`/`todo`/`md`/`goal`）；`titleVisibility` 默认可见（文字标题，**不用 glyph 图标 / `NSTitlebarAccessoryViewController`**）+ `titlebarAppearsTransparent = true` + `appearance = NSAppearance(named: .aqua)`（浅色主题取黑字）。窗口标题栏即"页面名"的唯一出处。
+  2. **面板 header（内容区顶部工具条）**：布局 = `HStack { 图标按钮…（左） ; Spacer() ; 搜索框（右） }`。**功能按钮一律靠左**、**只用 SF Symbol 图标 + `.help` tooltip、不放文字标签**；**搜索框一律靠右**（无搜索则右侧留空）。**不在 header 放描述性标题文字**（窗口标题栏已含页面名）。参考实现：`MailView.header`。
+  3. **窗口壳**：统一 `styleMask [.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView]` + 上述 appearance；`isReleasedWhenClosed = false`；`delegate = self`；单例 `xxxWindow` 变量 + `makeXxxWindow()` 工厂 + `showXxxWindow()`/`hideXxxWindow()`。**关闭走 `windowShouldClose(_:) → hideXxxWindow()` 直接处理并 `return false`**；**不加 `.houmaoExitXxxWindow` 通知 + observer 占位**（从不 post = 死代码）。新窗口计入 `panelWindows`（级联摆放）。
+  4. **唤起**：聊天输入栏加一个 SF Symbol 按钮 post `.houmaoEnterXxxWindow` + `MainViewModel.handleToolCommand` 加一条**单数** `/xxx` 命令（两面共用同一路由）。
+- **代价 / 例外**：窗口标题栏是通用页面名（如 `md`/`goal`），不显示"具体文档/目标名"——drill-in 详情靠内容本身（编辑器正文、mermaid 图根节点）体现，如需强区分再单独把窗口标题设为文档名（暂不做）。`mailDetail`（从列表双击的子窗口）标题为中文「邮件详情」，非主面板、不在此约定内。
 
 ---
 

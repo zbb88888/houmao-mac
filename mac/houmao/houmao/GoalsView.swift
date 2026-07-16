@@ -26,8 +26,6 @@ struct GoalsView: View {
     private var list: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("目标").font(.system(size: 15, weight: .semibold))
-                Spacer()
                 Button {
                     detailID = viewModel.createGoal().id
                 } label: {
@@ -37,6 +35,7 @@ struct GoalsView: View {
                 }
                 .buttonStyle(.plain)
                 .help("新建目标")
+                Spacer()
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -101,10 +100,6 @@ private struct GoalDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .help("返回")
-                Text(goal.title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .lineLimit(1)
-                Spacer()
                 Button(action: startEdit) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 15, weight: .medium))
@@ -112,6 +107,7 @@ private struct GoalDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .help("AI 更新目标（进对话框改文档，改完保存到原文档）")
+                Spacer()
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
