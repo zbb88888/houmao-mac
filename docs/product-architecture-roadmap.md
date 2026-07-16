@@ -313,15 +313,15 @@ flowchart TB
 
 **定位（todo 的升级版）**：核心是 **LLM + 文档 + chat** 的工作流——**人不负责内容/格式，chat 是动作，"文档落地"是目的**（正因如此 md 编辑器才极简、无实时预览）。每个**目标 = 一份 Markdown 文档**：正文描述 + 结尾一段 ```mermaid 图（用方法论/流程可视化达成目标的步骤）。
 
-**页面**：聊天栏 `scope` 按钮或 `/goal` 唤起独立窗口（标题 `goal`）。列表**只显示目标 title**；双击 → 详情**只显示那张图**（只读渲染）；详情右上 **AI 按钮**（`sparkles`）→ 进**文档绑定 chat** 更新目标。"标记步骤完成" = 对 AI 说（如"第 2 步完成了"）→ AI 重写文档里的 mermaid 标记该节点 → 保存 → 重开详情看新图。**明确不做**（用户砍）：图上点节点交互、实时渲染。
+**页面（2026-07-16 起对齐 Todo 两级结构）**：聊天栏 `scope` 按钮或 `/goal` 唤起独立窗口（标题 `goal`）。顶部与 Todo 完全一致——**工作/生活 分段（复用 `DoTabKind`）+ 可编辑主题胶囊 + 管理 popover**，每个目标归属一个主题。列表**只显示目标 title**；双击 → 详情**只显示那张图**（只读渲染）；详情右上 **AI 按钮**（`sparkles`）→ 进**文档绑定 chat** 更新目标。"标记步骤完成" = 对 AI 说（如"第 2 步完成了"）→ AI 重写文档里的 mermaid 标记该节点 → 保存 → 重开详情看新图。**明确不做**（用户砍）：图上点节点交互、实时渲染。
 
 **Mermaid 渲染**：唯一现实路径 = `WKWebView` + **离线打包** mermaid.js（`Resources/mermaid.min.js`，v10.9.3 UMD，~3.2MB；xcodegen `sources:[houmao]` 自动打进 bundle 作资源）。`MermaidView`（`NSViewRepresentable`）**把 mermaid.js 内联进 HTML**（规避 `file://` 子资源加载），`<pre class="mermaid">` + `mermaid.run()`，`loadHTMLString(baseURL:nil)`。图类型选 **flowchart**（只读，也便于后续标"完成"样式）。**取舍**：不引 mermaid-cli（要 Node+无头 Chrome，比 gh/ghia 还重）；渲染耦合 WebKit 仅限目标详情，不动聊天/编辑器。
 
 **文档绑定 chat（复用聊天窗，本次新增的通用件）**：`MainViewModel.ChatDocumentBinding{title, markdown, onSave}` + `var documentBinding`。`startDocumentChat(title:markdown:onSave:)` 开新会话+绑定+唤起聊天窗；`executeChatTurn` 的**首个绑定轮**（history 为空）注入 `documentEditPrompt`（给 AI 当前全文 + 要求，产出 ````markdown 完整全文），后续靠多轮历史。ChatView 顶部 `docEditBanner`（"编辑文档：<title>" + **「保存到原文档」按钮**）；点保存 → `saveDocumentFromChat()` 抽最后 assistant 回复的第一个变长围栏块（`extractFencedBlock`）→ `onSave` 写回 `.md`；`exitChatMode` 清绑定。**与 md 编辑器 AI 修复的区别**：后者手动 copy 回；目标这里**绑定文档、显式按钮自动写回**。
 
-**抽象**：`Core/Goals/GoalDoc.swift`（`parseTitle`/`parseMermaid` 变长围栏，纯逻辑可单测）+ `GoalStore.swift`（一目标一 `<stem>.md`，`~/Documents/houmao/goals/`，按 title 排序）。`GoalsViewModel`（`@MainActor @Observable`，`reload`/`createGoal`/`save`/`deleteGoal`）；`GoalsView`（列表 title 行双击 → `GoalDetailView` 只读 `MermaidView` + 返回 + AI 按钮）。接线同 Do：`GlobalHotKeyManager .houmaoEnterGoalsWindow` + `houmaoApp` `makeGoalsWindow`（标题 `goal`）；`MainViewModel.handleToolCommand` 加 `/goal`。单测 `GoalStoreTests`（4 例；坑：中文 title `localizedCompare` 按拼音排序）。
+**抽象**：`Core/Goals/GoalDoc.swift`（`parseTitle`/`parseMermaid` 变长围栏，纯逻辑可单测；加 `GoalTopic`/`GoalTab` 两级模型）+ `GoalStore.swift`（**按 `~/Documents/houmao/goals/<工作|生活>/<主题>/<stem>.md` 子目录组织**，每区一个 `_topics.txt` manifest 记主题顺序、空主题也保活；`loadTopics`/`saveManifest`/`saveGoal`/`deleteGoal`/`renameTopicFolder`/`deleteTopicFolder`/`migrateFlatGoals` + 纯 `parseManifest`/`serializeManifest`）。`GoalsViewModel` 仿 `DoViewModel`（`tabs`/`selectedTab`/`selectedTopicID`，topic CRUD 后 `saveManifest`，goal 操作 `locate` 定位，`reload` 按 title 保选中）；`GoalsView` 仿 `DoView`（分段 Picker + 主题胶囊 topicBar + `GoalTopicManagerView`/`GoalTopicEditRow` 管理 popover + goalList + addRow；行 scope 图标 + title + xmark 删 + 双击进 `GoalDetailView` 只读 `MermaidView`）。接线同 Do：`GlobalHotKeyManager .houmaoEnterGoalsWindow` + `houmaoApp` `makeGoalsWindow`（标题 `goal`）；`MainViewModel.handleToolCommand` 加 `/goal`。旧扁平目标 init 时 `migrateFlatGoals(into:.work,topic:"目标")` 自动迁移。单测 `GoalStoreTests`（6 例：manifest round-trip/空主题保序/迁移/中文 title 拼音排序）。
 
-**分阶段**：**P1（本次）** = 面板骨架 + goals 目录 md 持久化 + 列表 title + 双击只读渲染 + 文档绑定 chat 写回。**P2/P3（未做）** = 完成态约定/交互细化、Drive 镜像（需新建"目标"子目录，现只本地）、编辑器/聊天内联渲染 mermaid、归档浏览。**注**：WebView 渲染尚未在真机 GUI 验证，只保证编译。
+**分阶段**：**P1（本次）** = 面板骨架 + goals 目录 md 持久化 + 列表 title + 双击只读渲染 + 文档绑定 chat 写回。**（2026-07-16 升级）** 顶部对齐 Todo 两级结构（工作/生活 分段 + 主题胶囊），**UI 对齐契约与存储格式已落到 [goal.md](goal.md)（防后续偏离）**。**P2/P3（本做）** = 完成态约定/交互细化、Drive 镜像（需新建"目标"子目录，现只本地）、编辑器/聊天内联渲染 mermaid、归档浏览。**注**：WebView 渲染尚未在真机 GUI 验证，只保证编译。
 
 ---
 
@@ -430,9 +430,9 @@ flowchart TB
 
 | # | 事项 | 状态 |
 |---|---|---|
-| 9.1 | Core：`GoalDoc`（`parseTitle`/`parseMermaid` 变长围栏）+ `GoalStore`（一目标一 `<stem>.md`）+ `GoalStoreTests` | ✅ P1 |
+| 9.1 | Core：`GoalDoc`（`parseTitle`/`parseMermaid` 变长围栏）+ `GoalStore` + `GoalStoreTests`（**2026-07-16 升级为工作/生活 分区 + 主题子目录 + `_topics.txt` manifest，对齐 Todo 两级结构**） | ✅ P1 |
 | 9.2 | `MermaidView`（`WKWebView` + 离线打包 `Resources/mermaid.min.js`，内联 HTML 渲染，只读） | ✅ P1（待真机验证渲染） |
-| 9.3 | `GoalsViewModel` + `GoalsView`（列表 title 双击 → 详情只读图 + AI 按钮） | ✅ P1 |
+| 9.3 | `GoalsViewModel` + `GoalsView`（**对齐 Todo：工作/生活 分段 + 可编辑主题胶囊 + 管理 popover**；列表 title 双击 → 详情只读图 + AI 按钮） | ✅ P1 |
 | 9.4 | 文档绑定 chat：`ChatDocumentBinding`/`startDocumentChat`/`saveDocumentFromChat` + ChatView「编辑文档」横幅与「保存到原文档」 | ✅ P1 |
 | 9.5 | 接线：聊天窗 `scope` 按钮 + `.houmaoEnterGoalsWindow` + `makeGoalsWindow`（标题 `goal`）+ `/goal` | ✅ P1 |
 | 9.6 | 完成态约定与交互细化 / Drive 镜像（"目标"子目录）/ 编辑器·聊天内联渲染 mermaid / 归档浏览 | ⬜ P2·P3 |

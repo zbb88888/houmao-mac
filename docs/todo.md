@@ -5,6 +5,8 @@
 > 状态：v2（2026-07-15）· 面向 `Do` 面板的本地持久化格式与语义定义
 > 代码落点：`Core/Do/`（模型 + Store）、`DoViewModel.swift`、`DoView.swift`
 > 云同步（本地文件如何镜像到 Google Drive）见 [google-drive.md](google-drive.md)
+>
+> **升级版**：`Goal` 面板是 Todo 的升级版（同一套两级结构，条目 = 目标文档），UI 对齐契约与存储格式见 [goal.md](goal.md)。改 Do 面板外壳时需同步看 goal.md 的对齐要求。
 
 ## 1. 目标与取舍
 

@@ -55,3 +55,27 @@ struct GoalDoc: Identifiable, Equatable, Sendable {
         return nil
     }
 }
+
+/// A user-editable group of goals within an area (工作/生活), shown as a topic
+/// pill — the goal-panel analogue of `DoTopic`. `id` is runtime-only; the topic's
+/// identity on disk is its folder name (`title`).
+struct GoalTopic: Identifiable, Equatable, Sendable {
+    let id: UUID
+    var title: String
+    var goals: [GoalDoc]
+
+    init(id: UUID = UUID(), title: String, goals: [GoalDoc] = []) {
+        self.id = id
+        self.title = title
+        self.goals = goals
+    }
+
+    var goalCount: Int { goals.count }
+}
+
+/// One fixed area with its ordered goal topics. Reuses `DoTabKind` (工作/生活) so
+/// the goal panel mirrors the Do panel's two-level organization.
+struct GoalTab: Sendable {
+    let kind: DoTabKind
+    var topics: [GoalTopic]
+}
