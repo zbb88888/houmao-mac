@@ -2,6 +2,8 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
+> 最近更新：2026-07-17（**命令面板（⌘K，统一搜索框，ADR-12 §5）**：rail 顶部放大镜/⌘K 唤起 `CommandPalette` 浮层，**钉在窗口正上方、不遮正文**；无前缀=搜当前页（已接 mail）、`/`=命令跳转（复用 `PanelDestination`）、`/h`=帮助。抽 `PanelDestination` 为 rail/面板共享导航表；`SidebarChrome` 加 `pageName`/`paletteSearch` 上下文。Phase 2：PR/Issue/Do/Goal 页内搜索 + 各页帮助文档待补。）
+> 最近更新：2026-07-17（**按钮 UI 与全局配色统一（ADR-11 §3/§4）**：**页面内**动作图标按钮（header/行内删除·完成）统一系统默认 **bordered** 样式，密集行内加 `.controlSize(.small)`、破坏性加 `.tint(theme.danger)`；**`PanelSidebar` 导航 rail 例外——无边框、仅图标**（VS Code 活动栏风格，`.plain`+textSecondary），与页面 bordered 按钮有意区分；native 控件（复选框/搜索清除/disclosure）保持原样。配色**全部走 Theme 语义色**——新增 `danger`(红)/`success`(绿)/`merged`(紫)/`textTertiary`，把 PR 色条·Issue 圆点·邮件分类色·聊天 ring·删除红·错误文案的硬编码字面量全换成 Theme。主题仍「绿豆沙」，rail 背景实色 `surface`。）
 > 最近更新：2026-07-17（**全局统一导航 rail（ADR-12）**：抽共享 `PanelSidebar`——每个面板窗口 leading 边常驻竖直图标 rail（chat/mail/pr/issue/do/goal/editor 七入口，post `.houmaoEnterXxxWindow`），`SidebarChrome` 包裹七窗 rootView，`SidebarState`(@Observable 单例+UserDefaults)控折叠、⌘\ 或顶部按钮切换。**否决了"全局悬浮呼吸式侧边栏/空白处呼出/四边任意"**（悬停隐藏作主导航=反模式+跨窗悬浮易抖动）。`ChatView` 输入栏原 6 个导航按钮已删，只留新对话/Stop。｜ 追加 **ADR-11 新增“可点击图标统一尺寸”约定**：所有 SF Symbol 图标按钮统一用系统默认字号（不加显式 `.font(size:)`），跨页/组件一致，基准=`MailView.header`；侧边栏图标据此对齐。）
 > 最近更新：2026-07-16（**面板窗口一致性约定（ADR-11）**：把窗口/header 规范固化——窗口标题=英文小写**单数**文字（chat/mail/pr/issue/todo/md/goal，非 glyph）；header=**图标按钮靠左（无文字）+ Spacer + 搜索框靠右**，不放描述性标题（窗口标题栏已含）；关闭走 `windowShouldClose→hideXxxWindow`，不加从不 post 的 exit 通知占位。据此：`goals`→`goal`/`/goal`；md 编辑器 与 goal 面板 header 改齐 mail 范式并去文字；清掉 Mail/PR/Issue/Do 的死 exit 通知+observer。**新增独立窗口一律照 ADR-11。**）
 > 2026-07-16（**目标管理图面板 P1（§3.11，todo 升级版）**：目标=一份 md 文档（正文 + 结尾 ```mermaid 图）；`goal` 窗口列表只显示 title，双击详情=**只读渲染的 mermaid 图**（`MermaidView`=`WKWebView`+离线打包 `Resources/mermaid.min.js`），详情 AI 按钮→**文档绑定 chat**（`MainViewModel.ChatDocumentBinding`/`startDocumentChat`/`saveDocumentFromChat`，ChatView 顶部「编辑文档」横幅+「保存到原文档」）改文档并写回 `~/Documents/houmao/goals/<stem>.md`。核心理念：**人不碰内容，chat 是动作，文档落地是目的**。P2/P3（完成态细化/Drive 镜像/内联渲染）未做；WebView 渲染待真机验证。｜ 也含 §3.10 通用 Markdown 编辑器、§3.8 Do 条目 body、§3.9 GitHub 面板。）
@@ -531,12 +533,17 @@ flowchart TB
 ### ADR-11：面板窗口一致性约定（新增独立窗口一律照此实现）
 
 - **背景**：面板窗口（chat / mail / pr / issue / todo / md / goal …）各自演化易漂移（曾出现 glyph 标题 vs 文字标题、header 文字标签冗余、从不 post 的 exit 通知占位）。本 ADR 固化统一约定，**新增任何独立窗口都必须照此实现**。
+- **方向语义分工（横向 = 页面动作 / 竖向 = 全局导航）**：**页面专属的功能操作一律走横向顶部工具栏（header）**；**跨页全局导航一律走左侧竖向 rail（`PanelSidebar`）**。二者刻意用**方向 + 样式**双重区分（横向 bordered 工具栏 vs 竖向无边框图标 rail，见 §3）。**优势**：① 一眼分清「我在哪 / 去哪个功能页」（导航）与「当前页能做什么」（动作）；② 避免两条视觉同构的竖排图标列并排造成的混淆；③ 契合主流范式（VS Code = 竖向活动栏 + 横向编辑器工具栏；Apple Mail = 顶部横向工具栏）；④ 横排 header 便于按使用频率从左到右排列、破坏性操作（删除红）更醒目。**统一的是样式与配色（§3/§4），不是方向**——**不要**把页面功能按钮改成竖排（会与 nav rail 打架、语义混淆）。
 - **约定**：
   1. **窗口标题**：用**英文小写单数名词**（`chat`/`mail`/`pr`/`issue`/`todo`/`md`/`goal`）；`titleVisibility` 默认可见（文字标题，**不用 glyph 图标 / `NSTitlebarAccessoryViewController`**）+ `titlebarAppearsTransparent = true` + `appearance = NSAppearance(named: .aqua)`（浅色主题取黑字）。窗口标题栏即"页面名"的唯一出处。
   2. **面板 header（内容区顶部工具条）**：布局 = `HStack { 图标按钮…（左） ; Spacer() ; 搜索框（右） }`。**功能按钮一律靠左**、**只用 SF Symbol 图标 + `.help` tooltip、不放文字标签**；**搜索框一律靠右**（无搜索则右侧留空）。**不在 header 放描述性标题文字**（窗口标题栏已含页面名）。参考实现：`MailView.header`。
-  3. **可点击图标统一尺寸（全 app 一致性原则）**：所有可点击的 SF Symbol 图标按钮（面板 header、`PanelSidebar` 导航 rail、行内操作等）**统一用系统默认字号**（`.body`，即 `Image(systemName:)` **不加显式 `.font(.system(size:))` 覆盖**），保证跨页/跨组件字形大小一致；点击区用**方形 frame**（如 rail 的 `32×32`）以对齐并保证命中面积。**不要**给个别图标硬编码 `size: 16` 之类的一次性字号（会与其它入口不齐）。基准=`MailView.header` 的图标。
-  4. **窗口壳**：统一 `styleMask [.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView]` + 上述 appearance；`isReleasedWhenClosed = false`；`delegate = self`；单例 `xxxWindow` 变量 + `makeXxxWindow()` 工厂 + `showXxxWindow()`/`hideXxxWindow()`。**关闭走 `windowShouldClose(_:) → hideXxxWindow()` 直接处理并 `return false`**；**不加 `.houmaoExitXxxWindow` 通知 + observer 占位**（从不 post = 死代码）。新窗口计入 `panelWindows`（级联摆放）。
-  5. **唤起**：入口按钮统一放在共享 **`PanelSidebar` 导航 rail**（见 ADR-12），post `.houmaoEnterXxxWindow`；同时 `MainViewModel.handleToolCommand` 加一条**单数** `/xxx` 命令（两面共用同一路由）。（旧做法「把按钮塞进聊天输入栏」已废，见 ADR-12。）
+  3. **可点击图标按钮样式（分两类）**：
+     - **页面内动作按钮**（面板 header、列表行内删除/完成等）**统一用系统默认 bordered 样式**（标准 push button：外边框 + 阴影 + 图标），不加 `.buttonStyle(.plain)`、不加显式字号；**密集行内**加 `.controlSize(.small)`，**破坏性**（删除）加 `.tint(theme.danger)`（主删除如 mail trash 用 `.borderedProminent`+danger）。基准=`MailView.header`。
+     - **`PanelSidebar` 导航 rail**是例外：故意用**无边框、仅图标**（`.buttonStyle(.plain)` + `foregroundStyle(theme.textSecondary)` + 统一方形命中区）的 VS Code 活动栏风格——导航栏与页面内动作按钮分属两种视觉语义，不强求同样式。
+     - **native 控件保持原样**：复选框（`.toggleStyle(.checkbox)`）、搜索框内嵌清除键、纯展开/收起 disclosure 箭头仍可用 `.plain`。
+  4. **配色统一走 Theme（不硬编码颜色字面量）**：所有颜色一律读 `AppTheme.current` 的语义角色，**禁止散落 `.red`/`.green`/`.orange`/`.purple`/`.gray` 等字面量**。语义色：`accent`(主色/激活)、`success`(open/正向,绿)、`warning`(注意/指派,橙)、`danger`(删除/错误/closed,红)、`merged`(已合并 PR,紫)、`textPrimary/Secondary/Tertiary`(主/次/淡文字与图标)、`surface/background/divider`。**新增语义状态先加到 `Theme` 再引用**（换肤一处改）。基准落地：PR 色条/Issue 圆点·色条/邮件分类色/聊天 ring/删除红/错误文案已全部走 Theme。
+  5. **窗口壳**：统一 `styleMask [.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView]` + 上述 appearance；`isReleasedWhenClosed = false`；`delegate = self`；单例 `xxxWindow` 变量 + `makeXxxWindow()` 工厂 + `showXxxWindow()`/`hideXxxWindow()`。**关闭走 `windowShouldClose(_:) → hideXxxWindow()` 直接处理并 `return false`**；**不加 `.houmaoExitXxxWindow` 通知 + observer 占位**（从不 post = 死代码）。新窗口计入 `panelWindows`（级联摆放）。
+  6. **唤起**：入口按钮统一放在共享 **`PanelSidebar` 导航 rail**（见 ADR-12），post `.houmaoEnterXxxWindow`；同时 `MainViewModel.handleToolCommand` 加一条**单数** `/xxx` 命令（两面共用同一路由）。（旧做法「把按钮塞进聊天输入栏」已废，见 ADR-12。）
 - **代价 / 例外**：窗口标题栏是通用页面名（如 `md`/`goal`），不显示"具体文档/目标名"——drill-in 详情靠内容本身（编辑器正文、mermaid 图根节点）体现，如需强区分再单独把窗口标题设为文档名（暂不做）。`mailDetail`（从列表双击的子窗口）标题为中文「邮件详情」，非主面板、不在此约定内。
 
 ### ADR-12：全局统一导航 rail（`PanelSidebar`）
@@ -546,8 +553,9 @@ flowchart TB
   1. 共享组件 `PanelSidebar.swift`：一条**常驻在每个面板窗口 leading 边的竖直 rail**，图标按钮（`bubble.left`对话 / `envelope`邮件 / `arrow.triangle.pull`PR / `smallcircle.filled.circle`Issue / `checklist`待办 / `scope`目标 / `square.and.pencil`编辑器），每个 post 对应 `.houmaoEnterXxxWindow`。只用 SF Symbol + `.help`，无文字。
   2. `SidebarChrome<Content>` 包裹器 = `HStack { PanelSidebar ; Divider ; content }`，**每个面板窗口的 rootView 都经它装配**（chat/mail/pr/issue/do/goal/editor 七窗），保证"所有功能页同一套按钮"。极简悬浮框（`MainView`）与 `mailDetail` 子窗**不加** rail。
   3. **折叠**：`SidebarState`（`@Observable` 单例，`UserDefaults` 持久化）存全局 `isExpanded`；顶部按钮或 **⌘\\** 切换，所有窗口的 rail 经 Observation 同步；折叠为窄条（仅留切换按钮）。
-  4. rail 顶部留 34pt 让开透明标题栏 / 红绿灯按钮。
-- **代价 / 边界**：占用 leading 30–52pt 宽度；未做"当前页高亮"（需知道哪个窗口是 key，MVP 从简）。`ChatView` 输入栏原来的 6 个导航按钮**已删**，只留"新对话"(`arrow.clockwise`)+"Stop"（聊天专属动作，非导航）。
+  4. rail 顶部内边距只需 `6pt`（`fullSizeContentView` 的标题栏安全区已让开红绿灯；6pt 用于让第一个 rail 图标与页面 header 首行对齐，别再叠 34pt 造成错位）。
+  5. **命令面板（⌘K，统一搜索框）**：rail 顶部一个放大镜按钮（或 **⌘K**）唤起共享 `CommandPalette`——一个**钉在窗口正上方**（`padding(.top, 64)`、无全屏遮罩、点外部关闭）的浮层，**不遮正文**。三模式按前缀分流：无前缀=**搜索当前页**（经 `SidebarChrome(paletteSearch:)` 注入的 `@MainActor` 闭包 live 过滤，目前只接了 mail→`searchFilter`）；`/`=**命令/跳转**（复用 `PanelDestination.all`，与 rail 同一套目的地，回车/点选跳窗）；`/h`=**帮助**。`PanelDestination` 抽为 rail 与面板共享的导航表（symbol/title/keywords/notification）。`SidebarChrome` 现持 `showPalette` 状态 + `pageName`/`paletteSearch` 上下文（按窗口显式传，非全局单例，天然对应 key 窗口）。
+- **代价 / 边界**：占用 leading 40–48pt 宽度；未做"当前页高亮"（需知道哪个窗口是 key，MVP 从简）。`ChatView` 输入栏原来的 6 个导航按钮**已删**，只留"新对话"(`arrow.clockwise`)+"Stop"（聊天专属动作，非导航）。**命令面板 Phase 2（未做）**：PR/Issue/Do/Goal 的**页内搜索**（现无 filter）与各页**帮助文档**（现只 mail/editor 有）需逐页补，补齐后接入 `paletteSearch`/`helpLines`；是否把各页 header 里现有搜索框收敛进面板（渐进迁移）待定。
 
 ---
 

@@ -72,10 +72,7 @@ struct MarkdownEditorView: View {
                 AppDelegate.shared?.mainViewModel.fixMarkdownForChat(model.text)
             } label: {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(theme.textSecondary)
             }
-            .buttonStyle(.plain)
             .help("AI 修复 Markdown 格式（结果发到聊天气泡，复制回来）")
             // Save-and-close: closing the window also saves, so this is the
             // explicit affordance for "done". Routed through a notification so
@@ -84,10 +81,7 @@ struct MarkdownEditorView: View {
                 NotificationCenter.default.post(name: .houmaoCommitEditor, object: nil)
             } label: {
                 Image(systemName: "square.and.arrow.down")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(theme.textSecondary)
             }
-            .buttonStyle(.plain)
             .keyboardShortcut("s", modifiers: .command)
             .help("保存并关闭（关闭窗口同样保存）")
             Spacer()
@@ -113,7 +107,7 @@ struct MarkdownEditorView: View {
                 Button { query = "" } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 11))
-                        .foregroundStyle(theme.textSecondary.opacity(0.6))
+                        .foregroundStyle(theme.textTertiary)
                 }
                 .buttonStyle(.plain)
             }

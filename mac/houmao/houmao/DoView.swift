@@ -53,11 +53,7 @@ struct DoView: View {
                 showingTopicManager = true
             } label: {
                 Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(theme.textSecondary)
-                    .padding(6)
             }
-            .buttonStyle(.plain)
             .help("管理主题")
             .popover(isPresented: $showingTopicManager, arrowEdge: .bottom) {
                 TopicManagerView().environment(viewModel)
@@ -159,10 +155,9 @@ struct DoView: View {
                 viewModel.complete(item)
             } label: {
                 Image(systemName: "circle")
-                    .font(.system(size: 16))
-                    .foregroundStyle(theme.textSecondary)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
             .help("标记完成（归档）")
 
             Text(item.text)
@@ -174,10 +169,10 @@ struct DoView: View {
                 viewModel.deleteItem(item)
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(theme.textSecondary.opacity(0.6))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(theme.danger)
             .help("删除")
         }
         .contentShape(Rectangle())

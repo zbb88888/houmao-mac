@@ -40,9 +40,9 @@ struct IssueView: View {
     @ViewBuilder private var list: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                section(title: "指派给我", dot: .orange, issues: viewModel.assignedIssues,
+                section(title: "指派给我", dot: theme.warning, issues: viewModel.assignedIssues,
                         empty: "没有指派给我的 Issue")
-                section(title: "我创建的", dot: .green, issues: viewModel.authoredIssues,
+                section(title: "我创建的", dot: theme.success, issues: viewModel.authoredIssues,
                         empty: "没有我创建的 Issue")
             }
             .padding(16)
@@ -115,7 +115,7 @@ struct IssueView: View {
 
     @ViewBuilder private func issueRow(_ issue: IssueItem) -> some View {
         HStack(spacing: 0) {
-            Rectangle().fill(Color.green).frame(width: 3)
+            Rectangle().fill(theme.success).frame(width: 3)
             HStack(spacing: 8) {
                 Text(issue.title.isEmpty ? "(无标题)" : issue.title)
                     .font(.system(size: 13))

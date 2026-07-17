@@ -288,7 +288,7 @@ struct MainView: View {
                 historyViewModel.clearAll()
             }
             .font(.system(size: 12))
-            .foregroundColor(.red.opacity(0.8))
+            .foregroundColor(AppTheme.current.danger.opacity(0.8))
             .padding(.top, 4)
         }
     }

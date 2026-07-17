@@ -30,7 +30,7 @@
 - **实现**：共享 `PanelSidebar.swift`（`PanelSidebar` + `SidebarChrome<Content>` 包裹器 + `SidebarState`）；每个面板窗口 rootView 经 `SidebarChrome { … }` 装配。
 - **取舍**：常驻而非悬停呼出——主导航悬停隐藏是反模式（可发现性/误触/键盘可达性差）；否决了"全局悬浮呼吸式 + 空白处呼出 + 四边任意"（详见 roadmap ADR-12）。
 - **聊天窗输入栏不再放导航按钮**：原 6 个（邮件/PR/Issue/待办/编辑器/目标）已移入 rail，输入栏只留「新对话」与生成时的「Stop」。
-- **图标尺寸**：rail 图标与面板 header 图标**同一尺寸**（系统默认字号，不加显式 `.font(size:)`），遵循 ADR-11「可点击图标统一尺寸」约定；点击区 `32×32` 方形对齐。
+- **图标样式**：rail 是**无边框、仅图标**的导航条（VS Code 活动栏风格，`.plain` + `textSecondary` + 统一方形命中区），**与页面内的 bordered 动作按钮有意区分**（见 ADR-11 §3）。
 
 ---
 

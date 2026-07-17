@@ -313,7 +313,7 @@ struct SettingsView: View {
                     if !providerError.isEmpty {
                         Text(providerError)
                             .font(.system(size: 11))
-                            .foregroundColor(.red)
+                            .foregroundColor(AppTheme.current.danger)
                     }
                     HStack {
                         Button("Save") { saveProvider() }

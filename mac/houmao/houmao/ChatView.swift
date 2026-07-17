@@ -305,9 +305,9 @@ struct ChatView: View {
 
     private func ringColor(_ fraction: Double) -> Color {
         switch fraction {
-        case ..<0.7: return .green
-        case ..<0.9: return .orange
-        default: return .red
+        case ..<0.7: return theme.success
+        case ..<0.9: return theme.warning
+        default: return theme.danger
         }
     }
 

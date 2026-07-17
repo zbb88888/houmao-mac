@@ -91,7 +91,7 @@ struct PRView: View {
     @ViewBuilder private var openSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Circle().fill(Color.green).frame(width: 9, height: 9)
+                Circle().fill(theme.success).frame(width: 9, height: 9)
                 Text("进行中").font(.system(size: 14, weight: .semibold))
                 Text("\(viewModel.openPRs.count)")
                     .font(.caption).foregroundStyle(theme.textSecondary)
@@ -120,7 +120,7 @@ struct PRView: View {
                 HStack(spacing: 8) {
                     Image(systemName: closedExpanded ? "chevron.down" : "chevron.right")
                         .font(.caption).foregroundStyle(theme.textSecondary)
-                    Circle().fill(Color.purple).frame(width: 9, height: 9)
+                    Circle().fill(theme.merged).frame(width: 9, height: 9)
                     Text("已关闭").font(.system(size: 14, weight: .semibold))
                     Text("\(viewModel.closedPRs.count)")
                         .font(.caption).foregroundStyle(theme.textSecondary)
@@ -178,9 +178,9 @@ struct PRView: View {
 
     private func stateColor(_ pr: PullRequestItem) -> Color {
         switch pr.state {
-        case "open": return pr.isDraftPR ? .gray : .green
-        case "merged": return .purple
-        default: return .red // closed without merging
+        case "open": return pr.isDraftPR ? theme.textTertiary : theme.success
+        case "merged": return theme.merged
+        default: return theme.danger // closed without merging
         }
     }
 

@@ -65,11 +65,7 @@ struct GoalsView: View {
                 showingTopicManager = true
             } label: {
                 Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(theme.textSecondary)
-                    .padding(6)
             }
-            .buttonStyle(.plain)
             .help("管理主题")
             .popover(isPresented: $showingTopicManager, arrowEdge: .bottom) {
                 GoalTopicManagerView().environment(viewModel)
@@ -170,10 +166,10 @@ struct GoalsView: View {
                 viewModel.deleteGoal(goal.id)
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(theme.textSecondary.opacity(0.6))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(theme.danger)
             .help("删除")
         }
         .padding(.vertical, 8)
@@ -321,17 +317,11 @@ private struct GoalDetailView: View {
             HStack(spacing: 10) {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(theme.textSecondary)
                 }
-                .buttonStyle(.plain)
                 .help("返回")
                 Button(action: startEdit) {
                     Image(systemName: "sparkles")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(theme.textSecondary)
                 }
-                .buttonStyle(.plain)
                 .help("AI 更新目标（进对话框改文档，改完保存到原文档）")
                 Spacer()
             }

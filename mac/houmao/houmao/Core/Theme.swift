@@ -11,10 +11,14 @@ struct Theme {
     let surface: Color         // cards / assistant bubbles / code blocks
     let textPrimary: Color
     let textSecondary: Color
+    let textTertiary: Color    // faded/secondary icons (e.g. inline delete)
     let divider: Color
     let accent: Color          // user bubble, buttons, highlights
     let onAccent: Color        // text / icons drawn on `accent`
-    let warning: Color
+    let warning: Color         // attention (issue assigned, mid-level usage)
+    let danger: Color          // destructive / error / closed state (red)
+    let success: Color         // open / active / positive state (green)
+    let merged: Color          // merged PR state (purple)
 }
 
 extension Theme {
@@ -25,10 +29,14 @@ extension Theme {
             surface: Color(hex: 0xB6DFBC),
             textPrimary: Color(hex: 0x2F3A30),
             textSecondary: Color(hex: 0x5F6E62),
+            textTertiary: Color(hex: 0x8A968C),
             divider: Color(hex: 0xA8D4AE),
             accent: Color(hex: 0x3E8E5A),
             onAccent: .white,
-            warning: Color(hex: 0xC98A5E)
+            warning: Color(hex: 0xC98A5E),
+            danger: Color(hex: 0xC0574E),
+            success: Color(hex: 0x5AA86E),
+            merged: Color(hex: 0x8A6DB0)
         )
     }
 }

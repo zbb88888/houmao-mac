@@ -46,7 +46,7 @@ struct MailView: View {
                 Image(systemName: "trash")
             }
             .buttonStyle(.borderedProminent)
-            .tint(.red)
+            .tint(theme.danger)
             .help("删除（移入废纸篓）")
             .accessibilityLabel("删除，移入废纸篓")
             .disabled(viewModel.selectedCount == 0 || viewModel.isMutating)
@@ -449,8 +449,8 @@ struct MailView: View {
     /// everything else uses the brand accent.
     private func primaryColor(_ primary: String) -> Color {
         switch primary {
-        case "PR": return .green
-        case "Issue": return .orange
+        case "PR": return theme.success
+        case "Issue": return theme.warning
         case MailGrouping.unclassified: return theme.textSecondary
         default: return theme.accent
         }

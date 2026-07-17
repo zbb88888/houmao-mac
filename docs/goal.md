@@ -23,7 +23,7 @@
 | 详情列表容器 | `ScrollView { LazyVStack(spacing: 6) { …rows; addRow }.padding(16) }` |
 | 列表行外观 | `padding(.vertical, 8).padding(.horizontal, 12)` + `theme.surface.opacity(0.5)` 圆角 8 背景 + `theme.divider` 描边；`contextMenu`（打开/删除） |
 | 底部新增行 | `addRow` = `plus.circle`（`textSecondary`），列表最末一行；**唯一的新增入口**（不放顶部「+」按钮栏） |
-| 行内删除 | 行右侧 `xmark`（`textSecondary.opacity(0.6)`，size 11 medium） |
+| 行内删除 | 行右侧 `xmark`（`.bordered` + `.controlSize(.small)` + `.tint(theme.danger)`，见 ADR-11 按钮约定） |
 | 空主题态 | `currentTopic == nil` 时居中提示 + 「管理主题」按钮 |
 | 选中态 | 每领域各记一个当前主题（master-detail，一次只显一个主题的详情） |
 
