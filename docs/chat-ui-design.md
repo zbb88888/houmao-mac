@@ -1,5 +1,6 @@
 # 猴毛 聊天界面 UI / 交互设计
 
+> 最近更新：2026-07-17（新增**全局统一导航 rail `PanelSidebar`**：所有标准面板窗口 leading 边常驻竖直图标入口，⌘\\ 折叠；聊天窗输入栏原 6 个导航按钮已移入 rail。见 §1.1 与 roadmap ADR-12）
 > 最近更新：2026-07-07（① 标准聊天窗口**隐藏标题栏文字**（`titleVisibility = .hidden`、`title = ""`），并**移除标题栏状态/进度链**（`postChatStatus`/`idleStatus`/`.houmaoChatStatusChanged`）——`N/6` 阶段进度、"生成回复中…"、会话标题不再显示；② 邮件列表选中后点 AI：把聊天窗口带到前台，并将本次分析的**用户气泡（"分析邮件：…"标题）顶到视口顶部**，历史滚出可见区、下方留给回复，见 §8、§11.4）
 > 单一事实来源：本文件描述 `/chat` 聊天界面的 UI 规范与默认交互；架构进度见 [product-architecture-roadmap.md](product-architecture-roadmap.md)。
 
@@ -17,8 +18,19 @@
 | 尺寸 | 跟随内容（`preferredContentSize`），不可拖拽缩放 | 用户可拖拽边缘缩放、可进入 macOS 原生全屏 |
 | 上下文 | 无（每次独立） | 多轮历史（`ChatStore`，JSON 持久化，可跨会话） |
 | 装饰 | 毛玻璃 + 圆角 + 投影 + 40pt 外边距 | 标准窗口外观（红绿灯按钮；**标题栏文字留空**，不做状态线） |
+| 功能导航 | 无（一次性问答） | leading 边**常驻 `PanelSidebar` 导航 rail**（见 §1.1） |
 
 **设计意图**：极简框服务"打断式快问快答"；当用户连续多次使用（说明进入了"持续对话"心智），系统自动把它升级成一个真正适合办公的标准聊天窗口，承载多轮上下文，并允许缩放/全屏。
+
+### 1.1 全局统一导航 rail（`PanelSidebar`，ADR-12）
+
+- 所有**标准面板窗口**（chat / mail / pr / issue / do / goal / md 编辑器）在 leading 边**常驻一条竖直图标 rail**，是跨页统一的功能入口；极简悬浮框与 mailDetail 子窗**不含** rail。
+- rail 按钮（只图标 + `.help`，无文字）：`bubble.left` 对话 / `envelope` 邮件 / `arrow.triangle.pull` PR / `smallcircle.filled.circle` Issue / `checklist` 待办 / `scope` 目标 / `square.and.pencil` 编辑器；各 post `.houmaoEnterXxxWindow`。
+- **折叠**：`SidebarState`（`@Observable` 单例 + `UserDefaults` 持久化）存全局 `isExpanded`，顶部按钮或 **⌘\\** 切换，所有窗口同步；折叠为仅留切换按钮的窄条。
+- **实现**：共享 `PanelSidebar.swift`（`PanelSidebar` + `SidebarChrome<Content>` 包裹器 + `SidebarState`）；每个面板窗口 rootView 经 `SidebarChrome { … }` 装配。
+- **取舍**：常驻而非悬停呼出——主导航悬停隐藏是反模式（可发现性/误触/键盘可达性差）；否决了"全局悬浮呼吸式 + 空白处呼出 + 四边任意"（详见 roadmap ADR-12）。
+- **聊天窗输入栏不再放导航按钮**：原 6 个（邮件/PR/Issue/待办/编辑器/目标）已移入 rail，输入栏只留「新对话」与生成时的「Stop」。
+- **图标尺寸**：rail 图标与面板 header 图标**同一尺寸**（系统默认字号，不加显式 `.font(size:)`），遵循 ADR-11「可点击图标统一尺寸」约定；点击区 `32×32` 方形对齐。
 
 ---
 

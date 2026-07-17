@@ -239,7 +239,8 @@ struct ChatView: View {
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
             // Right: stop (only while generating) + new-conversation. There is no
-            // submit button — Enter sends (⇧⏎ inserts a newline).
+            // submit button — Enter sends (⇧⏎ inserts a newline). Feature
+            // navigation lives in the shared `PanelSidebar` rail, not here.
             HStack(spacing: 10) {
                 if viewModel.isLoading {
                     Button(action: { viewModel.cancelRequest() }) {
@@ -250,60 +251,6 @@ struct ChatView: View {
                     .buttonStyle(.plain)
                     .help("Stop")
                 }
-                Button(action: {
-                    NotificationCenter.default.post(name: .houmaoEnterMailWindow, object: nil)
-                }) {
-                    Image(systemName: "envelope")
-                        .font(.system(size: 16))
-                        .foregroundColor(theme.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .help("邮件")
-                Button(action: {
-                    NotificationCenter.default.post(name: .houmaoEnterPRWindow, object: nil)
-                }) {
-                    Image(systemName: "arrow.triangle.pull")
-                        .font(.system(size: 16))
-                        .foregroundColor(theme.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .help("PR")
-                Button(action: {
-                    NotificationCenter.default.post(name: .houmaoEnterIssueWindow, object: nil)
-                }) {
-                    Image(systemName: "smallcircle.filled.circle")
-                        .font(.system(size: 16))
-                        .foregroundColor(theme.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .help("Issue")
-                Button(action: {
-                    NotificationCenter.default.post(name: .houmaoEnterDoWindow, object: nil)
-                }) {
-                    Image(systemName: "checklist")
-                        .font(.system(size: 16))
-                        .foregroundColor(theme.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .help("Do 待办")
-                Button(action: {
-                    NotificationCenter.default.post(name: .houmaoEnterEditorWindow, object: nil)
-                }) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 16))
-                        .foregroundColor(theme.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .help("Markdown 编辑器")
-                Button(action: {
-                    NotificationCenter.default.post(name: .houmaoEnterGoalsWindow, object: nil)
-                }) {
-                    Image(systemName: "scope")
-                        .font(.system(size: 16))
-                        .foregroundColor(theme.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .help("目标管理图")
                 Button(action: { viewModel.renewChat() }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 16))

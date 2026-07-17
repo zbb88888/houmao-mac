@@ -267,7 +267,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         // A standard resizable window must NOT use preferredContentSize sizing,
         // otherwise it would collapse to the content's intrinsic size and fight
         // the user's manual resize / full-screen.
-        let controller = NSHostingController(rootView: chatView)
+        let controller = NSHostingController(rootView: SidebarChrome { chatView })
         window.contentViewController = controller
         return window
     }
@@ -401,7 +401,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.delegate = self
 
         let mailView = MailView().environment(mailViewModel)
-        window.contentViewController = NSHostingController(rootView: mailView)
+        window.contentViewController = NSHostingController(rootView: SidebarChrome { mailView })
         return window
     }
 
@@ -531,7 +531,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.delegate = self
 
         let prView = PRView().environment(prViewModel)
-        window.contentViewController = NSHostingController(rootView: prView)
+        window.contentViewController = NSHostingController(rootView: SidebarChrome { prView })
         return window
     }
 
@@ -579,7 +579,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.delegate = self
 
         let issueView = IssueView().environment(issueViewModel)
-        window.contentViewController = NSHostingController(rootView: issueView)
+        window.contentViewController = NSHostingController(rootView: SidebarChrome { issueView })
         return window
     }
 
@@ -626,7 +626,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.delegate = self
 
         let doView = DoView().environment(doViewModel)
-        window.contentViewController = NSHostingController(rootView: doView)
+        window.contentViewController = NSHostingController(rootView: SidebarChrome { doView })
         return window
     }
 
@@ -670,7 +670,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.delegate = self
 
         let goalsView = GoalsView().environment(goalsViewModel)
-        window.contentViewController = NSHostingController(rootView: goalsView)
+        window.contentViewController = NSHostingController(rootView: SidebarChrome { goalsView })
         return window
     }
 
@@ -756,7 +756,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
 
         let window = markdownEditorWindow ?? makeEditorWindow()
         markdownEditorWindow = window
-        window.contentViewController = NSHostingController(rootView: MarkdownEditorView(model: model))
+        window.contentViewController = NSHostingController(rootView: SidebarChrome { MarkdownEditorView(model: model) })
         placePanelOnFirstShow(window)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
