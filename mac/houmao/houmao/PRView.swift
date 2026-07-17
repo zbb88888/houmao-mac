@@ -93,17 +93,17 @@ struct PRView: View {
             HStack(spacing: 8) {
                 Circle().fill(theme.success).frame(width: 9, height: 9)
                 Text("进行中").font(.system(size: 14, weight: .semibold))
-                Text("\(viewModel.openPRs.count)")
+                Text("\(viewModel.displayedOpenPRs.count)")
                     .font(.caption).foregroundStyle(theme.textSecondary)
                 Spacer()
             }
 
-            if viewModel.openPRs.isEmpty {
+            if viewModel.displayedOpenPRs.isEmpty {
                 Text("没有进行中的 PR")
                     .font(.callout).foregroundStyle(theme.textSecondary)
                     .padding(.leading, 16)
             } else {
-                ForEach(groupByRepo(viewModel.openPRs), id: \.repo) { group in
+                ForEach(groupByRepo(viewModel.displayedOpenPRs), id: \.repo) { group in
                     repoSubgroup(group.repo, prs: group.prs)
                 }
             }
@@ -122,7 +122,7 @@ struct PRView: View {
                         .font(.caption).foregroundStyle(theme.textSecondary)
                     Circle().fill(theme.merged).frame(width: 9, height: 9)
                     Text("已关闭").font(.system(size: 14, weight: .semibold))
-                    Text("\(viewModel.closedPRs.count)")
+                    Text("\(viewModel.displayedClosedPRs.count)")
                         .font(.caption).foregroundStyle(theme.textSecondary)
                     Spacer()
                 }
@@ -130,13 +130,13 @@ struct PRView: View {
             }
             .buttonStyle(.plain)
 
-            if closedExpanded {
-                if viewModel.closedPRs.isEmpty {
+            if closedExpanded || !viewModel.searchFilter.isEmpty {
+                if viewModel.displayedClosedPRs.isEmpty {
                     Text("没有已关闭的 PR")
                         .font(.callout).foregroundStyle(theme.textSecondary)
                         .padding(.leading, 16)
                 } else {
-                    ForEach(groupByRepo(viewModel.closedPRs), id: \.repo) { group in
+                    ForEach(groupByRepo(viewModel.displayedClosedPRs), id: \.repo) { group in
                         repoSubgroup(group.repo, prs: group.prs)
                     }
                 }

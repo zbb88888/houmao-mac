@@ -40,9 +40,9 @@ struct IssueView: View {
     @ViewBuilder private var list: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                section(title: "指派给我", dot: theme.warning, issues: viewModel.assignedIssues,
+                section(title: "指派给我", dot: theme.warning, issues: viewModel.displayedAssigned,
                         empty: "没有指派给我的 Issue")
-                section(title: "我创建的", dot: theme.success, issues: viewModel.authoredIssues,
+                section(title: "我创建的", dot: theme.success, issues: viewModel.displayedAuthored,
                         empty: "没有我创建的 Issue")
             }
             .padding(16)

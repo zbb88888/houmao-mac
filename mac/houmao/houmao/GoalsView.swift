@@ -121,7 +121,7 @@ struct GoalsView: View {
     }
 
     @ViewBuilder private var goalList: some View {
-        let goals = viewModel.currentTopic?.goals ?? []
+        let goals = viewModel.displayedGoals
         ScrollView {
             LazyVStack(spacing: 6) {
                 ForEach(goals) { goal in

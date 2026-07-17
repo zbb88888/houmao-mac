@@ -24,6 +24,20 @@ final class PRViewModel {
     /// closed first.
     var closedPRs: [PullRequestItem] = []
 
+    /// Free-text filter set by the command palette (matches title / repo).
+    var searchFilter: String = ""
+
+    var displayedOpenPRs: [PullRequestItem] { Self.filter(openPRs, by: searchFilter) }
+    var displayedClosedPRs: [PullRequestItem] { Self.filter(closedPRs, by: searchFilter) }
+
+    private static func filter(_ items: [PullRequestItem], by query: String) -> [PullRequestItem] {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return items }
+        return items.filter {
+            $0.title.lowercased().contains(q) || $0.repository.nameWithOwner.lowercased().contains(q)
+        }
+    }
+
     /// How far back to include closed PRs.
     private let closedWindowMonths = 3
 

@@ -50,6 +50,17 @@ final class DoViewModel {
         currentTopics.first { $0.id == currentTopicID }
     }
 
+    /// Free-text filter set by the command palette (matches item title / body).
+    var searchFilter: String = ""
+
+    /// The current topic's items narrowed by `searchFilter`.
+    var displayedItems: [DoItem] {
+        let items = currentTopic?.items ?? []
+        let q = searchFilter.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return items }
+        return items.filter { $0.text.lowercased().contains(q) || $0.body.lowercased().contains(q) }
+    }
+
     func selectTopic(_ id: UUID) {
         selectedTopicID[selectedTab] = id
     }

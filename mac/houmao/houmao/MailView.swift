@@ -11,13 +11,6 @@ struct MailView: View {
     @State private var expanded: Set<UUID> = []
     @State private var showTagEditor = false
     @State private var tagDraft = ""
-    @State private var showHelp = false
-    /// The search box text, decoupled from `viewModel.searchFilter` so typing a
-    /// command like `/h` doesn't leak into the local filter.
-    @State private var searchText = ""
-    /// Whether the search box is revealed (tap the magnifier to toggle).
-    @State private var showSearch = false
-    @FocusState private var searchFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -89,113 +82,9 @@ struct MailView: View {
             .disabled(isBusy)
 
             Spacer()
-
-            if showSearch {
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.caption)
-                        .foregroundStyle(theme.textSecondary)
-                    TextField("在已加载邮件中搜索 · 输入 /h 查看帮助", text: $searchText)
-                        .textFieldStyle(.plain)
-                        .foregroundStyle(theme.textPrimary)
-                        .focused($searchFocused)
-                        .onChange(of: searchText) { _, newValue in applySearchFilter(newValue) }
-                        .onSubmit { runSearch() }
-                    Button { closeSearch() } label: {
-                        Image(systemName: "xmark.circle.fill")
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(theme.textSecondary)
-                    .help("关闭搜索")
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(theme.surface, in: RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(theme.divider))
-                .frame(maxWidth: 340)
-                .popover(isPresented: $showHelp, arrowEdge: .bottom) { helpPopover }
-            } else {
-                Button { openSearch() } label: {
-                    Image(systemName: "magnifyingglass")
-                }
-                .buttonStyle(.plain)
-                .help("搜索已加载邮件（输入 /h 查看帮助）")
-                .accessibilityLabel("搜索")
-                .popover(isPresented: $showHelp, arrowEdge: .bottom) { helpPopover }
-            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-    }
-
-    /// Reveal the search box, prefilled with `/h` and focused so the user can
-    /// press Return for help or type over it to filter.
-    private func openSearch() {
-        searchText = "/h"
-        viewModel.searchFilter = ""
-        showSearch = true
-        searchFocused = true
-    }
-
-    private func closeSearch() {
-        showSearch = false
-        searchText = ""
-        viewModel.searchFilter = ""
-    }
-
-    /// Live-filter the already-loaded mail. Leading `/` marks a command (e.g.
-    /// `/h`), not a filter, so the full list stays visible until it's submitted.
-    private func applySearchFilter(_ text: String) {
-        viewModel.searchFilter = text.hasPrefix("/") ? "" : text
-    }
-
-    /// Handle Return: `/h` (or `/help`, `/?`) opens the usage help; anything else
-    /// is committed as the local filter.
-    private func runSearch() {
-        let trimmed = searchText.trimmingCharacters(in: .whitespaces)
-        if trimmed == "/h" || trimmed == "/help" || trimmed == "/?" {
-            showHelp = true
-            return
-        }
-        viewModel.searchFilter = trimmed
-    }
-
-    // MARK: - Help
-
-    @ViewBuilder private var helpPopover: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("如何使用").font(.headline)
-            helpRow("checkmark.square", "勾选邮件（大类 / 小类 / 单封均可批量勾选），再点左上角按钮批量操作")
-            helpRow("trash", "删除：把勾选的邮件移入废纸篓（可撤销）")
-            helpRow("sparkles", "AI 分析：对勾选的整簇按时间线分析")
-            helpRow("envelope.open", "标记已读")
-            helpRow("pencil", "编辑自定义分类标签（按主题关键词归类）")
-            helpRow("arrow.clockwise", "刷新：按默认规则重新拉取邮件")
-            helpRow("hand.point.up.left", "双击某一行查看邮件内容")
-            helpRow("doc.on.doc", "右键某一行可复制主题 / 发件人，便于搜索")
-            helpRow("magnifyingglass", "点右上角放大镜展开搜索框，在当前已加载的邮件里按主题 / 发件人过滤；输入 /h 回车随时打开本帮助")
-
-            Divider().padding(.vertical, 2)
-
-            Text("默认过滤规则").font(.subheadline).bold()
-            helpRow("line.3.horizontal.decrease.circle", "is:unread in:inbox newer_than:30d —— 只拉取最近 30 天、收件箱里的未读邮件")
-
-            Text("默认设置").font(.subheadline).bold()
-            helpRow("tray.full", "每次最多拉取 200 封")
-            helpRow("rectangle.3.group", "按 Gmail 分类 + 主题聚类自动分组（大类 / 小类）")
-            helpRow("square", "默认全部未勾选，由你自行选择要处理的邮件")
-        }
-        .padding(16)
-        .frame(width: 360)
-    }
-
-    @ViewBuilder private func helpRow(_ icon: String, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: icon)
-                .frame(width: 18)
-                .foregroundStyle(theme.textSecondary)
-            Text(text).font(.callout).fixedSize(horizontal: false, vertical: true)
-        }
     }
 
     // MARK: - Tag editor

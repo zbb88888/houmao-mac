@@ -24,6 +24,20 @@ final class IssueViewModel {
     /// Open issues I authored, most recently updated first.
     var authoredIssues: [IssueItem] = []
 
+    /// Free-text filter set by the command palette (matches title / repo).
+    var searchFilter: String = ""
+
+    var displayedAssigned: [IssueItem] { Self.filter(assignedIssues, by: searchFilter) }
+    var displayedAuthored: [IssueItem] { Self.filter(authoredIssues, by: searchFilter) }
+
+    private static func filter(_ items: [IssueItem], by query: String) -> [IssueItem] {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return items }
+        return items.filter {
+            $0.title.lowercased().contains(q) || $0.repository.nameWithOwner.lowercased().contains(q)
+        }
+    }
+
     private let provider = IssueProvider()
 
     /// Fetch assigned + authored issues concurrently and publish them.

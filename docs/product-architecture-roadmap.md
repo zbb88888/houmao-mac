@@ -2,6 +2,7 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
+> 最近更新：2026-07-17（**命令面板 Phase 2**：PR/Issue/Do/Goal 各 VM 加 `searchFilter`+`displayed*` 过滤并接 `paletteSearch`；七页补 `helpLines`；**mail header 搜索框已收敛进命令面板**（移除，帮助并入 helpLines）。待办：md 编辑器搜索(/check)未迁、面板过滤的清除入口。）
 > 最近更新：2026-07-17（**命令面板（⌘K，统一搜索框，ADR-12 §5）**：rail 顶部放大镜/⌘K 唤起 `CommandPalette` 浮层，**钉在窗口正上方、不遮正文**；无前缀=搜当前页（已接 mail）、`/`=命令跳转（复用 `PanelDestination`）、`/h`=帮助。抽 `PanelDestination` 为 rail/面板共享导航表；`SidebarChrome` 加 `pageName`/`paletteSearch` 上下文。Phase 2：PR/Issue/Do/Goal 页内搜索 + 各页帮助文档待补。）
 > 最近更新：2026-07-17（**按钮 UI 与全局配色统一（ADR-11 §3/§4）**：**页面内**动作图标按钮（header/行内删除·完成）统一系统默认 **bordered** 样式，密集行内加 `.controlSize(.small)`、破坏性加 `.tint(theme.danger)`；**`PanelSidebar` 导航 rail 例外——无边框、仅图标**（VS Code 活动栏风格，`.plain`+textSecondary），与页面 bordered 按钮有意区分；native 控件（复选框/搜索清除/disclosure）保持原样。配色**全部走 Theme 语义色**——新增 `danger`(红)/`success`(绿)/`merged`(紫)/`textTertiary`，把 PR 色条·Issue 圆点·邮件分类色·聊天 ring·删除红·错误文案的硬编码字面量全换成 Theme。主题仍「绿豆沙」，rail 背景实色 `surface`。）
 > 最近更新：2026-07-17（**全局统一导航 rail（ADR-12）**：抽共享 `PanelSidebar`——每个面板窗口 leading 边常驻竖直图标 rail（chat/mail/pr/issue/do/goal/editor 七入口，post `.houmaoEnterXxxWindow`），`SidebarChrome` 包裹七窗 rootView，`SidebarState`(@Observable 单例+UserDefaults)控折叠、⌘\ 或顶部按钮切换。**否决了"全局悬浮呼吸式侧边栏/空白处呼出/四边任意"**（悬停隐藏作主导航=反模式+跨窗悬浮易抖动）。`ChatView` 输入栏原 6 个导航按钮已删，只留新对话/Stop。｜ 追加 **ADR-11 新增“可点击图标统一尺寸”约定**：所有 SF Symbol 图标按钮统一用系统默认字号（不加显式 `.font(size:)`），跨页/组件一致，基准=`MailView.header`；侧边栏图标据此对齐。）
@@ -536,7 +537,7 @@ flowchart TB
 - **方向语义分工（横向 = 页面动作 / 竖向 = 全局导航）**：**页面专属的功能操作一律走横向顶部工具栏（header）**；**跨页全局导航一律走左侧竖向 rail（`PanelSidebar`）**。二者刻意用**方向 + 样式**双重区分（横向 bordered 工具栏 vs 竖向无边框图标 rail，见 §3）。**优势**：① 一眼分清「我在哪 / 去哪个功能页」（导航）与「当前页能做什么」（动作）；② 避免两条视觉同构的竖排图标列并排造成的混淆；③ 契合主流范式（VS Code = 竖向活动栏 + 横向编辑器工具栏；Apple Mail = 顶部横向工具栏）；④ 横排 header 便于按使用频率从左到右排列、破坏性操作（删除红）更醒目。**统一的是样式与配色（§3/§4），不是方向**——**不要**把页面功能按钮改成竖排（会与 nav rail 打架、语义混淆）。
 - **约定**：
   1. **窗口标题**：用**英文小写单数名词**（`chat`/`mail`/`pr`/`issue`/`todo`/`md`/`goal`）；`titleVisibility` 默认可见（文字标题，**不用 glyph 图标 / `NSTitlebarAccessoryViewController`**）+ `titlebarAppearsTransparent = true` + `appearance = NSAppearance(named: .aqua)`（浅色主题取黑字）。窗口标题栏即"页面名"的唯一出处。
-  2. **面板 header（内容区顶部工具条）**：布局 = `HStack { 图标按钮…（左） ; Spacer() ; 搜索框（右） }`。**功能按钮一律靠左**、**只用 SF Symbol 图标 + `.help` tooltip、不放文字标签**；**搜索框一律靠右**（无搜索则右侧留空）。**不在 header 放描述性标题文字**（窗口标题栏已含页面名）。参考实现：`MailView.header`。
+  2. **面板 header（内容区顶部工具条）**：布局 = `HStack { 图标按钮…（左） ; Spacer() }`。**功能按钮一律靠左**、**只用 SF Symbol 图标 + `.help` tooltip、不放文字标签**。**不在 header 放描述性标题文字**（窗口标题栏已含页面名）。参考实现：`MailView.header`。**搜索已统一迁至 ⌘K 命令面板**（见 ADR-12 §5），header 不再放搜索框（`md` 编辑器的 header 搜索框尚未迁移，属遗留）。
   3. **可点击图标按钮样式（分两类）**：
      - **页面内动作按钮**（面板 header、列表行内删除/完成等）**统一用系统默认 bordered 样式**（标准 push button：外边框 + 阴影 + 图标），不加 `.buttonStyle(.plain)`、不加显式字号；**密集行内**加 `.controlSize(.small)`，**破坏性**（删除）加 `.tint(theme.danger)`（主删除如 mail trash 用 `.borderedProminent`+danger）。基准=`MailView.header`。
      - **`PanelSidebar` 导航 rail**是例外：故意用**无边框、仅图标**（`.buttonStyle(.plain)` + `foregroundStyle(theme.textSecondary)` + 统一方形命中区）的 VS Code 活动栏风格——导航栏与页面内动作按钮分属两种视觉语义，不强求同样式。
@@ -555,7 +556,7 @@ flowchart TB
   3. **折叠**：`SidebarState`（`@Observable` 单例，`UserDefaults` 持久化）存全局 `isExpanded`；顶部按钮或 **⌘\\** 切换，所有窗口的 rail 经 Observation 同步；折叠为窄条（仅留切换按钮）。
   4. rail 顶部内边距只需 `6pt`（`fullSizeContentView` 的标题栏安全区已让开红绿灯；6pt 用于让第一个 rail 图标与页面 header 首行对齐，别再叠 34pt 造成错位）。
   5. **命令面板（⌘K，统一搜索框）**：rail 顶部一个放大镜按钮（或 **⌘K**）唤起共享 `CommandPalette`——一个**钉在窗口正上方**（`padding(.top, 64)`、无全屏遮罩、点外部关闭）的浮层，**不遮正文**。三模式按前缀分流：无前缀=**搜索当前页**（经 `SidebarChrome(paletteSearch:)` 注入的 `@MainActor` 闭包 live 过滤，目前只接了 mail→`searchFilter`）；`/`=**命令/跳转**（复用 `PanelDestination.all`，与 rail 同一套目的地，回车/点选跳窗）；`/h`=**帮助**。`PanelDestination` 抽为 rail 与面板共享的导航表（symbol/title/keywords/notification）。`SidebarChrome` 现持 `showPalette` 状态 + `pageName`/`paletteSearch` 上下文（按窗口显式传，非全局单例，天然对应 key 窗口）。
-- **代价 / 边界**：占用 leading 40–48pt 宽度；未做"当前页高亮"（需知道哪个窗口是 key，MVP 从简）。`ChatView` 输入栏原来的 6 个导航按钮**已删**，只留"新对话"(`arrow.clockwise`)+"Stop"（聊天专属动作，非导航）。**命令面板 Phase 2（未做）**：PR/Issue/Do/Goal 的**页内搜索**（现无 filter）与各页**帮助文档**（现只 mail/editor 有）需逐页补，补齐后接入 `paletteSearch`/`helpLines`；是否把各页 header 里现有搜索框收敛进面板（渐进迁移）待定。
+- **代价 / 边界**：占用 leading 40–48pt 宽度；未做"当前页高亮"（需知道哪个窗口是 key，MVP 从简）。`ChatView` 输入栏原来的 6 个导航按钮**已删**，只留"新对话"(`arrow.clockwise`)+"Stop"（聊天专属动作，非导航）。**Phase 2（2026-07-17 已落地大部分）**：PR/Issue/Do/Goal 各自 VM 加 `searchFilter` + `displayed*` 过滤视图并接入 `paletteSearch`；七页均补了 `helpLines`；**mail 的 header 搜索框已移除、收敛进命令面板**（搜索走 `searchFilter`、原帮助 popover 内容并入 mail 的 `helpLines`）。**仍待办**：`md` 编辑器的搜索框（含 `/check` 格式检查 + 格式帮助，结构不同、状态在 view 内）尚未迁入面板；面板搜索"关闭后保留过滤"的清除入口（目前重开面板改词，暂无独立清除指示）。
 
 ---
 

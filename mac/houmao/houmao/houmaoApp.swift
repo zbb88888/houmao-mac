@@ -267,7 +267,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         // A standard resizable window must NOT use preferredContentSize sizing,
         // otherwise it would collapse to the content's intrinsic size and fight
         // the user's manual resize / full-screen.
-        let controller = NSHostingController(rootView: SidebarChrome(pageName: "chat") { chatView })
+        let controller = NSHostingController(rootView: SidebarChrome(
+            pageName: "chat",
+            helpLines: ["直接输入与 AI 对话（Enter 发送，⇧⏎ 换行）", "输入 / 可跳转到其它功能页"]
+        ) { chatView })
         window.contentViewController = controller
         return window
     }
@@ -403,7 +406,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         let mailView = MailView().environment(mailViewModel)
         window.contentViewController = NSHostingController(rootView: SidebarChrome(
             pageName: "mail",
-            paletteSearch: { [weak self] query in self?.mailViewModel.searchFilter = query }
+            paletteSearch: { [weak self] query in self?.mailViewModel.searchFilter = query },
+            helpLines: [
+                "直接输入：在已加载邮件里按主题/发件人筛选",
+                "勾选大类/小类/单封 → 左上按钮批量：删除(移废纸篓可撤销)/AI 分析整簇/标记已读",
+                "pencil 编辑分类标签；arrow.clockwise 刷新",
+                "双击某行看邮件内容；右键复制主题/发件人",
+                "默认拉最近30天收件箱未读、最多200封，按分类+聚类自动分组",
+            ]
         ) { mailView })
         return window
     }
@@ -534,7 +544,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.delegate = self
 
         let prView = PRView().environment(prViewModel)
-        window.contentViewController = NSHostingController(rootView: SidebarChrome(pageName: "pr") { prView })
+        window.contentViewController = NSHostingController(rootView: SidebarChrome(
+            pageName: "pr",
+            paletteSearch: { [weak self] query in self?.prViewModel.searchFilter = query },
+            helpLines: ["直接输入：按标题/仓库筛选我的 PR", "双击行在浏览器打开"]
+        ) { prView })
         return window
     }
 
@@ -582,7 +596,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.delegate = self
 
         let issueView = IssueView().environment(issueViewModel)
-        window.contentViewController = NSHostingController(rootView: SidebarChrome(pageName: "issue") { issueView })
+        window.contentViewController = NSHostingController(rootView: SidebarChrome(
+            pageName: "issue",
+            paletteSearch: { [weak self] query in self?.issueViewModel.searchFilter = query },
+            helpLines: ["直接输入：按标题/仓库筛选我的 Issue", "双击行在浏览器打开"]
+        ) { issueView })
         return window
     }
 
@@ -629,7 +647,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.delegate = self
 
         let doView = DoView().environment(doViewModel)
-        window.contentViewController = NSHostingController(rootView: SidebarChrome(pageName: "todo") { doView })
+        window.contentViewController = NSHostingController(rootView: SidebarChrome(
+            pageName: "todo",
+            paletteSearch: { [weak self] query in self?.doViewModel.searchFilter = query },
+            helpLines: ["直接输入：筛选当前主题的待办", "双击编辑，勾选完成即归档"]
+        ) { doView })
         return window
     }
 
@@ -673,7 +695,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.delegate = self
 
         let goalsView = GoalsView().environment(goalsViewModel)
-        window.contentViewController = NSHostingController(rootView: SidebarChrome(pageName: "goal") { goalsView })
+        window.contentViewController = NSHostingController(rootView: SidebarChrome(
+            pageName: "goal",
+            paletteSearch: { [weak self] query in self?.goalsViewModel.searchFilter = query },
+            helpLines: ["直接输入：筛选当前主题的目标", "双击看 Mermaid 图，右上 AI 改文档"]
+        ) { goalsView })
         return window
     }
 
@@ -759,7 +785,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
 
         let window = markdownEditorWindow ?? makeEditorWindow()
         markdownEditorWindow = window
-        window.contentViewController = NSHostingController(rootView: SidebarChrome(pageName: "md") { MarkdownEditorView(model: model) })
+        window.contentViewController = NSHostingController(rootView: SidebarChrome(
+            pageName: "md",
+            helpLines: ["右上 sparkles = AI 修复 Markdown 格式", "关闭窗口或保存键都会保存"]
+        ) { MarkdownEditorView(model: model) })
         placePanelOnFirstShow(window)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)

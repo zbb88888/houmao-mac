@@ -109,7 +109,7 @@ struct DoView: View {
     }
 
     @ViewBuilder private var itemList: some View {
-        let items = viewModel.currentTopic?.items ?? []
+        let items = viewModel.displayedItems
         ScrollView {
             LazyVStack(spacing: 6) {
                 ForEach(items) { item in

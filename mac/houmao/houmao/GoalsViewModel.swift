@@ -71,6 +71,17 @@ final class GoalsViewModel {
         currentTopics.first { $0.id == currentTopicID }
     }
 
+    /// Free-text filter set by the command palette (matches goal title).
+    var searchFilter: String = ""
+
+    /// The current topic's goals narrowed by `searchFilter`.
+    var displayedGoals: [GoalDoc] {
+        let goals = currentTopic?.goals ?? []
+        let q = searchFilter.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return goals }
+        return goals.filter { $0.title.lowercased().contains(q) }
+    }
+
     func selectTopic(_ id: UUID) {
         selectedTopicID[selectedTab] = id
     }

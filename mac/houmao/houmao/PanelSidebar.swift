@@ -128,6 +128,7 @@ struct PanelSidebar: View {
 struct SidebarChrome<Content: View>: View {
     var pageName: String = "本页"
     var paletteSearch: (@MainActor (String) -> Void)? = nil
+    var helpLines: [String] = []
     @ViewBuilder var content: Content
 
     @State private var showPalette = false
@@ -148,7 +149,7 @@ struct SidebarChrome<Content: View>: View {
                     .ignoresSafeArea()
                     .onTapGesture { showPalette = false }
                 CommandPaletteView(
-                    context: PaletteContext(pageName: pageName, onSearch: paletteSearch),
+                    context: PaletteContext(pageName: pageName, onSearch: paletteSearch, helpLines: helpLines),
                     onClose: { showPalette = false }
                 )
                 .padding(.top, 64)
