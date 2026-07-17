@@ -404,25 +404,29 @@ struct MailDetailView: View {
     private var theme: Theme { AppTheme.current }
 
     var body: some View {
-        Group {
-            switch viewModel.detail {
-            case .loading:
-                centered { progress("正在加载邮件内容…") }
-            case .failed(let message):
-                centered {
-                    VStack(spacing: 12) {
-                        Image(systemName: "exclamationmark.triangle").foregroundStyle(theme.warning)
-                        Text(message).multilineTextAlignment(.center).foregroundStyle(theme.textSecondary)
+        VStack(spacing: 0) {
+            header
+            Divider().overlay(theme.divider)
+            Group {
+                switch viewModel.detail {
+                case .loading:
+                    centered { progress("正在加载邮件内容…") }
+                case .failed(let message):
+                    centered {
+                        VStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle").foregroundStyle(theme.warning)
+                            Text(message).multilineTextAlignment(.center).foregroundStyle(theme.textSecondary)
+                        }
+                        .padding()
                     }
-                    .padding()
+                case .loaded(let detail):
+                    content(detail)
+                case .none:
+                    centered { EmptyView() }
                 }
-            case .loaded(let detail):
-                content(detail)
-            case .none:
-                centered { EmptyView() }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background)
         .foregroundStyle(theme.textPrimary)
         // ESC closes the detail window, consistent with the chat / minimal-box
@@ -430,6 +434,29 @@ struct MailDetailView: View {
         .onExitCommand {
             NotificationCenter.default.post(name: .houmaoCloseMailDetail, object: nil)
         }
+    }
+
+    // MARK: - Header
+
+    @ViewBuilder private var header: some View {
+        HStack(spacing: 10) {
+            if viewModel.isMutating {
+                ProgressView().controlSize(.small)
+            }
+            Button {
+                Task { await viewModel.deleteDetail() }
+            } label: {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(theme.danger)
+            .help("删除（移入废纸篓）")
+            .accessibilityLabel("删除，移入废纸篓")
+            .disabled(viewModel.isMutating)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
     }
 
     @ViewBuilder private func content(_ detail: MailMessageDetail) -> some View {

@@ -2,6 +2,7 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
+> 最近更新：2026-07-17（**详情页删除动作约定（ADR-11 §约定7）**：凡从列表双击进入的 drill-in 详情（`mailDetail` 子窗、`GoalDetailView`），只要列表行支持删除，**详情 header 也提供同一红色 `trash` 删除**，删除后退出详情，并**复用列表已有删除链路**（不另造逻辑）。落地：`MailDetailView`→`MailViewModel.deleteDetail()`（移废纸篓+撤销+关窗）；`GoalDetailView`→`deleteGoal`+`onBack`。）
 > 最近更新：2026-07-17（**命令面板 Phase 2**：PR/Issue/Do/Goal 各 VM 加 `searchFilter`+`displayed*` 过滤并接 `paletteSearch`；七页补 `helpLines`；**mail header 搜索框已收敛进命令面板**（移除，帮助并入 helpLines）。待办：md 编辑器搜索(/check)未迁、面板过滤的清除入口。）
 > 最近更新：2026-07-17（**命令面板（⌘K，统一搜索框，ADR-12 §5）**：rail 顶部放大镜/⌘K 唤起 `CommandPalette` 浮层，**钉在窗口正上方、不遮正文**；无前缀=搜当前页（已接 mail）、`/`=命令跳转（复用 `PanelDestination`）、`/h`=帮助。抽 `PanelDestination` 为 rail/面板共享导航表；`SidebarChrome` 加 `pageName`/`paletteSearch` 上下文。Phase 2：PR/Issue/Do/Goal 页内搜索 + 各页帮助文档待补。）
 > 最近更新：2026-07-17（**按钮 UI 与全局配色统一（ADR-11 §3/§4）**：**页面内**动作图标按钮（header/行内删除·完成）统一系统默认 **bordered** 样式，密集行内加 `.controlSize(.small)`、破坏性加 `.tint(theme.danger)`；**`PanelSidebar` 导航 rail 例外——无边框、仅图标**（VS Code 活动栏风格，`.plain`+textSecondary），与页面 bordered 按钮有意区分；native 控件（复选框/搜索清除/disclosure）保持原样。配色**全部走 Theme 语义色**——新增 `danger`(红)/`success`(绿)/`merged`(紫)/`textTertiary`，把 PR 色条·Issue 圆点·邮件分类色·聊天 ring·删除红·错误文案的硬编码字面量全换成 Theme。主题仍「绿豆沙」，rail 背景实色 `surface`。）
@@ -545,7 +546,8 @@ flowchart TB
   4. **配色统一走 Theme（不硬编码颜色字面量）**：所有颜色一律读 `AppTheme.current` 的语义角色，**禁止散落 `.red`/`.green`/`.orange`/`.purple`/`.gray` 等字面量**。语义色：`accent`(主色/激活)、`success`(open/正向,绿)、`warning`(注意/指派,橙)、`danger`(删除/错误/closed,红)、`merged`(已合并 PR,紫)、`textPrimary/Secondary/Tertiary`(主/次/淡文字与图标)、`surface/background/divider`。**新增语义状态先加到 `Theme` 再引用**（换肤一处改）。基准落地：PR 色条/Issue 圆点·色条/邮件分类色/聊天 ring/删除红/错误文案已全部走 Theme。
   5. **窗口壳**：统一 `styleMask [.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView]` + 上述 appearance；`isReleasedWhenClosed = false`；`delegate = self`；单例 `xxxWindow` 变量 + `makeXxxWindow()` 工厂 + `showXxxWindow()`/`hideXxxWindow()`。**关闭走 `windowShouldClose(_:) → hideXxxWindow()` 直接处理并 `return false`**；**不加 `.houmaoExitXxxWindow` 通知 + observer 占位**（从不 post = 死代码）。新窗口计入 `panelWindows`（级联摆放）。
   6. **唤起**：入口按钮统一放在共享 **`PanelSidebar` 导航 rail**（见 ADR-12），post `.houmaoEnterXxxWindow`；同时 `MainViewModel.handleToolCommand` 加一条**单数** `/xxx` 命令（两面共用同一路由）。（旧做法「把按钮塞进聊天输入栏」已废，见 ADR-12。）
-- **代价 / 例外**：窗口标题栏是通用页面名（如 `md`/`goal`），不显示"具体文档/目标名"——drill-in 详情靠内容本身（编辑器正文、mermaid 图根节点）体现，如需强区分再单独把窗口标题设为文档名（暂不做）。`mailDetail`（从列表双击的子窗口）标题为中文「邮件详情」，非主面板、不在此约定内。
+  7. **详情页（drill-in）删除动作**：凡从列表双击进入的详情视图（`mailDetail` 子窗、`GoalDetailView` 等），只要对应列表行支持删除，**详情 header 也提供同一删除动作**——用户读完当前条目即可原地删掉，无需返回列表再找那一行。规则：① 按钮=红色 `trash`，样式照 §3 页面动作按钮（主删除如 mail 用 `.borderedProminent`+`.tint(theme.danger)`，其余 `.bordered`/默认 + danger tint），放在 header（`mail` 靠左、`goal` 在 AI 按钮之后靠右 Spacer 尾）；② **删除后即退出详情**（关闭子窗 / 返回列表）；③ **复用列表已有的删除链路**（含撤销/移废纸篓等语义），不为详情另造第二套删除逻辑。落地：`MailDetailView` header → `MailViewModel.deleteDetail()`（走列表同款 `mutate` 移废纸篓+撤销，成功后 `closeDetail`+关窗）；`GoalDetailView` header → 复用 `deleteGoal(_:)` + `onBack()`。
+- **代价 / 例外**：窗口标题栏是通用页面名（如 `md`/`goal`），不显示"具体文档/目标名"——drill-in 详情靠内容本身（编辑器正文、mermaid 图根节点）体现，如需强区分再单独把窗口标题设为文档名（暂不做）。`mailDetail`（从列表双击的子窗口）标题为中文「邮件详情」，非主面板、不在此约定内（**§约定7 的详情删除动作仍适用**）。
 
 ### ADR-12：全局统一导航 rail（`PanelSidebar`）
 

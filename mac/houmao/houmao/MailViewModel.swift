@@ -307,12 +307,14 @@ final class MailViewModel {
 
     /// Run a mutation in place: keep the list visible, remove the affected rows,
     /// then expose an undo that reverses the change server-side and reloads.
+    /// Returns whether the action succeeded.
+    @discardableResult
     private func mutate(
         ids: [String],
         label: String,
         action: @escaping () async throws -> Void,
         reverse: @escaping () async throws -> Void
-    ) async {
+    ) async -> Bool {
         isMutating = true
         defer { isMutating = false }
         do {
@@ -324,8 +326,10 @@ final class MailViewModel {
                 do { try await reverse(); await self.load() }
                 catch { self.phase = .failed(error.localizedDescription) }
             })
+            return true
         } catch {
             phase = .failed(error.localizedDescription)
+            return false
         }
     }
 
@@ -358,6 +362,21 @@ final class MailViewModel {
     func closeDetail() {
         detail = nil
         detailMessageID = nil
+    }
+
+    /// Move the message shown in the detail window to Trash, then close the
+    /// window. Mirrors the list's delete: removes it in place and offers an undo.
+    func deleteDetail() async {
+        guard let id = detailMessageID, let provider = makeProvider() else { return }
+        let ids = [id]
+        let ok = await mutate(ids: ids, label: "已移入废纸篓 1 封") {
+            try await provider.trashMessages(ids: ids)
+        } reverse: {
+            try await provider.untrash(ids: ids)
+        }
+        guard ok else { return }
+        closeDetail()
+        NotificationCenter.default.post(name: .houmaoCloseMailDetail, object: nil)
     }
 
     // MARK: - AI analysis (single selected message)

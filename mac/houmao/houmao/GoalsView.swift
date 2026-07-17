@@ -324,6 +324,14 @@ private struct GoalDetailView: View {
                 }
                 .help("AI 更新目标（进对话框改文档，改完保存到原文档）")
                 Spacer()
+                Button {
+                    viewModel.deleteGoal(goal.id)
+                    onBack()
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .tint(theme.danger)
+                .help("删除目标")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
