@@ -2,6 +2,7 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
+> 最近更新：2026-07-17（**命令面板搜索历史 + 清空（ADR-12 §5 约定6）**：命令面板每次打开都是干净空框；**回车=提交搜索**（记录历史→筛选→清空框→关闭），**空框回车=清空当前页筛选**（手动清理入口）；`SearchHistoryStore`（UserDefaults 持久化/最近优先/去重/上限20/全局共享），搜索模式 `↑↓` 调取历史、空框展示「最近搜索」可点选行 + 「清除」按钮。仅 `onSearch != nil` 的页记录/展示。补齐了原 §5「无清除入口」待办。）
 > 最近更新：2026-07-17（**详情页删除动作约定（ADR-11 §约定7）**：凡从列表双击进入的 drill-in 详情（`mailDetail` 子窗、`GoalDetailView`），只要列表行支持删除，**详情 header 也提供同一红色 `trash` 删除**，删除后退出详情，并**复用列表已有删除链路**（不另造逻辑）。落地：`MailDetailView`→`MailViewModel.deleteDetail()`（移废纸篓+撤销+关窗）；`GoalDetailView`→`deleteGoal`+`onBack`。）
 > 最近更新：2026-07-17（**命令面板 Phase 2**：PR/Issue/Do/Goal 各 VM 加 `searchFilter`+`displayed*` 过滤并接 `paletteSearch`；七页补 `helpLines`；**mail header 搜索框已收敛进命令面板**（移除，帮助并入 helpLines）。待办：md 编辑器搜索(/check)未迁、面板过滤的清除入口。）
 > 最近更新：2026-07-17（**命令面板（⌘K，统一搜索框，ADR-12 §5）**：rail 顶部放大镜/⌘K 唤起 `CommandPalette` 浮层，**钉在窗口正上方、不遮正文**；无前缀=搜当前页（已接 mail）、`/`=命令跳转（复用 `PanelDestination`）、`/h`=帮助。抽 `PanelDestination` 为 rail/面板共享导航表；`SidebarChrome` 加 `pageName`/`paletteSearch` 上下文。Phase 2：PR/Issue/Do/Goal 页内搜索 + 各页帮助文档待补。）
@@ -558,7 +559,8 @@ flowchart TB
   3. **折叠**：`SidebarState`（`@Observable` 单例，`UserDefaults` 持久化）存全局 `isExpanded`；顶部按钮或 **⌘\\** 切换，所有窗口的 rail 经 Observation 同步；折叠为窄条（仅留切换按钮）。
   4. rail 顶部内边距只需 `6pt`（`fullSizeContentView` 的标题栏安全区已让开红绿灯；6pt 用于让第一个 rail 图标与页面 header 首行对齐，别再叠 34pt 造成错位）。
   5. **命令面板（⌘K，统一搜索框）**：rail 顶部一个放大镜按钮（或 **⌘K**）唤起共享 `CommandPalette`——一个**钉在窗口正上方**（`padding(.top, 64)`、无全屏遮罩、点外部关闭）的浮层，**不遮正文**。三模式按前缀分流：无前缀=**搜索当前页**（经 `SidebarChrome(paletteSearch:)` 注入的 `@MainActor` 闭包 live 过滤，目前只接了 mail→`searchFilter`）；`/`=**命令/跳转**（复用 `PanelDestination.all`，与 rail 同一套目的地，回车/点选跳窗）；`/h`=**帮助**。`PanelDestination` 抽为 rail 与面板共享的导航表（symbol/title/keywords/notification）。`SidebarChrome` 现持 `showPalette` 状态 + `pageName`/`paletteSearch` 上下文（按窗口显式传，非全局单例，天然对应 key 窗口）。
-- **代价 / 边界**：占用 leading 40–48pt 宽度；未做"当前页高亮"（需知道哪个窗口是 key，MVP 从简）。`ChatView` 输入栏原来的 6 个导航按钮**已删**，只留"新对话"(`arrow.clockwise`)+"Stop"（聊天专属动作，非导航）。**Phase 2（2026-07-17 已落地大部分）**：PR/Issue/Do/Goal 各自 VM 加 `searchFilter` + `displayed*` 过滤视图并接入 `paletteSearch`；七页均补了 `helpLines`；**mail 的 header 搜索框已移除、收敛进命令面板**（搜索走 `searchFilter`、原帮助 popover 内容并入 mail 的 `helpLines`）。**仍待办**：`md` 编辑器的搜索框（含 `/check` 格式检查 + 格式帮助，结构不同、状态在 view 内）尚未迁入面板；面板搜索"关闭后保留过滤"的清除入口（目前重开面板改词，暂无独立清除指示）。
+  6. **搜索框生命周期与历史（2026-07-17）**：面板浮层是条件渲染（`if showPalette`），每次打开都是**全新干净的空框**（`query` @State 随视图重建复位）。**回车 = 提交一次搜索**：记录进历史 → 应用筛选 → 清空框 → 关闭；**空框回车 = 清空当前页筛选**（`onSearch("")`），这是"手动清理搜索条件"的入口（⌘K 再回车）。**历史**：`SearchHistoryStore`（`UserDefaults` 持久化、最近优先、大小写去重、上限 20，全局共享一份——统一框统一历史）；搜索模式下 `↑`/`↓` 调取更早/更新（游标 -1=空框）；空框内 `emptyState` 展示「最近搜索」可点选行（含「清除」按钮），与页面跳转启动器并列。仅在页面支持搜索（`onSearch != nil`）时记录/展示历史。
+- **代价 / 边界**：占用 leading 40–48pt 宽度；未做"当前页高亮"（需知道哪个窗口是 key，MVP 从简）。`ChatView` 输入栏原来的 6 个导航按钮**已删**，只留"新对话"(`arrow.clockwise`)+"Stop"（聊天专属动作，非导航）。**Phase 2（2026-07-17 已落地大部分）**：PR/Issue/Do/Goal 各自 VM 加 `searchFilter` + `displayed*` 过滤视图并接入 `paletteSearch`；七页均补了 `helpLines`；**mail 的 header 搜索框已移除、收敛进命令面板**（搜索走 `searchFilter`、原帮助 popover 内容并入 mail 的 `helpLines`）；**搜索历史 + 空框回车清筛选 已落地（见约定6）**。**仍待办**：`md` 编辑器的搜索框（含 `/check` 格式检查 + 格式帮助，结构不同、状态在 view 内）尚未迁入面板。
 
 ---
 

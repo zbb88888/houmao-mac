@@ -1,5 +1,30 @@
 import SwiftUI
 
+/// Persisted recent search terms for the unified command palette (global across
+/// pages — the box is one unified search). Most-recent-first, case-insensitively
+/// deduped, capped. Backed by `UserDefaults` so it survives relaunches.
+enum SearchHistoryStore {
+    private static let key = "houmao.search.history"
+    private static let limit = 20
+
+    static func list() -> [String] {
+        UserDefaults.standard.stringArray(forKey: key) ?? []
+    }
+
+    static func record(_ term: String) {
+        let t = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
+        var items = list().filter { $0.caseInsensitiveCompare(t) != .orderedSame }
+        items.insert(t, at: 0)
+        if items.count > limit { items = Array(items.prefix(limit)) }
+        UserDefaults.standard.set(items, forKey: key)
+    }
+
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+}
+
 /// The context a window gives its command palette: the page's display name, an
 /// optional live search hook (filters the page's content), and optional
 /// page-specific help lines. Pages without a search hook get command/help only.
@@ -20,6 +45,11 @@ struct CommandPaletteView: View {
     private var theme: Theme { AppTheme.current }
 
     @State private var query = ""
+    /// Recent searches, loaded fresh each time the palette opens (the view is
+    /// recreated on every open, so the box always starts clean).
+    @State private var history: [String] = SearchHistoryStore.list()
+    /// Cursor into `history` for ↑/↓ recall (-1 = the empty, freshly-typed box).
+    @State private var historyCursor = -1
     @FocusState private var focused: Bool
 
     private var isCommandMode: Bool { query.hasPrefix("/") }
@@ -61,6 +91,17 @@ struct CommandPaletteView: View {
                 .onChange(of: query) { _, v in liveSearch(v) }
                 .onSubmit(runPrimary)
                 .onExitCommand(perform: onClose)
+                // ↑/↓ recall recent searches into the box (search mode only).
+                .onKeyPress(.upArrow) {
+                    guard !isCommandMode, !history.isEmpty else { return .ignored }
+                    historyUp()
+                    return .handled
+                }
+                .onKeyPress(.downArrow) {
+                    guard !isCommandMode, historyCursor >= 0 else { return .ignored }
+                    historyDown()
+                    return .handled
+                }
         }
         .padding(14)
     }
@@ -73,12 +114,57 @@ struct CommandPaletteView: View {
         } else if isCommandMode {
             commandRows(matchedCommands, empty: "无匹配命令")
         } else if query.isEmpty {
-            // Empty query = quick launcher: list all destinations + a tip.
-            commandRows(PanelDestination.all, empty: "")
-            tip
+            emptyState
         } else {
             searchStatus
         }
+    }
+
+    /// Empty box = a clean start: pick a recent search (if the page supports
+    /// search) or jump to a page; typing filters live.
+    @ViewBuilder private var emptyState: some View {
+        VStack(spacing: 0) {
+            if context.onSearch != nil && !history.isEmpty {
+                historySection
+                Divider().overlay(theme.divider)
+            }
+            commandRows(PanelDestination.all, empty: "")
+            tip
+        }
+    }
+
+    private var historySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("最近搜索")
+                    .font(.caption).foregroundStyle(theme.textTertiary)
+                Spacer()
+                Button("清除") {
+                    SearchHistoryStore.clear()
+                    history = []
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(theme.textTertiary)
+            }
+            .padding(.horizontal, 14).padding(.top, 8).padding(.bottom, 2)
+
+            ForEach(Array(history.prefix(6)), id: \.self) { term in
+                Button { runSearch(term) } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .frame(width: 22)
+                            .foregroundStyle(theme.textSecondary)
+                        Text(term).foregroundStyle(theme.textPrimary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 7)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.bottom, 4)
     }
 
     @ViewBuilder private func commandRows(_ items: [PanelDestination], empty: String) -> some View {
@@ -131,7 +217,7 @@ struct CommandPaletteView: View {
     }
 
     private var tip: some View {
-        Text("直接输入 = 搜索本页 · 输入 “/” = 命令 · “/h” = 帮助 · Esc 关闭")
+        Text("直接输入 = 搜索本页 · ↑↓ 历史 · “/” 命令 · “/h” 帮助 · Esc 关闭")
             .font(.caption).foregroundStyle(theme.textTertiary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 14).padding(.bottom, 12).padding(.top, 2)
@@ -143,6 +229,7 @@ struct CommandPaletteView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(theme.textPrimary)
             helpLine("搜索本页", "直接输入关键字，实时筛选当前页内容")
+            helpLine("历史", "↑ / ↓ 调取最近的搜索；空框内也可点选「最近搜索」")
             helpLine("命令 / 跳转", "输入 “/” 后接页面名（如 /mail、/待办）跳到对应功能页")
             helpLine("帮助", "输入 “/h” 显示本帮助")
             ForEach(context.helpLines, id: \.self) { line in
@@ -175,8 +262,34 @@ struct CommandPaletteView: View {
             if !isHelp, let first = matchedCommands.first { run(first) }
             // help mode: leave the palette open showing help.
         } else {
-            onClose() // free-text search is already applied live.
+            // Commit the search: record it, apply it, and close with a clean box
+            // (an empty submit clears the page filter — a manual "clear" gesture).
+            runSearch(query)
         }
+    }
+
+    /// Apply `term` to the page, remember it, then close with the box cleared.
+    /// An empty `term` clears the current page filter.
+    private func runSearch(_ term: String) {
+        let t = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let onSearch = context.onSearch {
+            onSearch(t)
+            SearchHistoryStore.record(t)
+        }
+        query = ""
+        onClose()
+    }
+
+    /// Recall an older search into the box (↑). Setting `query` re-filters live.
+    private func historyUp() {
+        historyCursor = min(historyCursor + 1, history.count - 1)
+        query = history[historyCursor]
+    }
+
+    /// Step back toward the newer/empty box (↓).
+    private func historyDown() {
+        historyCursor -= 1
+        query = historyCursor < 0 ? "" : history[historyCursor]
     }
 
     private func run(_ item: PanelDestination) {
