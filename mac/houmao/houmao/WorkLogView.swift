@@ -33,11 +33,6 @@ struct WorkLogView: View {
     @ViewBuilder private var header: some View {
         @Bindable var viewModel = viewModel
         HStack(spacing: 10) {
-            DatePicker("起始", selection: $viewModel.fromDate, displayedComponents: .date)
-                .datePickerStyle(.field)
-                .help("统计起始时间：只统计此后创建的 PR / issue（直接输入日期）")
-                .fixedSize()
-
             Button {
                 Task { await viewModel.generate() }
             } label: {
@@ -63,6 +58,12 @@ struct WorkLogView: View {
             .popover(isPresented: $showBackground, arrowEdge: .bottom) { backgroundEditor }
 
             Spacer()
+
+            DatePicker("统计起始时间", selection: $viewModel.fromDate, displayedComponents: .date)
+                .datePickerStyle(.field)
+                .labelsHidden()
+                .help("统计起始时间：只统计此后创建的 PR / issue（直接输入日期）")
+                .fixedSize()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
