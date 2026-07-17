@@ -11,7 +11,6 @@ struct WorkLogView: View {
     @Environment(WorkLogViewModel.self) private var viewModel
     private var theme: Theme { AppTheme.current }
 
-    @State private var showFromPicker = false
     /// Months whose default expand/fold the user has flipped.
     @State private var toggledMonths: Set<String> = []
     @State private var showAggregate = false
@@ -32,14 +31,12 @@ struct WorkLogView: View {
     // MARK: - Header
 
     @ViewBuilder private var header: some View {
+        @Bindable var viewModel = viewModel
         HStack(spacing: 10) {
-            Button {
-                showFromPicker = true
-            } label: {
-                Image(systemName: "calendar")
-            }
-            .help("设置起始时间（只统计此后创建的 PR / issue）")
-            .popover(isPresented: $showFromPicker, arrowEdge: .bottom) { fromPicker }
+            DatePicker("起始", selection: $viewModel.fromDate, displayedComponents: .date)
+                .datePickerStyle(.field)
+                .help("统计起始时间：只统计此后创建的 PR / issue（直接输入日期）")
+                .fixedSize()
 
             Button {
                 Task { await viewModel.generate() }
@@ -71,47 +68,12 @@ struct WorkLogView: View {
                     Text("总结中 \(p.done)/\(p.total)")
                         .font(.caption).foregroundStyle(theme.textSecondary)
                 }
-            } else {
-                Text("起始 \(Self.dayLabel(viewModel.fromDate))")
-                    .font(.caption).foregroundStyle(theme.textSecondary)
             }
 
             Spacer()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-    }
-
-    private var fromPicker: some View {
-        @Bindable var viewModel = viewModel
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("统计起始时间").font(.system(size: 13, weight: .semibold))
-            DatePicker("", selection: $viewModel.fromDate, displayedComponents: .date)
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-            HStack(spacing: 8) {
-                quickRange("近一周", months: 0, weeks: 1)
-                quickRange("近一月", months: 1)
-                quickRange("近三月", months: 3)
-                quickRange("近半年", months: 6)
-            }
-        }
-        .padding(14)
-        .frame(width: 320)
-    }
-
-    private func quickRange(_ label: String, months: Int, weeks: Int = 0) -> some View {
-        Button(label) {
-            let cal = Calendar.current
-            let base = Date()
-            if weeks > 0 {
-                viewModel.fromDate = cal.date(byAdding: .day, value: -7 * weeks, to: base) ?? base
-            } else {
-                viewModel.fromDate = cal.date(byAdding: .month, value: -months, to: base) ?? base
-            }
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
     }
 
     private var backgroundEditor: some View {
@@ -305,12 +267,5 @@ struct WorkLogView: View {
     @ViewBuilder private func centered<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         VStack { Spacer(); content(); Spacer() }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private static func dayLabel(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: date)
     }
 }
