@@ -178,12 +178,12 @@ struct WorkLogView: View {
                     if viewModel.isAggregating {
                         ProgressView().controlSize(.small)
                     } else {
-                        Label("总结选中", systemImage: "text.append")
+                        Label("总结", systemImage: "text.append")
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(theme.accent)
-                .disabled(viewModel.selectedPeriod == nil || viewModel.isAggregating)
+                .disabled(viewModel.isAggregating)
             }
 
             Picker("", selection: $viewModel.periodKind) {
@@ -193,39 +193,10 @@ struct WorkLogView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .fixedSize()
-
-            if viewModel.periods.isEmpty {
-                Text("暂无可归纳的周期").font(.caption).foregroundStyle(theme.textSecondary)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(viewModel.periods) { period in
-                            periodChip(period)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
         }
         .padding(12)
         .background(theme.surface.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.divider))
-    }
-
-    private func periodChip(_ period: WorkLogViewModel.PeriodBucket) -> some View {
-        let selected = viewModel.selectedPeriodKey == period.key
-        return Button {
-            viewModel.selectPeriod(period.key)
-        } label: {
-            Text(period.label)
-                .font(.system(size: 12, weight: selected ? .semibold : .regular))
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(selected ? theme.accent : theme.surface, in: Capsule())
-                .foregroundStyle(selected ? theme.onAccent : theme.textPrimary)
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Month section

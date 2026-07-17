@@ -610,7 +610,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             paletteSearch: { [weak self] query in self?.workLogViewModel.searchFilter = query },
             helpLines: [
                 "设置起始时间 → ✨ 生成：拉取并逐个总结我的 PR / issue（同一条只分析一次）",
-                "选周期（季度/半年/全年）→ 「总结选中」按 OKR 归纳；可编辑工作背景作为上下文",
+                "选周期（周/月/季/半年/大半年/年）→ 「总结」按 OKR 归纳；可编辑工作背景作为上下文",
                 "直接输入：按标题/摘要筛选；双击行在浏览器打开",
             ]
         ) { workLogView })

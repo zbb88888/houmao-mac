@@ -59,21 +59,26 @@ struct WorkLogStoreTests {
 
 @MainActor
 struct WorkLogPeriodTests {
-    @Test func quarterBucketsByMonth() {
-        #expect(WorkLogViewModel.bucket(for: "2026-01", kind: .quarter)?.key == "2026-Q1")
-        #expect(WorkLogViewModel.bucket(for: "2026-03", kind: .quarter)?.key == "2026-Q1")
-        #expect(WorkLogViewModel.bucket(for: "2026-04", kind: .quarter)?.key == "2026-Q2")
-        #expect(WorkLogViewModel.bucket(for: "2026-12", kind: .quarter)?.key == "2026-Q4")
+    private let now = WorkItem.iso8601.date(from: "2026-07-17T00:00:00Z")!
+
+    @Test func weekWindowReachesSevenDaysBack() {
+        #expect(WorkLogViewModel.cutoff(for: .week, now: now)
+            == WorkItem.iso8601.date(from: "2026-07-10T00:00:00Z")!)
     }
 
-    @Test func halfAndYearBuckets() {
-        #expect(WorkLogViewModel.bucket(for: "2026-06", kind: .half)?.key == "2026-H1")
-        #expect(WorkLogViewModel.bucket(for: "2026-07", kind: .half)?.key == "2026-H2")
-        #expect(WorkLogViewModel.bucket(for: "2026-09", kind: .year)?.key == "2026")
+    @Test func monthAndYearWindows() {
+        #expect(WorkLogViewModel.cutoff(for: .month, now: now)
+            == WorkItem.iso8601.date(from: "2026-06-17T00:00:00Z")!)
+        #expect(WorkLogViewModel.cutoff(for: .year, now: now)
+            == WorkItem.iso8601.date(from: "2025-07-17T00:00:00Z")!)
     }
 
-    @Test func rejectsMalformedMonth() {
-        #expect(WorkLogViewModel.bucket(for: "2026", kind: .quarter) == nil)
-        #expect(WorkLogViewModel.bucket(for: "2026-13", kind: .quarter) == nil)
+    @Test func quarterHalfAndThreeQuarterWindows() {
+        #expect(WorkLogViewModel.cutoff(for: .quarter, now: now)
+            == WorkItem.iso8601.date(from: "2026-04-17T00:00:00Z")!)
+        #expect(WorkLogViewModel.cutoff(for: .half, now: now)
+            == WorkItem.iso8601.date(from: "2026-01-17T00:00:00Z")!)
+        #expect(WorkLogViewModel.cutoff(for: .threeQuarter, now: now)
+            == WorkItem.iso8601.date(from: "2025-10-17T00:00:00Z")!)
     }
 }

@@ -35,12 +35,8 @@ final class WorkLogViewModel {
     /// Coarse progress for Stage 1 (summarized-so-far, total-to-summarize).
     private(set) var summarizeProgress: (done: Int, total: Int)?
 
-    /// The period granularity to roll up (quarter / half-year / year).
-    var periodKind: PeriodKind = .quarter {
-        didSet { if oldValue != periodKind { selectedPeriodKey = nil } }
-    }
-    /// The `key` of the period bucket picked for a Stage-2 roll-up (e.g. `2026-Q1`).
-    var selectedPeriodKey: String?
+    /// The rolling window to roll up for the OKR summary (default: 这月).
+    var periodKind: PeriodKind = .month
     /// The most recent aggregate report (rendered Markdown), or empty.
     private(set) var aggregate: String = ""
     private(set) var isAggregating = false
@@ -60,25 +56,33 @@ final class WorkLogViewModel {
     private static let fromKey = "houmao.worklog.from"
     private static let backgroundKey = "houmao.worklog.background"
 
-    /// The period granularity for a Stage-2 OKR roll-up.
+    /// The rolling window (anchored at "now") to roll up for the OKR summary,
+    /// smallest first. Each summary covers everything created within the window.
     enum PeriodKind: String, CaseIterable, Identifiable, Hashable {
-        case quarter, half, year
+        case week, month, quarter, half, threeQuarter, year
         var id: String { rawValue }
+        /// Label shown in the picker and injected into the OKR prompt.
         var label: String {
             switch self {
-            case .quarter: return "季度"
+            case .week: return "周"
+            case .month: return "月"
+            case .quarter: return "季"
             case .half: return "半年"
-            case .year: return "全年"
+            case .threeQuarter: return "大半年"
+            case .year: return "年"
             }
         }
-    }
-
-    /// One selectable roll-up period (a quarter / half / year present in the cache).
-    struct PeriodBucket: Identifiable, Hashable {
-        let key: String      // stable id + storage name, e.g. "2026-Q1"
-        let label: String    // display, e.g. "2026 年 Q1"
-        let months: [String] // member `yyyy-MM` buckets
-        var id: String { key }
+        /// How far back the window reaches from "now".
+        var window: (component: Calendar.Component, value: Int) {
+            switch self {
+            case .week: return (.day, 7)
+            case .month: return (.month, 1)
+            case .quarter: return (.month, 3)
+            case .half: return (.month, 6)
+            case .threeQuarter: return (.month, 9)
+            case .year: return (.month, 12)
+            }
+        }
     }
 
     private static let defaultBackground = """
@@ -124,49 +128,10 @@ final class WorkLogViewModel {
         return month >= WorkItem.monthKey(cutoff)
     }
 
-    /// All month buckets present in the cache (ignores the search filter), used
-    /// to build the roll-up period buckets.
-    private var allMonths: [String] { Array(Set(items.map(\.monthKey))) }
-
-    /// Period buckets available from the cache for the current `periodKind`,
-    /// newest first.
-    var periods: [PeriodBucket] {
-        var byKey: [String: (label: String, months: [String])] = [:]
-        for month in allMonths {
-            guard let b = Self.bucket(for: month, kind: periodKind) else { continue }
-            byKey[b.key, default: (b.label, [])].months.append(month)
-        }
-        return byKey
-            .map { PeriodBucket(key: $0.key, label: $0.value.label, months: $0.value.months.sorted()) }
-            .sorted { $0.key > $1.key }
-    }
-
-    /// The currently selected period bucket, if any.
-    var selectedPeriod: PeriodBucket? {
-        guard let key = selectedPeriodKey else { return nil }
-        return periods.first { $0.key == key }
-    }
-
-    /// Toggle a period bucket (single-select: picking the same one clears it).
-    func selectPeriod(_ key: String) {
-        selectedPeriodKey = (selectedPeriodKey == key) ? nil : key
-    }
-
-    /// Map a `yyyy-MM` month to its period bucket key + display label.
-    static func bucket(for month: String, kind: PeriodKind) -> (key: String, label: String)? {
-        let parts = month.split(separator: "-")
-        guard parts.count == 2, let year = Int(parts[0]),
-              let m = Int(parts[1]), (1...12).contains(m) else { return nil }
-        switch kind {
-        case .quarter:
-            let q = (m - 1) / 3 + 1
-            return ("\(year)-Q\(q)", "\(year) 年 Q\(q)")
-        case .half:
-            let h = m <= 6 ? 1 : 2
-            return ("\(year)-H\(h)", "\(year) 年\(h == 1 ? "上" : "下")半年")
-        case .year:
-            return ("\(year)", "\(year) 年")
-        }
+    /// The earliest `createdAt` included for `kind`, measured back from `now`.
+    static func cutoff(for kind: PeriodKind, now: Date = Date()) -> Date {
+        let w = kind.window
+        return Calendar.current.date(byAdding: w.component, value: -w.value, to: now) ?? now
     }
 
     // MARK: - Load (cache only)
@@ -245,7 +210,7 @@ final class WorkLogViewModel {
     /// Roll the per-item summaries of the selected months up into one
     /// feature-grouped report, and cache it.
     func runAggregate() async {
-        guard !isAggregating, let period = selectedPeriod else { return }
+        guard !isAggregating else { return }
         guard let resolved = AppSettings.shared.resolveModel(named: nil) else {
             aggregate = "未配置模型：请在设置里添加一个 Provider"
             return
@@ -257,19 +222,20 @@ final class WorkLogViewModel {
         isAggregating = true
         defer { isAggregating = false }
 
+        let cutoff = Self.cutoff(for: periodKind)
         let picked = items
-            .filter { period.months.contains($0.monthKey) }
+            .filter { $0.createdAt >= cutoff }
             .sorted { $0.createdAt < $1.createdAt }
-        guard !picked.isEmpty else { aggregate = "这个周期内没有已总结的条目"; return }
+        guard !picked.isEmpty else { aggregate = "\(periodKind.label)内没有已总结的条目"; return }
 
         do {
             let report = try await client.ask(
-                question: Self.aggregatePrompt(picked, period: period, background: backgroundPrompt),
+                question: Self.aggregatePrompt(picked, since: Self.dayString(cutoff), background: backgroundPrompt),
                 attachments: []
             )
             let text = Self.clean(report)
             aggregate = text
-            try? store.saveAggregate(name: period.key, markdown: text)
+            try? store.saveAggregate(name: periodKind.rawValue, markdown: text)
         } catch {
             aggregate = "总结失败：\(error.localizedDescription)"
         }
@@ -289,12 +255,12 @@ final class WorkLogViewModel {
         """
     }
 
-    private static func aggregatePrompt(_ items: [WorkItem], period: PeriodBucket, background: String) -> String {
+    private static func aggregatePrompt(_ items: [WorkItem], since: String, background: String) -> String {
         let lines = items.map { "- [\($0.monthKey)] \($0.repoSlug) \($0.kind.label) #\($0.number)：\($0.summary)" }
             .joined(separator: "\n")
         let bg = background.trimmingCharacters(in: .whitespacesAndNewlines)
         return """
-        你是我的工作总结助手。请基于我的工作背景，用 OKR 方法论对我在【\(period.label)】期间**已完成的工作**做一次回顾性总结。
+        你是我的工作总结助手。请基于我的工作背景，用 OKR 方法论对我**自 \(since) 起、截至今天已完成的工作**做一次回顾性总结（下面的 PR / issue 均为 createdAt 在 \(since) 及之后创建的条目）。
 
         【我的工作背景】
         \(bg.isEmpty ? "（未提供）" : bg)
@@ -319,6 +285,17 @@ final class WorkLogViewModel {
         \(lines)
         """
     }
+
+    /// `yyyy-MM-dd` (local calendar) — the concrete since-date fed to the OKR
+    /// prompt so the model knows the exact `createdAt` window boundary.
+    private static func dayString(_ date: Date) -> String { dayFormatter.string(from: date) }
+
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
 
     /// Trim the model's answer to a single tidy block (drop stray quotes/blank
     /// edges); the per-item prompt already asks for no wrapping.
