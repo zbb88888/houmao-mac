@@ -34,6 +34,12 @@ final class WorkLogViewModel {
     private(set) var isSummarizing = false
     /// Coarse progress for Stage 1 (summarized-so-far, total-to-summarize).
     private(set) var summarizeProgress: (done: Int, total: Int)?
+    /// A short line naming the item currently being summarized (Stage 1), shown
+    /// live in the panel; nil when idle.
+    private(set) var currentActivity: String?
+    /// The current item's LLM output, streamed token-by-token like a chat bubble
+    /// (Stage 1); empty when idle or between items.
+    private(set) var streamingText: String = ""
 
     /// The rolling window to roll up for the OKR summary (default: 这月).
     var periodKind: PeriodKind = .month
@@ -52,6 +58,9 @@ final class WorkLogViewModel {
 
     private let provider = WorkLogProvider()
     private let store = WorkLogStore()
+    /// Bumped per item so a finished item's late stream tokens can't leak into
+    /// the next item's bubble.
+    private var streamSeq = 0
 
     private static let fromKey = "houmao.worklog.from"
     private static let backgroundKey = "houmao.worklog.background"
@@ -160,7 +169,7 @@ final class WorkLogViewModel {
 
         isSummarizing = true
         summarizeProgress = nil
-        defer { isSummarizing = false; summarizeProgress = nil }
+        defer { isSummarizing = false; summarizeProgress = nil; currentActivity = nil; streamingText = "" }
 
         // 1. List candidate refs (PRs + issues), oldest first.
         let refs: [(ref: WorkItemRef, kind: WorkKind)]
@@ -183,18 +192,30 @@ final class WorkLogViewModel {
         summarizeProgress = (0, pending.count)
 
         for (i, entry) in pending.enumerated() {
+            currentActivity = "\(entry.ref.repoSlug) \(entry.kind.label) #\(entry.ref.number) · \(entry.ref.title)"
+            streamSeq += 1
+            let seq = streamSeq
+            streamingText = ""
             do {
                 let context = try await provider.fetchContext(entry.ref, kind: entry.kind)
-                let summary = try await client.ask(
+                let summary = try await client.askStream(
                     question: Self.itemPrompt(entry.ref, kind: entry.kind, context: context),
                     attachments: []
-                )
+                ) { [weak self] token in
+                    Task { @MainActor in
+                        guard let self, self.streamSeq == seq else { return }
+                        self.streamingText += token
+                    }
+                }
                 let item = WorkItem(
                     kind: entry.kind, number: entry.ref.number, repoSlug: entry.ref.repoSlug,
                     title: entry.ref.title, url: entry.ref.url, createdAt: entry.ref.createdAt,
                     summary: Self.clean(summary)
                 )
                 try store.save(item)
+                // Surface the new summary immediately so the list fills in live.
+                items.append(item)
+                items.sort { $0.createdAt > $1.createdAt }
             } catch {
                 // Best-effort: skip a failed item, keep going. A later re-run
                 // retries it (it stays uncached).

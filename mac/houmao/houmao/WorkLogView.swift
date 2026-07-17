@@ -62,14 +62,6 @@ struct WorkLogView: View {
             .help("编辑工作背景（OKR 总结时交给模型作为上下文）")
             .popover(isPresented: $showBackground, arrowEdge: .bottom) { backgroundEditor }
 
-            if viewModel.isSummarizing {
-                ProgressView().controlSize(.small)
-                if let p = viewModel.summarizeProgress {
-                    Text("总结中 \(p.done)/\(p.total)")
-                        .font(.caption).foregroundStyle(theme.textSecondary)
-                }
-            }
-
             Spacer()
         }
         .padding(.horizontal, 16)
@@ -94,7 +86,7 @@ struct WorkLogView: View {
     // MARK: - Content
 
     @ViewBuilder private var content: some View {
-        if viewModel.months.isEmpty {
+        if viewModel.months.isEmpty && !viewModel.isSummarizing {
             centered {
                 VStack(spacing: 10) {
                     Image(systemName: "calendar.badge.clock")
@@ -112,7 +104,8 @@ struct WorkLogView: View {
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) {
-                    aggregateBar
+                    if viewModel.isSummarizing { summarizingBanner }
+                    if !viewModel.months.isEmpty { aggregateBar }
                     ForEach(viewModel.months, id: \.self) { month in
                         monthSection(month)
                     }
@@ -120,6 +113,38 @@ struct WorkLogView: View {
                 .padding(16)
             }
         }
+    }
+
+    /// Live Stage-1 progress shown at the top of the list: overall count plus
+    /// the item currently being summarized (each finished summary lands in the
+    /// list below as it completes).
+    private var summarizingBanner: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                ProgressView().controlSize(.small)
+                if let p = viewModel.summarizeProgress {
+                    Text("正在总结 \(p.done)/\(p.total)").font(.system(size: 13, weight: .semibold))
+                } else {
+                    Text("正在拉取 PR / issue…").font(.system(size: 13, weight: .semibold))
+                }
+                Spacer()
+            }
+            if let activity = viewModel.currentActivity {
+                Text(activity)
+                    .font(.caption).foregroundStyle(theme.textSecondary).lineLimit(1)
+            }
+            if !viewModel.streamingText.isEmpty {
+                Text(viewModel.streamingText)
+                    .font(.system(size: 13))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(theme.surface, in: RoundedRectangle(cornerRadius: 8))
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(12)
+        .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.accent.opacity(0.35)))
     }
 
     // MARK: - Aggregate bar (Stage 2)
