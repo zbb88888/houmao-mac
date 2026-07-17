@@ -2,6 +2,7 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
+> 最近更新：2026-07-17（**工作量总结面板 `/worklog`（§3.12）**：两阶段 GitHub 工作量摘要——阶段一按 `from` 逐个总结我的 PR+issue（每条 30–50 字，`gh` 取数 + `AiTxtClient` 摘要，增量缓存到 `~/Documents/houmao/worklog/<repo>/<月>/`）；阶段二选周期（季度/半年/全年）→基于可编辑的工作背景按 **OKR 方法论**归纳成 Markdown 报告。**不走 ghia**（深度 review 非短摘要、要改 client-tools）、**不复用 PR/Issue 现成列表**（那是 open/近期，worklog 要 created>=from 全状态·按月·PR+issue 合并）——只共用 gh 封装 `GitHubCLI`。近三月展开/更早折叠。新增 `Core/WorkLog/*` + `WorkLogViewModel`/`WorkLogView`，rail 加"工作量"入口 + `/worklog`。6 单测绿。）
 > 最近更新：2026-07-17（**命令面板搜索历史 + 清空（ADR-12 §5 约定6）**：命令面板每次打开都是干净空框；**回车=提交搜索**（记录历史→筛选→清空框→关闭），**空框回车=清空当前页筛选**（手动清理入口）；`SearchHistoryStore`（UserDefaults 持久化/最近优先/去重/上限20/全局共享），搜索模式 `↑↓` 调取历史、空框展示「最近搜索」可点选行 + 「清除」按钮。仅 `onSearch != nil` 的页记录/展示。补齐了原 §5「无清除入口」待办。）
 > 最近更新：2026-07-17（**详情页删除动作约定（ADR-11 §约定7）**：凡从列表双击进入的 drill-in 详情（`mailDetail` 子窗、`GoalDetailView`），只要列表行支持删除，**详情 header 也提供同一红色 `trash` 删除**，删除后退出详情，并**复用列表已有删除链路**（不另造逻辑）。落地：`MailDetailView`→`MailViewModel.deleteDetail()`（移废纸篓+撤销+关窗）；`GoalDetailView`→`deleteGoal`+`onBack`。）
 > 最近更新：2026-07-17（**命令面板 Phase 2**：PR/Issue/Do/Goal 各 VM 加 `searchFilter`+`displayed*` 过滤并接 `paletteSearch`；七页补 `helpLines`；**mail header 搜索框已收敛进命令面板**（移除，帮助并入 helpLines）。待办：md 编辑器搜索(/check)未迁、面板过滤的清除入口。）
@@ -331,6 +332,23 @@ flowchart TB
 
 ---
 
+### 3.12 工作量总结面板 `/worklog`：两阶段 GitHub 工作量摘要（✅ 2026-07-17）
+
+**需求**：为周期性汇报（半年/三月/月/周）自动化"我这段时间干了啥"——设个起始时间，逐个总结我的 PR/issue（每条 30–50 字），再按月归纳成果。
+
+**为什么不走 ghia**：ghia 的定位是**单个 PR 的多阶段深度 review**（长报告、1200s 超时），与本需求的"短一句话摘要 × 几十条"正好相反；让它产短摘要要改 client-tools（Go）+ 重建二进制，且逐 PR 子进程在规模下很重。→ **取数用 `gh`、摘要/归纳用 Swift 侧 `AiTxtClient`**（第二阶段的按月归纳纯文本→文本，不碰 GitHub），全程自包含、不改另一个仓库。**也不复用 PR/Issue 页面的现成列表数据**：那两页查的是 open/近期（"现在在做啥"），worklog 要 `created>=from` 全状态、按月、PR+issue 合并（"做过啥"）——查询/分组/合并都不同，只复用同一套 gh 封装（`GitHubCLI`）。
+
+**两阶段流程**：
+
+- **阶段一（逐条）**：`WorkLogProvider`（`gh search prs|issues --author=@me --created=>=<from> --sort created`）拉 PR+issue → 对**未缓存**的每条 `gh pr/issue view` 取 body（PR 另取 commit headlines）→ `AiTxtClient.ask` 生成 30–50 字 → 存盘。**幂等去重**：以每条的 **URL（全局唯一、稳定的唯一 id）** 作为身份（不依赖月份路径），同一 PR/issue 任何时候重跑都只分析一次；失败静默跳过（下次重跑补齐）。
+- **阶段二（按周期 · OKR）**：选**周期粒度**（季度 / 半年 / 全年，`PeriodKind`）→ 面板从缓存里的月份自动聚成可选周期胶囊（如 `2026 年 Q1`），单选一个 → 把该周期的原子摘要 + **可编辑的工作背景**（`backgroundPrompt`，默认已填公有云/K8s·KubeVirt·Kube-OVN·CNI chaining Cilium·Ceph/网络架构师角色，持久化）喂 `AiTxtClient`，**用 OKR 方法论**（提炼 2–4 个 Objective，每个下列可量化 KR 并引用支撑的 PR/issue）产出 Markdown → 存盘 + 弹 sheet（可复制）。
+
+**存储**：`~/Documents/houmao/worklog/<owner>__<repo>/<yyyy-MM>/<kind>-<number>.md`（每条一份，`---` 头 + 摘要正文，`WorkLogStore.parse/serialize` 纯函数可单测）；聚合报告存 `_aggregate/<周期 key 如 2026-Q1>.md`。
+
+**代码**：`Core/WorkLog/`（`WorkItem`/`WorkItemRef`/`WorkKind` 模型、`WorkLogProvider` gh 取数、`WorkLogStore` 缓存+纯 parse/serialize）+ 根 `WorkLogViewModel`（`@MainActor @Observable`：`fromDate`+`backgroundPrompt` 持久化、`generate()` 阶段一、`periodKind`/`periods`/`selectedPeriod`/`bucket(for:kind:)` 周期分桶、`runAggregate()` 阶段二 OKR、按 `monthKey` 分组、`isRecent` 近三月）+ `WorkLogView`（header：起始时间 popover〔含近一周/月/三月/半年快捷〕+ ✨生成〔带 N/M 进度〕+ 刷新 + **工作背景 popover**；按月 section 近三月展开/更早折叠；**周期段选择器（季度/半年/全年）+ 周期胶囊单选** + 「总结选中」；OKR sheet 用 `MarkdownView` 渲染）。接线照 ADR-11/12：`.houmaoEnterWorkLogWindow`、`PanelDestination`（rail 图标 `calendar.badge.clock` "工作量"）、`makeWorkLogWindow`（标题 `worklog`）、`/worklog` 命令 + helpBrief。单测 `WorkLogStoreTests`（6 例：round-trip/多行摘要/缺字段拒绝/月份 UTC 桶）。**新增 5 .swift → 已 xcodegen+build，单测绿。** **注**：GUI 无法在无头环境验证，只保证编译 + 纯逻辑单测；真实 gh/LLM 联调需用户本地 `gh auth` + 配好 Provider。
+
+---
+
 ## 4. 开发路线图与事项跟踪
 
 > 状态：✅ 完成 ｜ 🚧 进行中 ｜ ⬜ 待办。每刀都要求 `make build` + `make test` 零回归。
@@ -554,8 +572,8 @@ flowchart TB
 
 - **背景 / 决策**：功能入口原来只硬编码在**聊天输入栏**一处（`ChatView`），其余页面（mail/pr/issue/do/goal/editor）**没有任何入口**，只能靠 `/xxx` 或全局热键切换——导航不统一、不可发现。评估过"全局悬浮呼吸式侧边栏（空白处呼出、四边任意）"后**否决**（悬停/自动隐藏作主导航是反模式：可发现性差、易误触、键盘/VoiceOver 不可达；"空白检测"需全局 mouseMoved + 命中测试，脆弱耗电；跨 N 个独立窗口做全局悬浮条状态同步易抖动/错位，有 `windowDidLayout setFrame` 崩溃前科）。**改为常驻 rail**（业界主导航最佳实践：VS Code 活动栏 / Things / Xcode 侧栏均常驻）。
 - **约定**：
-  1. 共享组件 `PanelSidebar.swift`：一条**常驻在每个面板窗口 leading 边的竖直 rail**，图标按钮（`bubble.left`对话 / `envelope`邮件 / `arrow.triangle.pull`PR / `smallcircle.filled.circle`Issue / `checklist`待办 / `scope`目标 / `square.and.pencil`编辑器），每个 post 对应 `.houmaoEnterXxxWindow`。只用 SF Symbol + `.help`，无文字。
-  2. `SidebarChrome<Content>` 包裹器 = `HStack { PanelSidebar ; Divider ; content }`，**每个面板窗口的 rootView 都经它装配**（chat/mail/pr/issue/do/goal/editor 七窗），保证"所有功能页同一套按钮"。极简悬浮框（`MainView`）与 `mailDetail` 子窗**不加** rail。
+  1. 共享组件 `PanelSidebar.swift`：一条**常驻在每个面板窗口 leading 边的竖直 rail**，图标按钮（`bubble.left`对话 / `envelope`邮件 / `arrow.triangle.pull`PR / `smallcircle.filled.circle`Issue / `checklist`待办 / `scope`目标 / `square.and.pencil`编辑器 / `calendar.badge.clock`工作量），每个 post 对应 `.houmaoEnterXxxWindow`。只用 SF Symbol + `.help`，无文字。
+  2. `SidebarChrome<Content>` 包裹器 = `HStack { PanelSidebar ; Divider ; content }`，**每个面板窗口的 rootView 都经它装配**（chat/mail/pr/issue/do/goal/editor/worklog 八窗），保证"所有功能页同一套按钮"。极简悬浮框（`MainView`）与 `mailDetail` 子窗**不加** rail。
   3. **折叠**：`SidebarState`（`@Observable` 单例，`UserDefaults` 持久化）存全局 `isExpanded`；顶部按钮或 **⌘\\** 切换，所有窗口的 rail 经 Observation 同步；折叠为窄条（仅留切换按钮）。
   4. rail 顶部内边距只需 `6pt`（`fullSizeContentView` 的标题栏安全区已让开红绿灯；6pt 用于让第一个 rail 图标与页面 header 首行对齐，别再叠 34pt 造成错位）。
   5. **命令面板（⌘K，统一搜索框）**：rail 顶部一个放大镜按钮（或 **⌘K**）唤起共享 `CommandPalette`——一个**钉在窗口正上方**（`padding(.top, 64)`、无全屏遮罩、点外部关闭）的浮层，**不遮正文**。三模式按前缀分流：无前缀=**搜索当前页**（经 `SidebarChrome(paletteSearch:)` 注入的 `@MainActor` 闭包 live 过滤，目前只接了 mail→`searchFilter`）；`/`=**命令/跳转**（复用 `PanelDestination.all`，与 rail 同一套目的地，回车/点选跳窗）；`/h`=**帮助**。`PanelDestination` 抽为 rail 与面板共享的导航表（symbol/title/keywords/notification）。`SidebarChrome` 现持 `showPalette` 状态 + `pageName`/`paletteSearch` 上下文（按窗口显式传，非全局单例，天然对应 key 窗口）。

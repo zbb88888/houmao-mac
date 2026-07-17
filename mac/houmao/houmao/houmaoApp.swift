@@ -47,6 +47,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private(set) var issueViewModel: IssueViewModel!
     private(set) var doViewModel: DoViewModel!
     private(set) var goalsViewModel: GoalsViewModel!
+    private(set) var workLogViewModel: WorkLogViewModel!
     private(set) var driveSyncService: DriveSyncService!
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
@@ -56,6 +57,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var enterIssueObserver: NSObjectProtocol?
     private var enterDoObserver: NSObjectProtocol?
     private var enterGoalsObserver: NSObjectProtocol?
+    private var enterWorkLogObserver: NSObjectProtocol?
     private var enterEditorObserver: NSObjectProtocol?
     private var commitEditorObserver: NSObjectProtocol?
     private var openMailDetailObserver: NSObjectProtocol?
@@ -75,6 +77,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var doWindow: NSWindow?
     /// Standalone goal-management window (goals + Mermaid detail), same shell.
     private var goalsWindow: NSWindow?
+    /// Standalone work-log window (`/worklog`), same shell as the PR window.
+    private var workLogWindow: NSWindow?
     /// The one shared, general-purpose Markdown editor window (houmao's single
     /// editor). Reused across all callers; the current document/sink lives in
     /// `markdownEditorModel`.
@@ -120,6 +124,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         driveSyncService = DriveSyncService()
         doViewModel = DoViewModel(driveSync: driveSyncService)
         goalsViewModel = GoalsViewModel()
+        workLogViewModel = WorkLogViewModel()
 
 
         setupPanel()
@@ -131,6 +136,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         setupDoWindowObservers()
         setupEditorWindowObservers()
         setupGoalsWindowObservers()
+        setupWorkLogWindowObservers()
 
         hotKeyManager = GlobalHotKeyManager.shared
         tracker.start()
@@ -341,6 +347,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             hideGoalsWindow()
             return false
         }
+        if sender == workLogWindow {
+            hideWorkLogWindow()
+            return false
+        }
         if sender == markdownEditorWindow {
             MainActor.assumeIsolated { finishMarkdownEditor() }
             return false
@@ -438,7 +448,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// All independent panel windows (each toggled by its own button / command).
     /// Used to cascade a newly shown panel so several can stay visible at once.
     private var panelWindows: [NSWindow] {
-        [chatWindow, mailWindow, prWindow, issueWindow, doWindow, markdownEditorWindow, goalsWindow].compactMap { $0 }
+        [chatWindow, mailWindow, prWindow, issueWindow, doWindow, markdownEditorWindow, goalsWindow, workLogWindow].compactMap { $0 }
     }
 
     /// Place a panel window the first time it's shown. Each panel is an
@@ -565,6 +575,60 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
 
     private func hidePRWindow() {
         guard let window = prWindow else { return }
+        hideWindowSafely(window)
+    }
+
+    // MARK: WorkLog window (`/worklog`)
+
+    private func setupWorkLogWindowObservers() {
+        enterWorkLogObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoEnterWorkLogWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.showWorkLogWindow()
+        }
+    }
+
+    private func makeWorkLogWindow() -> NSWindow {
+        let rect = centeredGoldenRect(on: screenContainingMouse())
+        let window = NSWindow(
+            contentRect: rect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "worklog"
+        window.titlebarAppearsTransparent = true
+        window.appearance = NSAppearance(named: .aqua)
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 640, height: 460)
+        window.delegate = self
+
+        let workLogView = WorkLogView().environment(workLogViewModel)
+        window.contentViewController = NSHostingController(rootView: SidebarChrome(
+            pageName: "worklog",
+            paletteSearch: { [weak self] query in self?.workLogViewModel.searchFilter = query },
+            helpLines: [
+                "设置起始时间 → ✨ 生成：拉取并逐个总结我的 PR / issue（同一条只分析一次）",
+                "选周期（季度/半年/全年）→ 「总结选中」按 OKR 归纳；可编辑工作背景作为上下文",
+                "直接输入：按标题/摘要筛选；双击行在浏览器打开",
+            ]
+        ) { workLogView })
+        return window
+    }
+
+    private func showWorkLogWindow() {
+        let window = workLogWindow ?? makeWorkLogWindow()
+        workLogWindow = window
+        placePanelOnFirstShow(window)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        // Reload the on-disk cache each open (no network); generating is explicit.
+        Task { @MainActor in workLogViewModel.reload() }
+    }
+
+    private func hideWorkLogWindow() {
+        guard let window = workLogWindow else { return }
         hideWindowSafely(window)
     }
 

@@ -36,6 +36,9 @@ extension Notification.Name {
     /// Posted when the Goals button (or `/goals`) is used so the app can open the
     /// standalone goal-management window (mirrors the Do window shell).
     static let houmaoEnterGoalsWindow = Notification.Name("houmaoEnterGoalsWindow")
+    /// Posted when the work-log button (or `/worklog`) is used so the app can open
+    /// the standalone work-log window (mirrors the PR window shell).
+    static let houmaoEnterWorkLogWindow = Notification.Name("houmaoEnterWorkLogWindow")
     /// Posted when the user opens a message so the app can show the standalone
     /// mail-detail window (a standard large window, not an in-place sheet).
     static let houmaoOpenMailDetail = Notification.Name("houmaoOpenMailDetail")
