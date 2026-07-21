@@ -26,6 +26,7 @@
 		291064C93540929130EB50FF /* GoalDoc.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5907ACC57D6A9F607140EA2 /* GoalDoc.swift */; };
 		38FB8BE9EE5B9462670FCCB3 /* DoModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A48DDBAD78C16C718439A964 /* DoModel.swift */; };
 		39D57155CF6966C808689D94 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0BC36FC5E119006A965686E /* Assets.xcassets */; };
+		3C062D49A79C44E3423CB3EC /* MiddleClickPasteManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EAA739E5D9930D17E55376C /* MiddleClickPasteManager.swift */; };
 		3C37F1672D96FD7F9FC6D41C /* PipelineParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2F991A07308DE37AEDB329 /* PipelineParser.swift */; };
 		40F5C9585B7DA82FBF8FE31B /* ConversationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 866890AB80CBCD0C2B1C2E96 /* ConversationStore.swift */; };
 		43269FE26BD3EC1A4D306903 /* houmaoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9AEEE5D5E88D810CC2F4E7 /* houmaoApp.swift */; };
@@ -135,6 +136,7 @@
 		3743A8B5A8F2BE869F0343E5 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		3A898812C4E745A5A78DA3D1 /* MailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailView.swift; sourceTree = "<group>"; };
 		3DDB602B846EE84FE42E451E /* DoViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoViewModel.swift; sourceTree = "<group>"; };
+		3EAA739E5D9930D17E55376C /* MiddleClickPasteManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiddleClickPasteManager.swift; sourceTree = "<group>"; };
 		3F0C55C88E57A6F6BC2D2641 /* TextClusteringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextClusteringTests.swift; sourceTree = "<group>"; };
 		410FF4A6A10475DBEC89ECF4 /* SelectToCopyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectToCopyManager.swift; sourceTree = "<group>"; };
 		4A2F991A07308DE37AEDB329 /* PipelineParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineParser.swift; sourceTree = "<group>"; };
@@ -422,6 +424,7 @@
 				AFD4E59ACAF55DEB8DDCF684 /* MarkdownEditorView.swift */,
 				5BF08A509F2FFE9FEE779D39 /* MarkdownView.swift */,
 				6357EAD0D83E7206BE088B1E /* MermaidView.swift */,
+				3EAA739E5D9930D17E55376C /* MiddleClickPasteManager.swift */,
 				584BA80A94447E11468961FD /* PanelSidebar.swift */,
 				D1E1C6995CBCF2A576AFAF5A /* PRView.swift */,
 				E24D96DD2B2427B4C062FF2B /* PRViewModel.swift */,
@@ -596,6 +599,7 @@
 				5A6C6C32968E7A922C953FA0 /* MarkdownView.swift in Sources */,
 				D4A8EB492FDE1314B24B0502 /* MermaidView.swift in Sources */,
 				F46213BE55659AC254D5DA13 /* Message.swift in Sources */,
+				3C062D49A79C44E3423CB3EC /* MiddleClickPasteManager.swift in Sources */,
 				E0508EFE430B2A031BE608FC /* NoteWriting.swift in Sources */,
 				2307134B590D569C23CDA014 /* PKCE.swift in Sources */,
 				E4F9996F92142CAD1E9E7639 /* PRView.swift in Sources */,

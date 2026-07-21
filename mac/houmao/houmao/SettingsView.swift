@@ -69,6 +69,7 @@ struct SettingsView: View {
     private var driveSync: DriveSyncService? { AppDelegate.shared?.driveSyncService }
 
     @State private var copyOnSelection = false
+    @State private var pasteOnMiddleClick = false
     @State private var reposRoot = ""
     @State private var editingReposRoot = false
 
@@ -97,6 +98,17 @@ struct SettingsView: View {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .houmaoSelectToCopyAuthorizationDidChange)) { _ in
                     copyOnSelection = SelectToCopyManager.shared.isEnabled
+                }
+
+            Toggle("Paste on Middle Click", isOn: $pasteOnMiddleClick)
+                .onChange(of: pasteOnMiddleClick) { _, newValue in
+                    MiddleClickPasteManager.shared.isEnabled = newValue
+                }
+                .onAppear {
+                    pasteOnMiddleClick = MiddleClickPasteManager.shared.isEnabled
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .houmaoMiddleClickPasteAuthorizationDidChange)) { _ in
+                    pasteOnMiddleClick = MiddleClickPasteManager.shared.isEnabled
                 }
 
             Divider()

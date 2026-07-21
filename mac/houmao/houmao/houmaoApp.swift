@@ -144,6 +144,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         let selectToCopy = SelectToCopyManager.shared
         selectToCopy.refreshAuthorizationState()
 
+        MiddleClickPasteManager.shared.refreshAuthorizationState()
+
         // The chat window is the app's main UI window; present it on launch.
         showChatWindow()
     }
