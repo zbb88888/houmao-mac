@@ -31,4 +31,7 @@ struct AgentEvent: Identifiable, Codable, Sendable, Equatable {
     /// A chat command the user can trigger with one click (e.g. "/pr <url>"),
     /// reusing the shared `MainViewModel.handleToolCommand` dispatch.
     var suggestedCommand: String
+    /// Whether this item is a highlighted "重点" (currently set by the mail
+    /// watcher's LLM judgment; GitHub items leave it false).
+    var important: Bool = false
 }

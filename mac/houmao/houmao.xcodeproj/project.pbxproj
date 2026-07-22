@@ -11,6 +11,7 @@
 		067D3ECE0A69B3F33946194D /* WorkLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 212A554E2399C022A057E3D4 /* WorkLogView.swift */; };
 		0964719B47388F32A7FB9D9E /* AgentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 407FBEE0D4C3D4F244F2BBFF /* AgentStore.swift */; };
 		09CF7407F06F28202E487462 /* DoViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DDB602B846EE84FE42E451E /* DoViewModel.swift */; };
+		0DC4CDB72556394C799F26E9 /* MailImportanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3519ED317A87DA4C6786D68E /* MailImportanceTests.swift */; };
 		10305D3A8566A8BB2471D2A4 /* WorkItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60907D7EC6CECAD09F3785C0 /* WorkItem.swift */; };
 		146C38DC576E2EB632AA5CF0 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3743A8B5A8F2BE869F0343E5 /* ChatView.swift */; };
 		14E6666F1D352CEAC9D0456E /* PanelSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 584BA80A94447E11468961FD /* PanelSidebar.swift */; };
@@ -54,6 +55,7 @@
 		66AF29D4489C1F7D925C3279 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ACFAC2F8E8BEF91D60F434 /* Theme.swift */; };
 		66B77BCF21C91F327B06BB07 /* UsageTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DEA0EA2BAF153958FC236CB /* UsageTracker.swift */; };
 		67770692576258B01B0A7366 /* PipelineParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1463CB9916AB39A21F23ECAA /* PipelineParserTests.swift */; };
+		68EE5550A23E6B4CECE4E4E7 /* MailImportance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB5C9BF8C3F1350B35B135B /* MailImportance.swift */; };
 		6BF800D55865948605E907E4 /* AgentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFEFDF5B73EEC3212AE8722A /* AgentViewModel.swift */; };
 		6C057AA5E9D3A3A9D7F9AFED /* Attachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16A32AF2D3C92FD4642119D6 /* Attachment.swift */; };
 		6F6E1C737A68E77A54D58527 /* GitHubWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F878E28DC5AF9A5AB95015 /* GitHubWatcher.swift */; };
@@ -138,6 +140,7 @@
 		0AE08487E764F95B66219AEB /* MailGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailGroupingTests.swift; sourceTree = "<group>"; };
 		0DF08D164A5D2EA8C9127D54 /* MailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailViewModel.swift; sourceTree = "<group>"; };
 		0F4B902B3D042810487E0B2F /* CommandHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandHistory.swift; sourceTree = "<group>"; };
+		0FB5C9BF8C3F1350B35B135B /* MailImportance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailImportance.swift; sourceTree = "<group>"; };
 		1463CB9916AB39A21F23ECAA /* PipelineParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineParserTests.swift; sourceTree = "<group>"; };
 		16A32AF2D3C92FD4642119D6 /* Attachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attachment.swift; sourceTree = "<group>"; };
 		16E13EA63341BD90F98E4DB3 /* GitHubCLI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubCLI.swift; sourceTree = "<group>"; };
@@ -152,6 +155,7 @@
 		304C34344F48BD99E3B1E19F /* PipelineAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineAction.swift; sourceTree = "<group>"; };
 		31DADFF4D45E07705B344E48 /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
 		3484CCD82163FE37FE0A3078 /* NoteWriting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWriting.swift; sourceTree = "<group>"; };
+		3519ED317A87DA4C6786D68E /* MailImportanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailImportanceTests.swift; sourceTree = "<group>"; };
 		3743A8B5A8F2BE869F0343E5 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		3A898812C4E745A5A78DA3D1 /* MailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailView.swift; sourceTree = "<group>"; };
 		3DDB602B846EE84FE42E451E /* DoViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoViewModel.swift; sourceTree = "<group>"; };
@@ -325,6 +329,7 @@
 			children = (
 				1D9F37F0171267C0C74A5BE5 /* GmailProvider.swift */,
 				619FF54E8FF017D104ECBFEF /* MailGrouping.swift */,
+				0FB5C9BF8C3F1350B35B135B /* MailImportance.swift */,
 				201BE16F68F7AD50DCB4A27E /* MailMemoryStore.swift */,
 				AA4D01DBF553FC3A1D20709F /* MailMessage.swift */,
 				D294FA5BEF072740B48A5A69 /* MailProvider.swift */,
@@ -378,6 +383,7 @@
 				8B81BFC7008DECB0341CF0F7 /* GoogleAuthTests.swift */,
 				8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */,
 				0AE08487E764F95B66219AEB /* MailGroupingTests.swift */,
+				3519ED317A87DA4C6786D68E /* MailImportanceTests.swift */,
 				B79C15491DD7C78CFCFF18E8 /* MailMemoryStoreTests.swift */,
 				724EBD4ECC2A8DFE9C5E278E /* MailSignatureTests.swift */,
 				01BEA31CD84A4FEC595CF0E0 /* MarkdownLintTests.swift */,
@@ -655,6 +661,7 @@
 				4DC903D4DC0CF422B37647D4 /* KeychainStore.swift in Sources */,
 				D51E182E30B4A8A52AC8176D /* LoopbackAuthReceiver.swift in Sources */,
 				DF5A8B48A7E21CC043964C40 /* MailGrouping.swift in Sources */,
+				68EE5550A23E6B4CECE4E4E7 /* MailImportance.swift in Sources */,
 				B3CCFB6938BCA9D6564CB03A /* MailMemoryStore.swift in Sources */,
 				D33C6358E4575392165EF1F0 /* MailMessage.swift in Sources */,
 				489DBD824B8D8BEA8C368FC3 /* MailProvider.swift in Sources */,
@@ -718,6 +725,7 @@
 				5808D1A4CE77A91F5B40E3FA /* GoalStoreTests.swift in Sources */,
 				48548AA7258DA25481EC0C04 /* GoogleAuthTests.swift in Sources */,
 				7E06D06B246B6D758C185C38 /* MailGroupingTests.swift in Sources */,
+				0DC4CDB72556394C799F26E9 /* MailImportanceTests.swift in Sources */,
 				F616C51A32777878FA414871 /* MailMemoryStoreTests.swift in Sources */,
 				5985A4AE72BD983F2F0EA506 /* MailSignatureTests.swift in Sources */,
 				216ED3F039A732943119F1B8 /* MarkdownLintTests.swift in Sources */,

@@ -4,18 +4,18 @@ import Foundation
 /// §8):
 /// - `summaries`: cached one-line cluster summaries (keyed by exact signature),
 ///   pre-warmed by `MailWatcher` so opening `/mail` shows them instantly.
-/// - `seenClusters` / `seenFamilies`: signatures already shown to the user, so
-///   recurring or already-reviewed mail collapses instead of being re-triaged.
+/// - `important`: signatures the LLM judged to be a "重点" (needs attention), so
+///   `/mail` can surface those first and collapse routine mail.
 ///
-/// One JSON file under `~/Documents/houmao/mail/`; the codec is pure (static)
-/// for unit testing without the filesystem.
+/// **Written by `MailWatcher`, read-only for `MailViewModel`** — opening `/mail`
+/// never writes state (no "seen"/read side effect). One JSON file under
+/// `~/Documents/houmao/mail/`; the codec is pure for unit testing.
 struct MailMemoryStore {
     struct State: Codable, Equatable {
         var summaries: [String: String]
-        var seenClusters: Set<String>
-        var seenFamilies: Set<String>
+        var important: Set<String>
 
-        static let empty = State(summaries: [:], seenClusters: [], seenFamilies: [])
+        static let empty = State(summaries: [:], important: [])
     }
 
     let directory: URL
@@ -36,12 +36,6 @@ struct MailMemoryStore {
     func save(_ state: State) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try Self.encode(state).write(to: fileURL, options: .atomic)
-    }
-
-    /// A cluster counts as "seen" (collapse it) when either its exact batch or
-    /// its recurring family has been shown before.
-    static func isSeen(_ state: State, clusterSig: String, familyKey: String) -> Bool {
-        state.seenClusters.contains(clusterSig) || state.seenFamilies.contains(familyKey)
     }
 
     // MARK: - Pure codec (unit-testable)

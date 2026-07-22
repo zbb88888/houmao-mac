@@ -165,12 +165,14 @@ struct MailView: View {
             if let undo = viewModel.undoAction {
                 undoBanner(undo)
             }
-            if viewModel.seenCount > 0 {
-                seenBanner
+            if viewModel.routineCount > 0 {
+                routineBanner
             }
             if viewModel.groupedClusters.isEmpty {
                 centered {
-                    Text(viewModel.hideSeen && viewModel.seenCount > 0 ? "只有看过的邮件，已折叠。" : emptyReviewText)
+                    Text(viewModel.hideRoutine && viewModel.routineCount > 0
+                         ? "没有重点邮件（\(viewModel.routineCount) 封非重点已折叠）。"
+                         : emptyReviewText)
                         .foregroundStyle(theme.textSecondary)
                 }
             } else {
@@ -186,17 +188,17 @@ struct MailView: View {
         }
     }
 
-    /// Collapse banner: hide/show clusters already seen in a prior session, so
-    /// recurring / reviewed mail doesn't have to be re-triaged every time.
-    private var seenBanner: some View {
+    /// Collapse banner: hide/show routine (非重点) mail so you can focus on the
+    /// important ones. Opening `/mail` never marks anything read.
+    private var routineBanner: some View {
         HStack(spacing: 8) {
             Image(systemName: "eye.slash").font(.caption)
-            Text(viewModel.hideSeen
-                 ? "已隐藏 \(viewModel.seenCount) 个看过的邮件"
-                 : "已展开看过的邮件")
+            Text(viewModel.hideRoutine
+                 ? "已折叠 \(viewModel.routineCount) 封非重点邮件"
+                 : "已展开非重点邮件")
                 .font(.caption)
             Spacer()
-            Button(viewModel.hideSeen ? "显示" : "隐藏") { viewModel.hideSeen.toggle() }
+            Button(viewModel.hideRoutine ? "显示全部" : "只看重点") { viewModel.hideRoutine.toggle() }
                 .buttonStyle(.link)
         }
         .foregroundStyle(theme.textSecondary)
@@ -290,6 +292,14 @@ struct MailView: View {
                     .contextMenu {
                         Button("复制主题") { copyToPasteboard(subject) }
                     }
+
+                if viewModel.isImportant(cluster) {
+                    Text("重点")
+                        .font(.caption2).bold()
+                        .foregroundStyle(theme.onAccent)
+                        .padding(.horizontal, 6).padding(.vertical, 1)
+                        .background(theme.accent, in: Capsule())
+                }
 
                 Spacer()
 

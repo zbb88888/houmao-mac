@@ -3,6 +3,7 @@
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
 > 最近更新：2026-07-17（**工作量总结面板 `/worklog`（§3.12）**：两阶段 GitHub 工作量摘要——阶段一按 `from` 逐个总结我的 PR+issue（每条 30–50 字，`gh` 取数 + `AiTxtClient` 摘要，增量缓存到 `~/Documents/houmao/worklog/<repo>/<月>/`）；阶段二选周期（周/月/季/半年/大半年/年 滚动窗口）→基于可编辑的工作背景按 **OKR 方法论**归纳成 Markdown 报告。**不走 ghia**（深度 review 非短摘要、要改 client-tools）、**不复用 PR/Issue 现成列表**（那是 open/近期，worklog 要 created>=from 全状态·按月·PR+issue 合并）——只共用 gh 封装 `GitHubCLI`。近三月展开/更早折叠。新增 `Core/WorkLog/*` + `WorkLogViewModel`/`WorkLogView`，rail 加"工作量"入口 + `/worklog`。6 单测绿。）
+> 最近更新：2026-07-22（**邮件 watcher 改为「摘要 + 挑重点」（§3.14，主观能动性 v2）**：按用户反馈——原「看过即折叠」会给人"被已读"错觉（澄清：watcher 只读、**不标 Gmail 已读**），且「只摘要」价值有限。**删除 seen/家族折叠机制**，改为**混合重要性**：启发式 `MailImportance.isRoutine` 去噪（促销/社交/整簇退订）+ LLM 判「重点/一般」+ 一句话摘要（`MailWatcher` 写 `summaries`+`important`，`MailViewModel` **只读**、打开 `/mail` 不写任何状态）。`/mail` 默认 `hideRoutine` 只显重点、`routineBanner` 可展开、重点行「重点」标；「动态」收件箱新邮件**全部进、重点高亮**（`AgentEvent.important`）。新增 `MailImportance`；`MailSignature` 精简为 cluster SHA256。build 绿。）
 > 最近更新：2026-07-22（**邮件 watcher：后台预热 + 去重折叠（§3.14，主观能动性 v2）**：解决 `/mail` 两痛点——①点击才分析每次都等 → `MailWatcher` 后台对新非例行簇预热一句话摘要（仅 metadata、跳过促销社交、单轮上限）落盘缓存，开 `/mail` 秒显；②重复邮件全量重看 → 两种稳定签名（精确 message-id SHA256 + 家族 归一化发件人主题）+ `MailMemoryStore` 记忆，`/mail` 默认折叠已看/相似簇（可展开）；重要新邮件进「动态」收件箱+通知。新增 `Core/Mail/MailSignature`+`MailMemoryStore`+`MailWatcher`+`AgentEvent.newMailCluster`+mail watcher 开关。仍只感知+建议、不自动删（ADR-8）。build+132 单测绿。）
 > 最近更新：2026-07-22（**主观能动性设置/说明收进独立窗口**：把 agent 的**设置**（主开关/GitHub watcher/轮询间隔/静默时段）与**使用说明**从「全局 ⌘, 设置 + ⌘K 帮助」收敛进 `agent` 窗口的 header——`⟳ 刷新 / ⚙️ 设置 popover(`AgentSettingsView` 直绑 `AppSettings`，改动即`applyPolicy()`) / ? 说明 popover(`AgentHelpView`使用手册)`；从 `SettingsView` 移除 agent 区（单一来源、无重复维护）。功能自包含在一个独立窗口。build+122 单测绿。）
 > 最近更新：2026-07-22（**主观能动性（Proactive Agency）`/agent`（§3.13 / ADR-13）**：把猴毛从「被动问答」升级为「主动感知」——`AgentDaemon` 后台 Timer 轮询 `GitHubWatcher`（请求我 review 的 PR + 指派给我的 Issue），确定性 `AgentDiff` 取新、`AgentPolicy` 护栏（主开关/轮询间隔/静默时段/单轮上限）→ 本地通知（复用 `notifyTaskDone`，点击开收件箱）+「动态」收件箱面板，**双击一键触发已有 `/pr` `/issue` 分析**。`Core/Agent/*` 纯 Foundation 可单测（`AgentDiff`/`AgentPolicy`/`AgentStore` 共 12 例）。**只感知+建议、无任何自主写/删**（严守 ADR-8）；tool-calling/MCP/MCTS 树搜索**本期降级为未来展望**（ADR-1/ADR-13）。rail 加 `bell.badge` "动态" 入口 + `/agent` 命令 + 设置页「主观能动性」区。新增 9 `.swift`→已 xcodegen+build，单测绿。）
@@ -362,15 +363,17 @@ flowchart TB
 
 ---
 
-### 3.14 邮件 watcher：后台预热 + 去重折叠（✅ 2026-07-22，主观能动性 v2）
+### 3.14 邮件 watcher：摘要 + 挑重点（✅ 2026-07-22，主观能动性 v2）
 
-**需求**（用户痛点）：`/mail` ①点击才分析、每次都等 LLM（无缓存/无定时器/每次全量拉取重聚簇）；②重复邮件每次全量重看（`MailCluster.id` 运行时 UUID、不落盘，无跨会话记忆）。用主观能动性把这两点变主动。详见 [proactive-agency.md](proactive-agency.md) §8。
+**需求**（用户痛点）：`/mail` ①点击才分析、每次都等 LLM；②**只摘要、不分轻重**，价值有限——真正要的是**挑出重点邮件、只快速过重点**。（原 v2「后台预热+去重折叠」中的「看过即折叠」被用户指出会给人"被已读"错觉——**已删除该机制**，改为按重要性。）详见 [proactive-agency.md](proactive-agency.md) §8。
 
-**落地**：①**后台预热摘要缓存**——`MailWatcher`（新 `Watcher`）在 agent 轮询周期里对**新且非例行**簇（跳过 促销/社交、单轮 `summaryBudget=5`）用 `AiTxtClient.ask`（仅 metadata：subject+snippet，不 `fetchFull`）生成一句话摘要，落盘 `~/Documents/houmao/mail/memory.json`；开 `/mail` 直接读缓存**秒显**。②**去重折叠**——两种稳定签名：`MailSignature.cluster`（成员 message-id 排序后 SHA256，命中同一批）+ `MailSignature.family`（归一化 发件人+主题〔去数字〕，命中周报/newsletter 等反复相似）；`MailMemoryStore` 持久化 `summaries/seenClusters/seenFamilies`；`MailViewModel.applyMailMemory` 先快照 `isSeen` 再记录本次为已看，`/mail` 默认 `hideSeen` 折叠已看簇（`seenBanner` 显示/隐藏切换），行内显示缓存摘要。③**进「动态」收件箱**——`MailWatcher.poll` 对新非例行簇返 `AgentEvent(kind: .newMailCluster, suggestedCommand: "/mail")`，走既有 daemon → 通知 + 收件箱新分区「新邮件」。
+**澄清"已读"**：watcher 只做只读 `listMessages`+`fetchMetadata`（**不标 Gmail 已读**）；标已读只有 `/mail` 面板手动「标记已读」一个入口。打开 `/mail` **不再写任何"看过"状态**。
 
-**护栏**：仍只感知+建议，**绝不自动删/归档/标记**邮件（ADR-8）；成本控制（跳过促销社交/单轮上限/仅 metadata/未连 Gmail 或未开开关则空转）。**对 §2.1「watcher 纯感知」的有意偏离**：`MailWatcher` 额外写摘要缓存（邮件主动性的自然归属，已在设计文档记录）。开关 `AppSettings.agentMailWatcherEnabled`（agent 窗 ⚙️ popover，与 GitHub watcher 并列）。
+**落地**：①**后台预热摘要**——`MailWatcher` 对**新非噪音**簇（启发式 `MailImportance.isRoutine` 去掉促销/社交/整簇退订）用一次 `AiTxtClient.ask`（仅 metadata、`classifyBudget=5`）返回「重点/一般」+ 一句话摘要，落盘 `~/Documents/houmao/mail/memory.json`（`summaries` + `important`）；开 `/mail` 读缓存**秒显**。②**按重要性排序/折叠**——`MailSignature.cluster`（成员 message-id 排序 SHA256）作稳定键；`MailViewModel.applyMailImportance` **只读**记忆（无记忆则启发式 `!isRoutine` 兜底），`/mail` 默认 `hideRoutine` 只显示重点、`routineBanner`（显示全部/只看重点）切换、重点行「重点」标。③**进「动态」收件箱**——`MailWatcher.poll` 对新非噪音簇返 `AgentEvent(.newMailCluster, important:…, "/mail")`，**全部进**收件箱、**重点高亮**（`AgentEvent.important` + 行内「重点」标）。
 
-**代码**：`Core/Mail/MailSignature.swift`（纯，CryptoKit SHA256）+ `Core/Mail/MailMemoryStore.swift`（纯 codec 可测）+ 根 `MailWatcher.swift`；`AgentEvent.Kind.newMailCluster`；`AppSettings.agentMailWatcherEnabled`；`AgentDaemon` watchers 加 `MailWatcher()` + gate；`AgentViewModel.newMailClusters` + 收件箱「新邮件」分区（无 url→右键仅「分析/移除」）；`MailViewModel` 加 `summaryByCluster`/`seenCount`/`hideSeen`/`applyMailMemory`；`MailView` 行内摘要 + `seenBanner`。单测 `MailSignatureTests`（5）+ `MailMemoryStoreTests`（5）。**已 xcodegen+build，132 单测全绿。** **注**：GUI/真实邮件无头验证不了，只保证编译+纯逻辑单测；真机需已连 Gmail + 配 Provider。
+**护栏**：仍只感知+建议，**绝不自动删/归档/标记已读**（ADR-8）；成本控制（启发式去噪跳过 LLM/单轮上限/仅 metadata/未连 Gmail 或未开开关空转）。**对 §2.1「watcher 纯感知」的有意偏离**：`MailWatcher` 额外写 summaries/important 缓存（已记录）。开关 `AppSettings.agentMailWatcherEnabled`（agent 窗 ⚙️ popover）。
+
+**代码**：`Core/Mail/MailSignature.swift`（精简为 cluster SHA256）+ `MailImportance.swift`（纯启发式去噪）+ `MailMemoryStore.swift`（summaries+important，纯 codec，**只由 watcher 写**）+ 根 `MailWatcher.swift`（去噪+LLM 判重点+摘要+`parse`）；`AgentEvent.important`；`AgentDaemon` watchers 含 `MailWatcher()`；`AgentViewModel.newMailClusters` + 收件箱「新邮件」分区 + **重点高亮**；`MailViewModel` 加 `summaryByCluster`/`importantClusterIDs`/`hideRoutine`/`routineCount`/`isImportant`/`applyMailImportance`（读-only）；`MailView` 行内摘要 + `routineBanner` + 「重点」标。单测 `MailSignatureTests`（2）+ `MailImportanceTests`（5 + `parse` 3）+ `MailMemoryStoreTests`（4）。**已 xcodegen+build，单测绿。** **注**：GUI/真实邮件无头验证不了；真机需已连 Gmail + 配 Provider。
 
 ---
 
