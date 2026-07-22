@@ -39,6 +39,10 @@ extension Notification.Name {
     /// Posted when the work-log button (or `/worklog`) is used so the app can open
     /// the standalone work-log window (mirrors the PR window shell).
     static let houmaoEnterWorkLogWindow = Notification.Name("houmaoEnterWorkLogWindow")
+    /// Posted when the agent inbox button (or `/agent`), or a proactive-agent
+    /// notification, is used so the app can open the standalone agent inbox
+    /// window (主观能动性「动态」; mirrors the Issue window shell).
+    static let houmaoEnterAgentWindow = Notification.Name("houmaoEnterAgentWindow")
     /// Posted when the user opens a message so the app can show the standalone
     /// mail-detail window (a standard large window, not an in-place sheet).
     static let houmaoOpenMailDetail = Notification.Name("houmaoOpenMailDetail")

@@ -108,6 +108,33 @@ final class AppSettings {
     /// Parsed custom tag rules.
     var mailTags: [MailTag] { MailTag.parse(mailTagRules) }
 
+    // MARK: - Proactive agent (主观能动性)
+
+    /// Master switch for the background watcher loop (`AgentDaemon`). Off by
+    /// default — the user opts in.
+    var agentEnabled: Bool {
+        didSet { UserDefaults.standard.set(agentEnabled, forKey: "agentEnabled") }
+    }
+
+    /// Poll cadence in minutes.
+    var agentIntervalMinutes: Int {
+        didSet { UserDefaults.standard.set(agentIntervalMinutes, forKey: "agentIntervalMinutes") }
+    }
+
+    /// Quiet-hours window (local hours 0–23); `start == end` disables it.
+    var agentQuietStartHour: Int {
+        didSet { UserDefaults.standard.set(agentQuietStartHour, forKey: "agentQuietStartHour") }
+    }
+    var agentQuietEndHour: Int {
+        didSet { UserDefaults.standard.set(agentQuietEndHour, forKey: "agentQuietEndHour") }
+    }
+
+    /// Per-watcher enable: GitHub (issues assigned to me + PRs requesting my
+    /// review).
+    var agentGitHubWatcherEnabled: Bool {
+        didSet { UserDefaults.standard.set(agentGitHubWatcherEnabled, forKey: "agentGitHubWatcherEnabled") }
+    }
+
     private init() {
         if let data = UserDefaults.standard.data(forKey: "providers"),
            let decoded = try? JSONDecoder().decode([Provider].self, from: data) {
@@ -121,6 +148,12 @@ final class AppSettings {
         self.mailTagRules = UserDefaults.standard.string(forKey: "mailTagRules") ?? ""
         // Clean up legacy keys from previous versions
         UserDefaults.standard.removeObject(forKey: "workers")
+        let d = UserDefaults.standard
+        self.agentEnabled = d.bool(forKey: "agentEnabled")
+        self.agentIntervalMinutes = (d.object(forKey: "agentIntervalMinutes") as? Int) ?? AgentPolicy.default.intervalMinutes
+        self.agentQuietStartHour = (d.object(forKey: "agentQuietStartHour") as? Int) ?? AgentPolicy.default.quietStartHour
+        self.agentQuietEndHour = (d.object(forKey: "agentQuietEndHour") as? Int) ?? AgentPolicy.default.quietEndHour
+        self.agentGitHubWatcherEnabled = (d.object(forKey: "agentGitHubWatcherEnabled") as? Bool) ?? true
         // Hydrate API keys from the Keychain (and migrate legacy plaintext keys).
         loadAPIKeys()
     }

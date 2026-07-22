@@ -3,6 +3,7 @@
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
 > 最近更新：2026-07-17（**工作量总结面板 `/worklog`（§3.12）**：两阶段 GitHub 工作量摘要——阶段一按 `from` 逐个总结我的 PR+issue（每条 30–50 字，`gh` 取数 + `AiTxtClient` 摘要，增量缓存到 `~/Documents/houmao/worklog/<repo>/<月>/`）；阶段二选周期（周/月/季/半年/大半年/年 滚动窗口）→基于可编辑的工作背景按 **OKR 方法论**归纳成 Markdown 报告。**不走 ghia**（深度 review 非短摘要、要改 client-tools）、**不复用 PR/Issue 现成列表**（那是 open/近期，worklog 要 created>=from 全状态·按月·PR+issue 合并）——只共用 gh 封装 `GitHubCLI`。近三月展开/更早折叠。新增 `Core/WorkLog/*` + `WorkLogViewModel`/`WorkLogView`，rail 加"工作量"入口 + `/worklog`。6 单测绿。）
+> 最近更新：2026-07-22（**主观能动性（Proactive Agency）`/agent`（§3.13 / ADR-13）**：把猴毛从「被动问答」升级为「主动感知」——`AgentDaemon` 后台 Timer 轮询 `GitHubWatcher`（请求我 review 的 PR + 指派给我的 Issue），确定性 `AgentDiff` 取新、`AgentPolicy` 护栏（主开关/轮询间隔/静默时段/单轮上限）→ 本地通知（复用 `notifyTaskDone`，点击开收件箱）+「动态」收件箱面板，**双击一键触发已有 `/pr` `/issue` 分析**。`Core/Agent/*` 纯 Foundation 可单测（`AgentDiff`/`AgentPolicy`/`AgentStore` 共 12 例）。**只感知+建议、无任何自主写/删**（严守 ADR-8）；tool-calling/MCP/MCTS 树搜索**本期降级为未来展望**（ADR-1/ADR-13）。rail 加 `bell.badge` "动态" 入口 + `/agent` 命令 + 设置页「主观能动性」区。新增 9 `.swift`→已 xcodegen+build，单测绿。）
 > 最近更新：2026-07-17（**命令面板搜索历史 + 清空（ADR-12 §5 约定6）**：命令面板每次打开都是干净空框；**回车=提交搜索**（记录历史→筛选→清空框→关闭），**空框回车=清空当前页筛选**（手动清理入口）；`SearchHistoryStore`（UserDefaults 持久化/最近优先/去重/上限20/全局共享），搜索模式 `↑↓` 调取历史、空框展示「最近搜索」可点选行 + 「清除」按钮。仅 `onSearch != nil` 的页记录/展示。补齐了原 §5「无清除入口」待办。）
 > 最近更新：2026-07-17（**详情页删除动作约定（ADR-11 §约定7）**：凡从列表双击进入的 drill-in 详情（`mailDetail` 子窗、`GoalDetailView`），只要列表行支持删除，**详情 header 也提供同一红色 `trash` 删除**，删除后退出详情，并**复用列表已有删除链路**（不另造逻辑）。落地：`MailDetailView`→`MailViewModel.deleteDetail()`（移废纸篓+撤销+关窗）；`GoalDetailView`→`deleteGoal`+`onBack`。）
 > 最近更新：2026-07-17（**命令面板 Phase 2**：PR/Issue/Do/Goal 各 VM 加 `searchFilter`+`displayed*` 过滤并接 `paletteSearch`；七页补 `helpLines`；**mail header 搜索框已收敛进命令面板**（移除，帮助并入 helpLines）。待办：md 编辑器搜索(/check)未迁、面板过滤的清除入口。）
@@ -349,6 +350,16 @@ flowchart TB
 
 ---
 
+### 3.13 主观能动性（Proactive Agency）`/agent`：感知-决策-建议闭环（✅ 2026-07-22）
+
+**需求**：把猴毛从「被动问答」升级为「主动感知」——后台常驻监听外部环境（首刀＝GitHub），发现「值得你处理的事」（请求我 review 的 PR / 指派给我的 Issue）就主动推系统通知 + 收件箱面板，一键触发已有的 `/pr` `/issue` 分析。
+
+**控制论框架落地**（详见 [proactive-agency.md](proactive-agency.md)）：感知-决策-建议闭环。①**异步事件驱动后台常驻循环** = `AgentDaemon`（Timer 轮询，复用 `SelectToCopyManager` Timer 范式）+ `Watcher.poll()`；②**分层双环** = 宏观外环（节奏/启用哪些 watcher/静默时段，`AgentPolicy`+设置）/ 微观内环（单 watcher `poll→diff→建议`），不做正式状态机；③**树搜索/tool-calling/MCTS 本期降级为未来展望**，决策＝确定性 `AgentDiff`（当前项 vs 已见集合，按 URL 去重取新）；④**确定性护栏** = 所有 event 仅为**建议**，唯一动作＝通知+收件箱+一键 `post` 已有命令，**无任何自主写/删**（严守 ADR-8）。
+
+**代码**：`Core/Agent/`（`AgentEvent` 模型 / `Watcher` 协议 / `AgentDiff` 纯函数决策 / `AgentPolicy` 护栏+静默时段 / `AgentStore` JSON 持久化 `~/Documents/houmao/agent/inbox.json` / `GitHubWatcher` 复用 `IssueProvider.fetchAssigned`+新增 `PullRequestProvider.fetchReviewRequested`）+ 根 `AgentDaemon`（`@MainActor @Observable`，`applyPolicy()` 按设置重建 Timer 并立即先 poll、`refreshNow()`、`dismiss`、`onNewEvents` 注入通知）+ `AgentViewModel`（分组/搜索过滤/刷新/移除）+ `AgentInboxView`（两分区：请求我 review / 指派给我；双击=触发建议命令、行内 `xmark` 移除、右键菜单）。接线照 ADR-11/12：`.houmaoEnterAgentWindow`、`PanelDestination`（rail 图标 `bell.badge` "动态"）、`makeAgentWindow`（标题 `agent`）、`/agent` 命令 + helpBrief/helpContent；通知复用 `notifyTaskDone` 链路（`notifyAgentEvents` 打标 `houmao.kind=agent`，`didReceive` 点击开收件箱）；设置页加「主观能动性」区（主开关/GitHub watcher/轮询间隔/静默时段，改动即 `applyPolicy()`）。单测 `AgentDiffTests`（4 例）+ `AgentPolicyTests`（4 例，含跨午夜静默）+ `AgentStoreTests`（4 例，round-trip/缺文件/落盘重载）。**已 xcodegen+build，单测绿。** **注**：GUI 无头验证不了只保证编译 + 纯逻辑单测；真实 gh 联调需 `gh auth login`。**未来展望**：Gmail/Todo/Goal watcher（`Watcher` 协议已预留插拔位）、tool-calling/MCP、MCTS 树搜索/Reflexion、LLM 智能排序——均未做。
+
+---
+
 ## 4. 开发路线图与事项跟踪
 
 > 状态：✅ 完成 ｜ 🚧 进行中 ｜ ⬜ 待办。每刀都要求 `make build` + `make test` 零回归。
@@ -579,6 +590,15 @@ flowchart TB
   5. **命令面板（⌘K，统一搜索框）**：rail 顶部一个放大镜按钮（或 **⌘K**）唤起共享 `CommandPalette`——一个**钉在窗口正上方**（`padding(.top, 64)`、无全屏遮罩、点外部关闭）的浮层，**不遮正文**。三模式按前缀分流：无前缀=**搜索当前页**（经 `SidebarChrome(paletteSearch:)` 注入的 `@MainActor` 闭包 live 过滤，目前只接了 mail→`searchFilter`）；`/`=**命令/跳转**（复用 `PanelDestination.all`，与 rail 同一套目的地，回车/点选跳窗）；`/h`=**帮助**。`PanelDestination` 抽为 rail 与面板共享的导航表（symbol/title/keywords/notification）。`SidebarChrome` 现持 `showPalette` 状态 + `pageName`/`paletteSearch` 上下文（按窗口显式传，非全局单例，天然对应 key 窗口）。
   6. **搜索框生命周期与历史（2026-07-17）**：面板浮层是条件渲染（`if showPalette`），每次打开都是**全新干净的空框**（`query` @State 随视图重建复位）。**回车 = 提交一次搜索**：记录进历史 → 应用筛选 → 清空框 → 关闭；**空框回车 = 清空当前页筛选**（`onSearch("")`），这是"手动清理搜索条件"的入口（⌘K 再回车）。**历史**：`SearchHistoryStore`（`UserDefaults` 持久化、最近优先、大小写去重、上限 20，全局共享一份——统一框统一历史）；搜索模式下 `↑`/`↓` 调取更早/更新（游标 -1=空框）；空框内 `emptyState` 展示「最近搜索」可点选行（含「清除」按钮），与页面跳转启动器并列。仅在页面支持搜索（`onSearch != nil`）时记录/展示历史。
 - **代价 / 边界**：占用 leading 40–48pt 宽度；未做"当前页高亮"（需知道哪个窗口是 key，MVP 从简）。`ChatView` 输入栏原来的 6 个导航按钮**已删**，只留"新对话"(`arrow.clockwise`)+"Stop"（聊天专属动作，非导航）。**Phase 2（2026-07-17 已落地大部分）**：PR/Issue/Do/Goal 各自 VM 加 `searchFilter` + `displayed*` 过滤视图并接入 `paletteSearch`；七页均补了 `helpLines`；**mail 的 header 搜索框已移除、收敛进命令面板**（搜索走 `searchFilter`、原帮助 popover 内容并入 mail 的 `helpLines`）；**搜索历史 + 空框回车清筛选 已落地（见约定6）**。**仍待办**：`md` 编辑器的搜索框（含 `/check` 格式检查 + 格式帮助，结构不同、状态在 view 内）尚未迁入面板。
+
+---
+
+### ADR-13：主观能动性 = 感知-决策-建议闭环（不引重型编排 / 无自主写删）
+
+- **决策**：引入「主观能动性（Proactive Agency）」时，落地为**感知-决策-建议闭环**的最小形态（见 [proactive-agency.md](proactive-agency.md) 与 §3.13），**明确不引入** tool-calling / MCP / MCTS 树搜索 / 多路推演 / Reflexion（延续 ADR-1「不引重型编排」）。
+- **理由**：①猴毛的 `AiTxtClient` 是纯文本 LLM（无 function-calling），全量实现自主工具选择/树搜索会大幅偏离项目「极简 + 人不碰内容」哲学；②真正的用户价值在「主动感知外部状态并提醒」，这靠确定性规则（`AgentDiff` diff + `AgentPolicy` 护栏）即可交付，无需概率性大脑做编排。
+- **护栏（关键约束）**：智能体只做**无破坏性**的三件事——本地通知、收件箱条目、一键 `post` 已有 `/pr` `/issue` 命令供**用户**执行。**任何写库/删邮件/改文件都不在自主范围**（严守 ADR-8）。主开关默认关闭、静默时段、单轮上限、URL 去重共同构成确定性护栏。
+- **可扩展**：`Watcher` 协议预留插拔位，未来 Gmail/Todo/Goal watcher 只新增实现、`AgentDaemon` 不改；若日后确需 LLM 排序/摘要，作为闭环内**可选的一层**加入，不改变「建议 + 人工一键」的护栏语义。
 
 ---
 

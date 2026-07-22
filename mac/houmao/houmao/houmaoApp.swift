@@ -49,6 +49,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private(set) var goalsViewModel: GoalsViewModel!
     private(set) var workLogViewModel: WorkLogViewModel!
     private(set) var driveSyncService: DriveSyncService!
+    /// Proactive-agent background loop and its inbox view model (主观能动性).
+    private(set) var agentDaemon: AgentDaemon!
+    private(set) var agentViewModel: AgentViewModel!
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
     private var exitChatObserver: NSObjectProtocol?
@@ -58,6 +61,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var enterDoObserver: NSObjectProtocol?
     private var enterGoalsObserver: NSObjectProtocol?
     private var enterWorkLogObserver: NSObjectProtocol?
+    private var enterAgentObserver: NSObjectProtocol?
     private var enterEditorObserver: NSObjectProtocol?
     private var commitEditorObserver: NSObjectProtocol?
     private var openMailDetailObserver: NSObjectProtocol?
@@ -79,6 +83,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var goalsWindow: NSWindow?
     /// Standalone work-log window (`/worklog`), same shell as the PR window.
     private var workLogWindow: NSWindow?
+    /// Standalone proactive-agent inbox window (`/agent`), same shell as the
+    /// Issue window.
+    private var agentWindow: NSWindow?
     /// The one shared, general-purpose Markdown editor window (houmao's single
     /// editor). Reused across all callers; the current document/sink lives in
     /// `markdownEditorModel`.
@@ -125,6 +132,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         doViewModel = DoViewModel(driveSync: driveSyncService)
         goalsViewModel = GoalsViewModel()
         workLogViewModel = WorkLogViewModel()
+        agentDaemon = AgentDaemon()
+        agentViewModel = AgentViewModel(daemon: agentDaemon)
+        agentDaemon.onNewEvents = { [weak self] events in
+            self?.notifyAgentEvents(events)
+        }
 
 
         setupPanel()
@@ -137,6 +149,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         setupEditorWindowObservers()
         setupGoalsWindowObservers()
         setupWorkLogWindowObservers()
+        setupAgentWindowObservers()
 
         hotKeyManager = GlobalHotKeyManager.shared
         tracker.start()
@@ -145,6 +158,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         selectToCopy.refreshAuthorizationState()
 
         MiddleClickPasteManager.shared.refreshAuthorizationState()
+
+        // Start the proactive-agent loop (no-op unless the user enabled it).
+        agentDaemon.applyPolicy()
 
         // The chat window is the app's main UI window; present it on launch.
         showChatWindow()
@@ -189,6 +205,41 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         completionHandler([.banner, .sound])
+    }
+
+    /// Post a proactive-agent banner summarizing freshly-surfaced items, tagged
+    /// so tapping it opens the agent inbox (not the generic task-done path).
+    func notifyAgentEvents(_ events: [AgentEvent]) {
+        guard !events.isEmpty else { return }
+        let content = UNMutableNotificationContent()
+        if events.count == 1, let first = events.first {
+            content.title = first.kind == .reviewRequestedPR ? "有 PR 请求你 review" : "有 Issue 指派给你"
+            content.body = first.title
+        } else {
+            content.title = "猴毛发现 \(events.count) 项新动态"
+            content.body = events.prefix(3).map(\.title).joined(separator: "\n")
+        }
+        content.sound = .default
+        content.userInfo = ["houmao.kind": "agent"]
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                notifyLog.error("deliver agent notification failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    /// Open the agent inbox when the user taps a proactive-agent notification.
+    /// Other notifications (e.g. task-done) fall through to the default action.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.notification.request.content.userInfo["houmao.kind"] as? String == "agent" {
+            NotificationCenter.default.post(name: .houmaoEnterAgentWindow, object: nil)
+        }
+        completionHandler()
     }
 
     private func setupPanel() {
@@ -353,6 +404,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             hideWorkLogWindow()
             return false
         }
+        if sender == agentWindow {
+            hideAgentWindow()
+            return false
+        }
         if sender == markdownEditorWindow {
             MainActor.assumeIsolated { finishMarkdownEditor() }
             return false
@@ -450,7 +505,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// All independent panel windows (each toggled by its own button / command).
     /// Used to cascade a newly shown panel so several can stay visible at once.
     private var panelWindows: [NSWindow] {
-        [chatWindow, mailWindow, prWindow, issueWindow, doWindow, markdownEditorWindow, goalsWindow, workLogWindow].compactMap { $0 }
+        [chatWindow, mailWindow, prWindow, issueWindow, doWindow, markdownEditorWindow, goalsWindow, workLogWindow, agentWindow].compactMap { $0 }
     }
 
     /// Place a panel window the first time it's shown. Each panel is an
@@ -682,6 +737,59 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
 
     private func hideIssueWindow() {
         guard let window = issueWindow else { return }
+        hideWindowSafely(window)
+    }
+
+    // MARK: Agent inbox window (`/agent`, 主观能动性)
+
+    private func setupAgentWindowObservers() {
+        enterAgentObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoEnterAgentWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.showAgentWindow()
+        }
+    }
+
+    private func makeAgentWindow() -> NSWindow {
+        let rect = centeredGoldenRect(on: screenContainingMouse())
+        let window = NSWindow(
+            contentRect: rect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "agent"
+        window.titlebarAppearsTransparent = true
+        // Force light appearance so the title renders black over the light theme.
+        window.appearance = NSAppearance(named: .aqua)
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 640, height: 420)
+        window.delegate = self
+
+        let inboxView = AgentInboxView().environment(agentViewModel)
+        window.contentViewController = NSHostingController(rootView: SidebarChrome(
+            pageName: "agent",
+            paletteSearch: { [weak self] query in self?.agentViewModel.searchFilter = query },
+            helpLines: [
+                "主观能动性：后台监听请求我 review 的 PR / 指派给我的 Issue，主动提醒",
+                "双击一行触发分析（/pr、/issue）；行内 ✕ 移除；右键可在浏览器打开",
+                "在设置（⌘,）里开启/调节轮询间隔与静默时段",
+            ]
+        ) { inboxView })
+        return window
+    }
+
+    private func showAgentWindow() {
+        let window = agentWindow ?? makeAgentWindow()
+        agentWindow = window
+        placePanelOnFirstShow(window)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func hideAgentWindow() {
+        guard let window = agentWindow else { return }
         hideWindowSafely(window)
     }
 

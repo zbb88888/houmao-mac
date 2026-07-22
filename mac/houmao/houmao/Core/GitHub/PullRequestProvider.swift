@@ -20,6 +20,20 @@ struct PullRequestProvider {
         ])
     }
 
+    /// Open PRs requesting the current user's review, most recently updated
+    /// first. Used by the proactive agent's GitHub watcher.
+    func fetchReviewRequested(limit: Int = 100) async throws -> [PullRequestItem] {
+        try await GitHubCLI.runJSON([
+            "search", "prs",
+            "--review-requested=@me",
+            "--state=open",
+            "--sort", "updated",
+            "--order", "desc",
+            "--limit", String(limit),
+            "--json", Self.jsonFields,
+        ])
+    }
+
     /// Closed / merged PRs authored by the current user, closed on or after
     /// `since`, most recently updated first.
     func fetchClosed(since: Date, limit: Int = 100) async throws -> [PullRequestItem] {
