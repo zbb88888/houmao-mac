@@ -774,7 +774,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             helpLines: [
                 "主观能动性：后台监听请求我 review 的 PR / 指派给我的 Issue，主动提醒",
                 "双击一行触发分析（/pr、/issue）；行内 ✕ 移除；右键可在浏览器打开",
-                "在设置（⌘,）里开启/调节轮询间隔与静默时段",
+                "点 header ⚙️ 开启/调节轮询间隔与静默时段；点 ? 查看使用说明",
             ]
         ) { inboxView })
         return window

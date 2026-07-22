@@ -88,7 +88,6 @@ struct SettingsView: View {
     private let iconWidth: CGFloat = 20
 
     var body: some View {
-        @Bindable var settings = settings
         VStack(alignment: .leading, spacing: 12) {
             Toggle("Copy on Selection", isOn: $copyOnSelection)
                 .onChange(of: copyOnSelection) { _, newValue in
@@ -231,58 +230,6 @@ struct SettingsView: View {
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
-            }
-            .padding(8)
-            .background(Color.primary.opacity(0.04))
-            .cornerRadius(6)
-
-            Divider()
-
-            // Proactive agent (主观能动性) — background watcher loop surfacing PRs
-            // requesting my review / issues assigned to me. All surfaced items are
-            // suggestions; nothing acts automatically.
-            VStack(alignment: .leading, spacing: 8) {
-                Toggle("主观能动性（后台监听）", isOn: $settings.agentEnabled)
-                    .onChange(of: settings.agentEnabled) { _, _ in
-                        AppDelegate.shared?.agentDaemon.applyPolicy()
-                    }
-                if settings.agentEnabled {
-                    Toggle("GitHub：请求我 review 的 PR / 指派给我的 Issue",
-                           isOn: $settings.agentGitHubWatcherEnabled)
-                        .font(.system(size: 12))
-                    HStack {
-                        Text("轮询间隔").font(.system(size: 12))
-                        Spacer()
-                        Picker("", selection: $settings.agentIntervalMinutes) {
-                            Text("5 分钟").tag(5)
-                            Text("15 分钟").tag(15)
-                            Text("30 分钟").tag(30)
-                            Text("60 分钟").tag(60)
-                        }
-                        .labelsHidden()
-                        .frame(width: 110)
-                        .onChange(of: settings.agentIntervalMinutes) { _, _ in
-                            AppDelegate.shared?.agentDaemon.applyPolicy()
-                        }
-                    }
-                    HStack {
-                        Text("静默时段").font(.system(size: 12))
-                        Spacer()
-                        Stepper("\(settings.agentQuietStartHour):00",
-                                value: $settings.agentQuietStartHour, in: 0...23)
-                            .onChange(of: settings.agentQuietStartHour) { _, _ in
-                                AppDelegate.shared?.agentDaemon.applyPolicy()
-                            }
-                        Text("→").foregroundColor(.secondary)
-                        Stepper("\(settings.agentQuietEndHour):00",
-                                value: $settings.agentQuietEndHour, in: 0...23)
-                            .onChange(of: settings.agentQuietEndHour) { _, _ in
-                                AppDelegate.shared?.agentDaemon.applyPolicy()
-                            }
-                    }
-                    Text("静默时段内不提醒（起=止 表示不启用）。所有动作仅为建议，需你一键确认。")
-                        .font(.system(size: 11)).foregroundColor(.secondary)
-                }
             }
             .padding(8)
             .background(Color.primary.opacity(0.04))
