@@ -89,6 +89,8 @@ struct AgentInboxView: View {
                         events: viewModel.reviewRequestedPRs, empty: "没有请求我 review 的 PR")
                 section(title: "指派给我", symbol: "smallcircle.filled.circle", dot: theme.success,
                         events: viewModel.assignedIssues, empty: "没有指派给我的 Issue")
+                section(title: "新邮件", symbol: "envelope", dot: theme.accent,
+                        events: viewModel.newMailClusters, empty: "没有新邮件")
                 statusLine.padding(.leading, 4)
             }
             .padding(16)
@@ -159,8 +161,10 @@ struct AgentInboxView: View {
         .onTapGesture(count: 2) { trigger(event) }
         .contextMenu {
             Button("分析（\(event.suggestedCommand)）") { trigger(event) }
-            Button("在浏览器打开") { open(event.url) }
-            Button("复制链接") { copyToPasteboard(event.url) }
+            if !event.url.isEmpty {
+                Button("在浏览器打开") { open(event.url) }
+                Button("复制链接") { copyToPasteboard(event.url) }
+            }
             Divider()
             Button("移除") { viewModel.dismiss(event) }
         }
@@ -233,6 +237,10 @@ private struct AgentSettingsView: View {
                        isOn: $settings.agentGitHubWatcherEnabled)
                     .font(.system(size: 12))
 
+                Toggle("邮件：新邮件预热摘要 + 已看/相似折叠",
+                       isOn: $settings.agentMailWatcherEnabled)
+                    .font(.system(size: 12))
+
                 HStack {
                     Text("轮询间隔").font(.system(size: 12))
                     Spacer()
@@ -298,6 +306,10 @@ private struct AgentHelpView: View {
                 group("提醒", [
                     "有新项弹系统通知（多条汇总）；点通知直接打开本窗口。",
                     "也可用 rail 的「动态」图标 / /agent / ⌘K 打开。",
+                ])
+                group("邮件", [
+                    "开启后台会预热新邮件摘要，开 /mail 秒显、不等 LLM。",
+                    "看过的 / 反复相似的邮件在 /mail 默认折叠，不必全量重看。",
                 ])
             }
             .padding(14)

@@ -213,7 +213,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         guard !events.isEmpty else { return }
         let content = UNMutableNotificationContent()
         if events.count == 1, let first = events.first {
-            content.title = first.kind == .reviewRequestedPR ? "有 PR 请求你 review" : "有 Issue 指派给你"
+            switch first.kind {
+            case .reviewRequestedPR: content.title = "有 PR 请求你 review"
+            case .assignedIssue: content.title = "有 Issue 指派给你"
+            case .newMailCluster: content.title = "有新邮件"
+            }
             content.body = first.title
         } else {
             content.title = "猴毛发现 \(events.count) 项新动态"

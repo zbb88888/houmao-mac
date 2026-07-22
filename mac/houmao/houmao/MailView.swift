@@ -161,24 +161,48 @@ struct MailView: View {
     }
 
     @ViewBuilder private var reviewList: some View {
-        if viewModel.groupedClusters.isEmpty {
-            centered {
-                Text(emptyReviewText)
-                    .foregroundStyle(theme.textSecondary)
-            }
-        } else {
+        VStack(spacing: 0) {
             if let undo = viewModel.undoAction {
                 undoBanner(undo)
             }
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) {
-                    ForEach(viewModel.groupedClusters, id: \.primary) { group in
-                        primarySection(group.primary, subgroups: group.subgroups)
-                    }
+            if viewModel.seenCount > 0 {
+                seenBanner
+            }
+            if viewModel.groupedClusters.isEmpty {
+                centered {
+                    Text(viewModel.hideSeen && viewModel.seenCount > 0 ? "只有看过的邮件，已折叠。" : emptyReviewText)
+                        .foregroundStyle(theme.textSecondary)
                 }
-                .padding(16)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 14) {
+                        ForEach(viewModel.groupedClusters, id: \.primary) { group in
+                            primarySection(group.primary, subgroups: group.subgroups)
+                        }
+                    }
+                    .padding(16)
+                }
             }
         }
+    }
+
+    /// Collapse banner: hide/show clusters already seen in a prior session, so
+    /// recurring / reviewed mail doesn't have to be re-triaged every time.
+    private var seenBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "eye.slash").font(.caption)
+            Text(viewModel.hideSeen
+                 ? "已隐藏 \(viewModel.seenCount) 个看过的邮件"
+                 : "已展开看过的邮件")
+                .font(.caption)
+            Spacer()
+            Button(viewModel.hideSeen ? "显示" : "隐藏") { viewModel.hideSeen.toggle() }
+                .buttonStyle(.link)
+        }
+        .foregroundStyle(theme.textSecondary)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(theme.surface.opacity(0.5))
     }
 
     // MARK: - Primary section (大类) → secondary subgroups (小类)
@@ -291,6 +315,16 @@ struct MailView: View {
                 }
             }
             .help("双击查看邮件内容；右键可复制主题")
+
+            if let summary = viewModel.summaryByCluster[cluster.id] {
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(theme.textSecondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 6)
+            }
 
             if expanded.contains(cluster.id) {
                 ForEach(cluster.messages) { message in

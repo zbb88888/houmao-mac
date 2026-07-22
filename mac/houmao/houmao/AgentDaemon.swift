@@ -32,7 +32,7 @@ final class AgentDaemon {
     /// can post a local notification (kept out of Core; injected by the app).
     var onNewEvents: (@MainActor ([AgentEvent]) -> Void)?
 
-    init(watchers: [Watcher] = [GitHubWatcher()], store: AgentStore = AgentStore()) {
+    init(watchers: [Watcher] = [GitHubWatcher(), MailWatcher()], store: AgentStore = AgentStore()) {
         self.watchers = watchers
         self.store = store
         let state = store.load()
@@ -119,6 +119,7 @@ final class AgentDaemon {
         watchers.filter { watcher in
             switch watcher.id {
             case "github": return AppSettings.shared.agentGitHubWatcherEnabled
+            case "mail": return AppSettings.shared.agentMailWatcherEnabled
             default: return true
             }
         }

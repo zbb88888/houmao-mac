@@ -135,6 +135,12 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(agentGitHubWatcherEnabled, forKey: "agentGitHubWatcherEnabled") }
     }
 
+    /// Per-watcher enable: mail (pre-warm summaries for new, non-routine clusters
+    /// and surface them; also drives `/mail`'s cached summaries + seen-collapse).
+    var agentMailWatcherEnabled: Bool {
+        didSet { UserDefaults.standard.set(agentMailWatcherEnabled, forKey: "agentMailWatcherEnabled") }
+    }
+
     private init() {
         if let data = UserDefaults.standard.data(forKey: "providers"),
            let decoded = try? JSONDecoder().decode([Provider].self, from: data) {
@@ -154,6 +160,7 @@ final class AppSettings {
         self.agentQuietStartHour = (d.object(forKey: "agentQuietStartHour") as? Int) ?? AgentPolicy.default.quietStartHour
         self.agentQuietEndHour = (d.object(forKey: "agentQuietEndHour") as? Int) ?? AgentPolicy.default.quietEndHour
         self.agentGitHubWatcherEnabled = (d.object(forKey: "agentGitHubWatcherEnabled") as? Bool) ?? true
+        self.agentMailWatcherEnabled = (d.object(forKey: "agentMailWatcherEnabled") as? Bool) ?? true
         // Hydrate API keys from the Keychain (and migrate legacy plaintext keys).
         loadAPIKeys()
     }

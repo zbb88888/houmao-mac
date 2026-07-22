@@ -35,6 +35,10 @@ final class AgentViewModel {
         displayedEvents.filter { $0.kind == .assignedIssue }
     }
 
+    var newMailClusters: [AgentEvent] {
+        displayedEvents.filter { $0.kind == .newMailCluster }
+    }
+
     var lastPolledAt: Date? { daemon.lastPolledAt }
     var lastError: String? { daemon.lastError }
     var isEnabled: Bool { AppSettings.shared.agentEnabled }

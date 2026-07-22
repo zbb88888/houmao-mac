@@ -14,6 +14,8 @@ struct AgentEvent: Identifiable, Codable, Sendable, Equatable {
         case assignedIssue
         /// A GitHub pull request requesting the current user's review.
         case reviewRequestedPR
+        /// A cluster of new, non-routine mail detected by the mail watcher.
+        case newMailCluster
     }
 
     /// Stable identity: the GitHub URL is globally unique, so the same item is

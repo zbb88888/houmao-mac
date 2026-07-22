@@ -70,6 +70,18 @@ final class MailViewModel {
     /// Raw fetched messages, kept so `regroup()` can re-cluster without refetching.
     private var loadedMessages: [MailMessage] = []
 
+    // MARK: - Proactive mail memory (docs/proactive-agency.md §8)
+
+    private let mailMemory = MailMemoryStore()
+    /// Cached one-line summary per cluster (by runtime id), pre-warmed by the
+    /// mail watcher — shown inline so the list needs no on-open LLM wait.
+    var summaryByCluster: [UUID: String] = [:]
+    /// Clusters seen in a prior session (exact batch or recurring family), so
+    /// they can be collapsed instead of re-triaged.
+    private var seenClusterIDs: Set<UUID> = []
+    /// Hide already-seen clusters by default so only new mail needs attention.
+    var hideSeen = true
+
     init() {
         // If a refresh token already exists we're effectively connected.
         let connected = KeychainStore.get(GoogleAuthProvider.keychainAccount)?.isEmpty == false
@@ -148,9 +160,33 @@ final class MailViewModel {
         let grouped = MailGrouping.group(loadedMessages, customTags: AppSettings.shared.mailTags)
         mailLog.info("grouped \(self.loadedMessages.count) messages into \(grouped.count) clusters")
         clusters = grouped
+        applyMailMemory(to: grouped)
         // UX: preselect the first mail so the user can act on it immediately
         // (e.g. hit AI / delete, one at a time) without a manual first click.
         selectFirst()
+    }
+
+    /// Attach cached summaries + mark which clusters were seen before, then record
+    /// this session's clusters as seen so recurring / reviewed mail collapses next
+    /// time (see docs/proactive-agency.md §8). Snapshot `isSeen` against the
+    /// loaded state *before* inserting, so this session's new clusters still show.
+    private func applyMailMemory(to grouped: [MailCluster]) {
+        var state = mailMemory.load()
+        var summaries: [UUID: String] = [:]
+        var seen: Set<UUID> = []
+        for cluster in grouped {
+            let sig = MailSignature.cluster(cluster)
+            let family = MailSignature.family(cluster)
+            if let cached = state.summaries[sig] { summaries[cluster.id] = cached }
+            if MailMemoryStore.isSeen(state, clusterSig: sig, familyKey: family) {
+                seen.insert(cluster.id)
+            }
+            state.seenClusters.insert(sig)
+            state.seenFamilies.insert(family)
+        }
+        summaryByCluster = summaries
+        seenClusterIDs = seen
+        try? mailMemory.save(state)
     }
 
     /// The first cluster in display order (first primary → first subgroup →
@@ -177,7 +213,7 @@ final class MailViewModel {
     var groupedClusters: [(primary: String, subgroups: [(secondary: String?, clusters: [MailCluster])])] {
         var primaryOrder: [String] = []
         var primaryMap: [String: [MailCluster]] = [:]
-        for cluster in filteredClusters {
+        for cluster in visibleClusters {
             if primaryMap[cluster.primary] == nil { primaryOrder.append(cluster.primary) }
             primaryMap[cluster.primary, default: []].append(cluster)
         }
@@ -217,6 +253,19 @@ final class MailViewModel {
     }
 
     func isSelected(_ id: String) -> Bool { selectedIDs.contains(id) }
+
+    /// `filteredClusters` with already-seen clusters dropped when `hideSeen`, so
+    /// the list shows only new mail by default.
+    private var visibleClusters: [MailCluster] {
+        guard hideSeen else { return filteredClusters }
+        return filteredClusters.filter { !seenClusterIDs.contains($0.id) }
+    }
+
+    /// How many (search-matching) clusters were seen before — drives the collapse
+    /// banner and its show/hide toggle.
+    var seenCount: Int {
+        filteredClusters.filter { seenClusterIDs.contains($0.id) }.count
+    }
 
     /// Whether *any* of the cluster's messages are selected. Drives the cluster
     /// row's plain checked/unchecked checkbox, so a single auto-selected mail
