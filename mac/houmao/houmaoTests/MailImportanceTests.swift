@@ -44,6 +44,12 @@ struct MailWatcherParseTests {
         #expect(r.summary == "例行周报")
     }
 
+    @Test func parsesBuShiAsNotImportant() {
+        let r = MailWatcher.parse("重点: 不是\n摘要: 一般通知")
+        #expect(!r.important)
+        #expect(r.summary == "一般通知")
+    }
+
     @Test func fallsBackWhenUnstructured() {
         let r = MailWatcher.parse("就是一句话")
         #expect(!r.important)

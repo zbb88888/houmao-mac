@@ -96,7 +96,8 @@ struct MailWatcher: Watcher {
         for raw in reply.split(whereSeparator: \.isNewline) {
             let line = raw.trimmingCharacters(in: .whitespaces)
             if line.hasPrefix("重点") {
-                important = line.contains("是")
+                // "否" / "不是" → not important; only a bare "是" counts.
+                important = line.contains("是") && !line.contains("否") && !line.contains("不")
             } else if line.hasPrefix("摘要") {
                 if let colon = line.firstIndex(where: { $0 == ":" || $0 == "：" }) {
                     summary = String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
