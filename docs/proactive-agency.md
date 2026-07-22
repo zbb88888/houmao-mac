@@ -85,7 +85,7 @@ MVP 的决策是**确定性**的：`AgentDiff.newEvents(current:seen:)` 用「�
 ## 4. 呈现（收件箱面板 + 通知）
 
 - **系统本地通知**：复用 `AppDelegate.notifyTaskDone` 同款链路（`UNUserNotificationCenter`）。多条新项时推一条汇总（「猴毛发现 N 项新动态」）。通知 `userInfo` 打标 `houmao.kind = "agent"`，点击 → 打开收件箱面板（不影响既有「任务完成」通知）。
-- **收件箱面板**（窗口标题 `agent`，rail 图标 `bell.badge`「动态」）：照 ADR-11 壳，**功能自包含在这一个独立窗口**。header（图标按钮靠左）三按钮：**刷新**（`arrow.clockwise`，手动强制检查一次）/ **设置**（`gearshape` → popover：主开关 / GitHub watcher / 轮询间隔 / 静默时段，改动即 `AgentDaemon.applyPolicy()`）/ **使用说明**（`questionmark.circle` → popover：是什么 / 开启 / 交互 / 提醒 的使用手册）。主体两分区——「请求我 review」（PR）/「指派给我」（issue）。行＝图标 + 标题 + 仓库 + 时间；**双击 = 触发建议命令**（`post` `/pr`/`/issue` 走聊天分析）；右键菜单＝分析 / 在浏览器打开 / 复制链接 / 移除；行内 `xmark` = 移除（仅从收件箱移除，仍留在 `seen` 不再重复提醒）。空态提示 + 最近轮询时间。
+- **收件箱面板**（窗口标题 `agent`，rail 图标 `bell.badge`「动态」）：照 ADR-11 壳，**功能自包含在这一个独立窗口**。header（图标按钮靠左）三按钮：**刷新**（`arrow.clockwise`，手动强制检查一次）/ **设置**（`gearshape` → popover：主开关 / GitHub watcher / 轮询间隔 / 静默时段，改动即 `AgentDaemon.applyPolicy()`）/ **使用说明**（`questionmark.circle` → popover：是什么 / 开启 / 交互 / 提醒 的使用手册）。主体分区（**默认折叠、点标题展开**，按 kind 分）——「请求于我」（PR review）/「分配到我」（assigned issue）/「新邮件」（§8）。行＝图标 + 标题 + 仓库 + 时间；**双击 = 触发建议命令**（`post` `/pr`/`/issue` 走聊天分析）；右键菜单＝分析 / 在浏览器打开 / 复制链接 / 移除；行内 `xmark` = 移除（仅从收件箱移除，仍留在 `seen` 不再重复提醒）。空态提示 + 最近轮询时间。
 - **设置单一来源**：agent 的配置只在本窗口的 ⚙️ popover 维护（`AgentSettingsView` 直接绑定 `AppSettings`），**不再放进全局 ⌘, 设置**，避免两处重复维护——契合「功能独立窗口自维护」。
 
 ## 5. 存储格式

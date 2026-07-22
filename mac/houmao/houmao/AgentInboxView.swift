@@ -10,6 +10,8 @@ struct AgentInboxView: View {
     @Environment(AgentViewModel.self) private var viewModel
     @State private var showSettings = false
     @State private var showHelp = false
+    /// Titles of sections currently expanded; empty = all collapsed (default).
+    @State private var expandedSections: Set<String> = []
     private var theme: Theme { AppTheme.current }
 
     var body: some View {
@@ -85,9 +87,9 @@ struct AgentInboxView: View {
     @ViewBuilder private var list: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                section(title: "请求我 review", symbol: "arrow.triangle.pull", dot: theme.warning,
+                section(title: "请求于我", symbol: "arrow.triangle.pull", dot: theme.warning,
                         events: viewModel.reviewRequestedPRs, empty: "没有请求我 review 的 PR")
-                section(title: "指派给我", symbol: "smallcircle.filled.circle", dot: theme.success,
+                section(title: "分配到我", symbol: "smallcircle.filled.circle", dot: theme.success,
                         events: viewModel.assignedIssues, empty: "没有指派给我的 Issue")
                 section(title: "新邮件", symbol: "envelope", dot: theme.accent,
                         events: viewModel.newMailClusters, empty: "没有新邮件")
@@ -102,21 +104,32 @@ struct AgentInboxView: View {
     @ViewBuilder private func section(
         title: String, symbol: String, dot: Color, events: [AgentEvent], empty: String
     ) -> some View {
+        let isExpanded = expandedSections.contains(title)
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Circle().fill(dot).frame(width: 9, height: 9)
-                Text(title).font(.system(size: 14, weight: .semibold))
-                Text("\(events.count)").font(.caption).foregroundStyle(theme.textSecondary)
-                Spacer()
+            Button {
+                if isExpanded { expandedSections.remove(title) } else { expandedSections.insert(title) }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption).foregroundStyle(theme.textSecondary)
+                    Circle().fill(dot).frame(width: 9, height: 9)
+                    Text(title).font(.system(size: 14, weight: .semibold))
+                    Text("\(events.count)").font(.caption).foregroundStyle(theme.textSecondary)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
 
-            if events.isEmpty {
-                Text(empty)
-                    .font(.callout).foregroundStyle(theme.textSecondary)
-                    .padding(.leading, 16)
-            } else {
-                ForEach(events) { event in
-                    row(event, symbol: symbol)
+            if isExpanded {
+                if events.isEmpty {
+                    Text(empty)
+                        .font(.callout).foregroundStyle(theme.textSecondary)
+                        .padding(.leading, 16)
+                } else {
+                    ForEach(events) { event in
+                        row(event, symbol: symbol)
+                    }
                 }
             }
         }
