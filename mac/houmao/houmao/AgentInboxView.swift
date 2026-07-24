@@ -143,20 +143,11 @@ struct AgentInboxView: View {
                 .foregroundStyle(theme.textSecondary)
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(event.title)
-                        .font(.system(size: 13))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    if event.important {
-                        Text("重点")
-                            .font(.caption2).bold()
-                            .foregroundStyle(theme.onAccent)
-                            .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(theme.accent, in: Capsule())
-                    }
-                }
+                Text(event.title)
+                    .font(.system(size: 13))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Text(event.subtitle)
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(theme.textSecondary)

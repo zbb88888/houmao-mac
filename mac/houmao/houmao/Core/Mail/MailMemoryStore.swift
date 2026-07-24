@@ -2,20 +2,18 @@ import Foundation
 
 /// Cross-session memory for the `/mail` workflow (see docs/proactive-agency.md
 /// §8):
-/// - `summaries`: cached one-line cluster summaries (keyed by exact signature),
-///   pre-warmed by `MailWatcher` so opening `/mail` shows them instantly.
-/// - `important`: signatures the LLM judged to be a "重点" (needs attention), so
-///   `/mail` can surface those first and collapse routine mail.
+/// - `summaries`: cached three-sentence cluster summaries (背景 / 目的 / 是否需
+///   进一步处理, keyed by exact signature). Pre-warmed by `MailWatcher` and
+///   filled on demand by `MailViewModel` when opening `/mail`, so subsequent
+///   opens are instant.
 ///
-/// **Written by `MailWatcher`, read-only for `MailViewModel`** — opening `/mail`
-/// never writes state (no "seen"/read side effect). One JSON file under
-/// `~/Documents/houmao/mail/`; the codec is pure for unit testing.
+/// One JSON file under `~/Documents/houmao/mail/`; the codec is pure for unit
+/// testing.
 struct MailMemoryStore {
     struct State: Codable, Equatable {
         var summaries: [String: String]
-        var important: Set<String>
 
-        static let empty = State(summaries: [:], important: [])
+        static let empty = State(summaries: [:])
     }
 
     let directory: URL

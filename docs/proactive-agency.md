@@ -121,39 +121,36 @@ MVP 的决策是**确定性**的：`AgentDiff.newEvents(current:seen:)` 用「�
 - **构建**：新增 `.swift` 后 `cd mac/houmao && xcodegen generate` → `make build` → `make test`。
 - **手动**（需 `gh auth login`）：agent 窗 header ⚙️ 开启主观能动性 → header ⟳ 刷新 → 指派 issue / review PR 进收件箱并弹通知 → 双击一键 `post /pr` → ghia 分析进聊天 → 移除某项 → **重启 app** 后收件箱持久化、已提醒项不重复通知。GUI 无头环境只保证编译 + 纯逻辑单测，真实 gh 联调需本地 `gh auth`。
 
-## 8. 邮件 watcher：摘要 + 挑重点（v2）
+## 8. 邮件三句话摘要（v3）
 
-**动机**（用户痛点）：现有 `/mail` ①**点击才分析、每次都等 LLM**（无缓存/无定时器/每次全量重聚簇）；②**只摘要、不分轻重**，价值有限——用户真正要的是**挑出重点邮件、只快速过重点**。
+**动机**（用户痛点）：现有 `/mail` ①**点击才分析、每次都等 LLM**（无缓存/每次全量重聚簇）；②早先 v2 曾加「挑重点」——但用户实测发现**「重点」判断不可靠、也不是想要的**，真正要的是**每封邮件都有一份结构化三句话摘要**（背景 / 目的 / 是否需进一步处理），据此自己快速扫读、手动挑要深入的邮件。**v3 彻底移除「重点」概念**（importance/重点标/折叠），改为**全量摘要**。
 
-> **关于"已读"**：watcher **只做只读** `listMessages`+`fetchMetadata`（拉元数据**不会**标 Gmail 已读）；标已读只有 `/mail` 面板里用户手动点的「标记已读」按钮一个入口。v2 之前那版的「看过即折叠」（把展示过一次的簇标 seen 下次隐藏）会给人"被已读"的错觉——**v2 已彻底删除该机制**，`/mail` 打开不再写任何"看过"状态。
+> **关于"已读"**：watcher **只做只读** `listMessages`+`fetchMetadata`（拉元数据**不会**标 Gmail 已读）；标已读只有 `/mail` 面板里用户手动点的「标记已读」按钮一个入口。
 
 ### 8.1 能力 → 复用 agent 基建
 
 | 目标 | 能力 | 落地 |
 | --- | --- | --- |
-| 不等 LLM | **后台预热摘要缓存** | `MailWatcher` 在 agent 轮询周期对**新非噪音**簇提前生成一句话摘要 → 落盘缓存（键=精确签名）；开 `/mail` **秒显**。 |
-| 挑重点 | **混合重要性判断** | 启发式先去噪（促销/社交/带 List-Unsubscribe），剩下的用 LLM 判「重点/一般」+ 摘要；`/mail` **重点置顶展开、一般/噪音默认折叠**。 |
-| 主动提醒 | **进「动态」收件箱** | `MailWatcher.poll()` 对新**非噪音**簇返回 `AgentEvent(kind: .newMailCluster, important: Bool, suggestedCommand: "/mail")`；**全部进**收件箱、**重点高亮**。 |
+| 秒显、少等 | **后台预热摘要缓存** | `MailWatcher` 在 agent 轮询周期对**新非噪音**簇提前生成三句话摘要（背景 / 目的 / 是否需进一步处理） → 落盘缓存（键＝精确签名）；开 `/mail` 命中缓存即秒显。 |
+| 全量覆盖 | **打开时按需补全** | `MailViewModel` 打开 `/mail` 时对**所有缺摘要的簇**（含噪音）异步逐簇调 LLM 生成，完成一个填一个（行内「分析中…」提示），并回写缓存供下次秒显。 |
+| 主动提醒 | **进「动态」收件箱** | `MailWatcher.poll()` 对新**非噪音**簇返回 `AgentEvent(kind: .newMailCluster, suggestedCommand: "/mail")`；进收件箱（无重点高亮）。噪音（促销/社交）不进，避免刷屏。 |
 
-### 8.2 签名 + 重要性
+### 8.2 签名 + 去噪
 
-- **精确签名** `MailSignature.cluster(_)`：成员 Gmail `message-id` 排序后 join → **SHA256 hex**（`message-id` 全局唯一不变；用 SHA256 而非每进程随机化的 `hashValue`）。作 summaries / important 的稳定键。（v2 **删除**了原「家族签名 / seen 折叠」——它是"已读感"的来源。）
-- **启发式去噪** `MailImportance.isRoutine(_)`（纯函数）：`category ∈ {促销, 社交}` 或 整簇都带 `List-Unsubscribe` → 例行噪音（不花 LLM、不进收件箱、`/mail` 默认折叠）。
-- **LLM 判重点**：非噪音簇由 `MailWatcher` 一次 LLM 调用返回「重点/一般」+ 一句话摘要，存 `important`（sig 集合）+ `summaries`。
-- **`/mail` 兜底**：watcher 未跑过（无记忆）时，`/mail` 用启发式 `!isRoutine` 作重要性，无摘要——功能降级但仍可用。
+- **精确签名** `MailSignature.cluster(_)`：成员 Gmail `message-id` 排序后 join → **SHA256 hex**（`message-id` 全局唯一不变；用 SHA256 而非每进程随机化的 `hashValue`）。作 summaries 的稳定键。
+- **启发式去噪** `MailImportance.isRoutine(_)`（纯函数）：`category ∈ {促销, 社交}` 或 整簇都带 `List-Unsubscribe` → 例行噪音。**仅用于 watcher**：不花后台 LLM 预热、不进「动态」收件箱。`/mail` 页面**不再据此折叠**——所有簇都显示、都出摘要。
+- **三句话摘要** `MailWatcher.summarize(_)`（watcher 与 `MailViewModel` 共享）：一次 LLM 调用，只吃 metadata（主题 + snippet），返回三行「背景/目的/处理」，`parse` 拼成多行摘要字符串。**无重点判断**。
 
 ### 8.3 存储 `MailMemoryStore`（`Core/Mail/`，纯 Foundation 可单测）
 
 `~/Documents/houmao/mail/memory.json`：
 
 ```json
-{ "summaries": { "<clusterSig>": "一句话摘要" },
-  "important": ["<clusterSig>"] }
+{ "summaries": { "<clusterSig>": "背景：…\n目的：…\n处理：…" } }
 ```
 
-- `summaries`：预热的一句话摘要（`/mail` 行内直接显示，不等 LLM）。
-- `important`：被 LLM 判为重点的簇签名集合。
-- **由 `MailWatcher` 写、`MailViewModel` 只读**（打开 `/mail` 不写任何状态 → 无"已读感"）。纯静态 `encode/decode` + `load/save`。
+- `summaries`：三句话摘要（背景 / 目的 / 是否需进一步处理，`/mail` 行内直接显示）。
+- **`MailWatcher` 写（预热）、`MailViewModel` 读 + 按需写（补全）**——on-demand 结果回写缓存，供下次秒显。所有写都在 MainActor 上串行完成，无跨任务竞态。纯静态 `encode/decode` + `load/save`。（v3 **删除** `important` 字段；旧 json 若含该键，解码自动忽略。）
 
 ### 8.4 时序
 
@@ -163,32 +160,36 @@ MVP 的决策是**确定性**的：`AgentDiff.newEvents(current:seen:)` 用「�
   listMessages+fetchMetadata → MailGrouping.group → clusters
   读 MailMemoryStore
   对每个 cluster：sig=精确签名
-    isRoutine(cluster) → 噪音：不 LLM、不进收件箱（/mail 里仍可见、默认折叠）
+    isRoutine(cluster) → 噪音：跳过（不预热、不进收件箱；/mail 打开时仍会按需补摘要）
     否则（非噪音）：
-      summaries[sig] 缺失且未超预算 → LLM 一次返回 (重点?, 摘要)；缓存 summaries[sig]，重点则 important.insert(sig)
-      产出 AgentEvent(id=sig, kind=.newMailCluster, important=…, title=代表主题, subtitle="大类 · N 封", suggestedCommand="/mail")
-  保存 summaries + important；返回 events（单轮 maxPerPoll 上限，daemon 按 id=sig 去重 → 通知 + 收件箱）
+      summaries[sig] 缺失且未超预算(summaryBudget=5) → summarize() 一次 LLM 返回三句话摘要；缓存 summaries[sig]
+      产出 AgentEvent(id=sig, kind=.newMailCluster, title=代表主题, subtitle="大类 · N 封", suggestedCommand="/mail")
+  保存 summaries；返回 events（daemon 按 id=sig 去重 → 通知 + 收件箱）
 
-【打开 /mail】MailViewModel.applyMailImportance()
-  只读 MailMemoryStore：每簇附 summary(sig) + 重要性（有记忆用 important 集合，否则启发式 !isRoutine）
-  不写任何状态（无 seen）
-  UI：hideRoutine 默认 true → 只显示重点簇 + 顶部横幅「已折叠 N 封非重点 · 显示全部」；重点行高亮「重点」标；每簇行显示缓存摘要（有则）
+【打开 /mail】MailViewModel.applySummaries()
+  读 MailMemoryStore：每簇附缓存 summary(sig)（有则）
+  对所有缺摘要的簇（含噪音）→ generateMissingSummaries：逐簇异步 summarize()，按 sig 去重（in-flight 记 inflightSigs，同时驱动「分析中…」）
+    完成 → 回写 memory.json + 按 sig 匹配当前簇填 summaryByCluster[id]（regroup 后 id 可能变）
+  **不自动预选任何邮件**（先读后选，用户自由跳选想深入的邮件）
+  UI：所有簇都显示；每簇**三句话摘要为主体**、原邮件标题降为下方小字脚注；摘要未就绪时显示标题 + 「分析中…」
 ```
 
 ### 8.5 护栏与边界（延续 §2.3）
 
-- 仍**只感知 + 建议**：邮件 watcher 只读取 + 判重点 + 摘要 + 提醒，**绝不自动删/归档/标记已读**邮件（严守 ADR-8）。
-- **成本控制**：启发式先去噪跳过 LLM；只对新非噪音簇判一次；每轮 `maxPerPoll` 上限；只用 metadata（不 `fetchFull`）。未连 Gmail 或未开 mail watcher → 空转。
-- **对 §2.1 的偏离（记录）**：`MailWatcher.poll()` 额外写 summaries/important 缓存（邮件主动性的自然归属，非纯感知，已记录）。
+- 仍**只感知 + 建议**：邮件 watcher / `/mail` 只读取 + 摘要 + 提醒，**绝不自动删/归档/标记已读**邮件（严守 ADR-8）。
+- **成本控制**：watcher 每轮 `summaryBudget=5` 上限、启发式去噪跳过预热；只用 metadata（不 `fetchFull`）；无配置模型时空转。**代价（记录）**：打开 `/mail` 会对缺摘要的簇按需逐一调 LLM——邮件多（上限 200 封、多簇）时首次打开会有若干次 LLM 调用与延迟，缓存后再开秒显。
+- **对 §2.1 的偏离（记录）**：`MailWatcher.poll()` 与 `MailViewModel` 均写 summaries 缓存（邮件主动性的自然归属，非纯感知）。
 - 开关：`AppSettings.agentMailWatcherEnabled`（agent 窗 ⚙️ popover，与 GitHub watcher 并列），默认开启但仅在 `agentEnabled` 且已连 Gmail 时才跑。
 
 ### 8.6 范围
 
-**含**：`MailSignature.cluster`、`MailImportance.isRoutine`、`MailMemoryStore`（summaries+important）、`MailWatcher`（去噪+LLM判重点+摘要+感知）、`AgentEvent.important`、收件箱「新邮件」分区（重点高亮）、mail watcher 开关、`MailViewModel`/`MailView`（重要性排序/折叠 + 摘要，**无 seen**）、单测（签名 + 去噪 + 记忆 store）。
+**含**：`MailSignature.cluster`、`MailImportance.isRoutine`（仅 watcher 去噪用）、`MailMemoryStore`（只剩 summaries）、`MailWatcher`（去噪预热 + `summarize` 三句话摘要 + 感知，**无重点**）、`MailViewModel`（读缓存 + 打开时按需全量补全 summaries + 无自动预选）、`MailView`（**摘要为主体、标题降为脚注**的簇行 + 「分析中…」提示，无重点/折叠）、单测（签名 + 去噪 + 记忆 store + 摘要解析）。
 
-**不含（未来）**：自动删/归档/静音（仍人工）、正文级摘要（现只 metadata）、可编辑的"什么算重点"背景、跨设备同步、把摘要写回 Gmail。
+**移除（v3）**：`AgentEvent.important` 字段、收件箱「重点」高亮、`MailMemoryStore.important`、`MailViewModel` 的 `importantClusterIDs`/`isImportant`/`hideRoutine`/`routineCount`/`visibleClusters`、`MailView` 的 `routineBanner`/「重点」胶囊、`MailWatcher` 的重点分类（`classify`→`summarize`）。
+
+**不含（未来）**：自动删/归档/静音（仍人工）、正文级摘要（现只 metadata）、跨设备同步、把摘要写回 Gmail。
 
 ### 8.7 验证（补充）
 
-- 单测：`MailSignatureTests`（精确签名对 id 集合稳定/顺序无关）、`MailImportanceTests`（促销/社交/整簇退订=噪音，个人/主要≠噪音）、`MailMemoryStoreTests`（summaries+important round-trip / 缺文件）。
-- 手动（需已连 Gmail + 配 Provider）：开 mail watcher → 后台轮询后新邮件进「动态」、**重点高亮** + 通知 → 开 `/mail` 缓存摘要秒显、**重点置顶、非重点默认折叠可展开** → 打开 `/mail` **不改变任何邮件状态**（不标已读、不折叠"看过"）。
+- 单测：`MailSignatureTests`（精确签名对 id 集合稳定/顺序无关）、`MailImportanceTests`（促销/社交/整簇退订=噪音，个人/主要≠噪音）、`MailWatcherParseTests`（三句话 `parse` 返回多行摘要 / 半全角冒号 / 缺行容错 / 无结构回退）、`MailMemoryStoreTests`（summaries round-trip / 缺文件）。
+- 手动（需已连 Gmail + 配 Provider）：开 mail watcher → 后台轮询后新邮件进「动态」+ 通知 → 开 `/mail`：已缓存簇秒显三句话摘要、缺摘要的簇显示标题 + 「分析中…」并逐个填入 → 每簇**三句话摘要为主体、原标题为下方小字** → 打开 `/mail` **不改变任何邮件状态**（不标已读）。

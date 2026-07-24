@@ -165,14 +165,9 @@ struct MailView: View {
             if let undo = viewModel.undoAction {
                 undoBanner(undo)
             }
-            if viewModel.routineCount > 0 {
-                routineBanner
-            }
             if viewModel.groupedClusters.isEmpty {
                 centered {
-                    Text(viewModel.hideRoutine && viewModel.routineCount > 0
-                         ? "没有重点邮件（\(viewModel.routineCount) 封非重点已折叠）。"
-                         : emptyReviewText)
+                    Text(emptyReviewText)
                         .foregroundStyle(theme.textSecondary)
                 }
             } else {
@@ -186,25 +181,6 @@ struct MailView: View {
                 }
             }
         }
-    }
-
-    /// Collapse banner: hide/show routine (非重点) mail so you can focus on the
-    /// important ones. Opening `/mail` never marks anything read.
-    private var routineBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "eye.slash").font(.caption)
-            Text(viewModel.hideRoutine
-                 ? "已折叠 \(viewModel.routineCount) 封非重点邮件"
-                 : "已展开非重点邮件")
-                .font(.caption)
-            Spacer()
-            Button(viewModel.hideRoutine ? "显示全部" : "只看重点") { viewModel.hideRoutine.toggle() }
-                .buttonStyle(.link)
-        }
-        .foregroundStyle(theme.textSecondary)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(theme.surface.opacity(0.5))
     }
 
     // MARK: - Primary section (大类) → secondary subgroups (小类)
@@ -275,10 +251,11 @@ struct MailView: View {
     // MARK: - Cluster row
 
     @ViewBuilder private func clusterRow(_ cluster: MailCluster, color: Color) -> some View {
+        let subject = cluster.representativeSubject.isEmpty ? "(无主题)" : cluster.representativeSubject
         HStack(spacing: 0) {
             Rectangle().fill(color).frame(width: 3)
             VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
                 Toggle("", isOn: Binding(
                     get: { viewModel.isClusterSelected(cluster) },
                     set: { _ in viewModel.toggleCluster(cluster) }
@@ -286,22 +263,28 @@ struct MailView: View {
                 .labelsHidden()
                 .toggleStyle(.checkbox)
 
-                let subject = cluster.representativeSubject.isEmpty ? "(无主题)" : cluster.representativeSubject
-                Text(subject)
-                    .lineLimit(1)
-                    .contextMenu {
-                        Button("复制主题") { copyToPasteboard(subject) }
+                // Main content: the three-sentence summary is the headline; the
+                // subject drops to a small muted footer. While the summary is
+                // still being generated, show the subject with a "分析中…" hint.
+                VStack(alignment: .leading, spacing: 4) {
+                    if let summary = viewModel.summaryByCluster[cluster.id] {
+                        summaryView(summary)
+                        subjectFooter(subject)
+                    } else {
+                        Text(subject)
+                            .font(.system(size: 13))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if viewModel.isSummarizing(cluster) {
+                            summarizingHint
+                        }
                     }
-
-                if viewModel.isImportant(cluster) {
-                    Text("重点")
-                        .font(.caption2).bold()
-                        .foregroundStyle(theme.onAccent)
-                        .padding(.horizontal, 6).padding(.vertical, 1)
-                        .background(theme.accent, in: Capsule())
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contextMenu {
+                    Button("复制主题") { copyToPasteboard(subject) }
+                }
 
                 Text("\(cluster.count)")
                     .font(.caption).monospacedDigit()
@@ -326,16 +309,6 @@ struct MailView: View {
             }
             .help("双击查看邮件内容；右键可复制主题")
 
-            if let summary = viewModel.summaryByCluster[cluster.id] {
-                Text(summary)
-                    .font(.caption)
-                    .foregroundStyle(theme.textSecondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 6)
-            }
-
             if expanded.contains(cluster.id) {
                 ForEach(cluster.messages) { message in
                     messageRow(message)
@@ -348,6 +321,65 @@ struct MailView: View {
         .background(theme.surface.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
+
+    /// The subject, demoted to a small muted footer beneath the summary.
+    @ViewBuilder private func subjectFooter(_ subject: String) -> some View {
+        Text(subject)
+            .font(.caption2)
+            .foregroundStyle(theme.textTertiary)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Inline hint shown while a cluster's summary is being generated on open.
+    private var summarizingHint: some View {
+        HStack(spacing: 5) {
+            ProgressView().controlSize(.mini)
+            Text("分析中…").font(.caption2)
+        }
+        .foregroundStyle(theme.textSecondary)
+    }
+
+    /// Render the cached cluster summary. Structured summaries are three labelled
+    /// lines ("背景：… / 目的：… / 处理：…") joined by newlines — show each as its
+    /// own row with a small label chip so the three aspects are easy to scan.
+    /// Falls back to plain wrapped text for anything unstructured.
+    @ViewBuilder private func summaryView(_ summary: String) -> some View {
+        let rows = summary
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map { line -> (label: String, content: String) in
+                if let colon = line.firstIndex(where: { $0 == "：" || $0 == ":" }) {
+                    let label = line[..<colon].trimmingCharacters(in: .whitespaces)
+                    let content = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+                    if Self.summaryLabels.contains(label), !content.isEmpty {
+                        return (label, content)
+                    }
+                }
+                return ("", String(line))
+            }
+
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    if !row.label.isEmpty {
+                        Text(row.label)
+                            .font(.caption2).bold()
+                            .foregroundStyle(theme.accent)
+                            .frame(width: 28, alignment: .leading)
+                    }
+                    Text(row.content)
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(theme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+
+    /// Recognised summary aspect labels (see `MailWatcher.parse`), used to decide
+    /// whether a line is a labelled aspect vs. free text.
+    private static let summaryLabels: Set<String> = ["背景", "目的", "处理"]
 
     @ViewBuilder private func messageRow(_ message: MailMessage) -> some View {
         HStack(spacing: 10) {

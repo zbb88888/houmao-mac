@@ -32,27 +32,23 @@ struct MailImportanceTests {
 }
 
 struct MailWatcherParseTests {
-    @Test func parsesImportantYes() {
-        let r = MailWatcher.parse("重点: 是\n摘要: 老板要你今天回复")
-        #expect(r.important)
-        #expect(r.summary == "老板要你今天回复")
+    @Test func parsesThreeSentences() {
+        let r = MailWatcher.parse("背景: 项目要上线\n目的: 通知发布计划\n处理: 需你今天确认")
+        #expect(r == "背景：项目要上线\n目的：通知发布计划\n处理：需你今天确认")
     }
 
-    @Test func parsesImportantNoFullWidthColon() {
-        let r = MailWatcher.parse("重点：否\n摘要：例行周报")
-        #expect(!r.important)
-        #expect(r.summary == "例行周报")
+    @Test func parsesFullWidthColon() {
+        let r = MailWatcher.parse("背景：例行周报\n目的：同步进度\n处理：无需处理")
+        #expect(r == "背景：例行周报\n目的：同步进度\n处理：无需处理")
     }
 
-    @Test func parsesBuShiAsNotImportant() {
-        let r = MailWatcher.parse("重点: 不是\n摘要: 一般通知")
-        #expect(!r.important)
-        #expect(r.summary == "一般通知")
+    @Test func tolerantOfMissingLines() {
+        let r = MailWatcher.parse("背景: 只有背景一行")
+        #expect(r == "背景：只有背景一行")
     }
 
     @Test func fallsBackWhenUnstructured() {
         let r = MailWatcher.parse("就是一句话")
-        #expect(!r.important)
-        #expect(r.summary == "就是一句话")
+        #expect(r == "就是一句话")
     }
 }

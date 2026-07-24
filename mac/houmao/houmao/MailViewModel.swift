@@ -73,14 +73,17 @@ final class MailViewModel {
     // MARK: - Proactive mail importance (docs/proactive-agency.md §8)
 
     private let mailMemory = MailMemoryStore()
-    /// Cached one-line summary per cluster (by runtime id), pre-warmed by the
-    /// mail watcher — shown inline so the list needs no on-open LLM wait.
+    /// Cached three-sentence summary (背景 / 目的 / 是否需进一步处理) per cluster
+    /// (by runtime id) — filled from the mail watcher's pre-warmed cache on open,
+    /// then completed on demand for any cluster the watcher hasn't summarized yet.
     var summaryByCluster: [UUID: String] = [:]
-    /// Clusters judged important (「重点」), so they stay visible and are the
-    /// only ones shown by default.
-    private var importantClusterIDs: Set<UUID> = []
-    /// Collapse routine (non-important) mail by default so only 重点 needs a look.
-    var hideRoutine = true
+    /// In-memory copy of the summary cache, so on-demand results persist back to
+    /// disk without repeatedly re-reading the file (all writes happen on the
+    /// MainActor, so there's no cross-task race).
+    private var memoryState = MailMemoryStore.State.empty
+    /// Signatures with an in-flight summary generation — dedups work across
+    /// regroups/refreshes and drives the row's "分析中…" hint.
+    private var inflightSigs: Set<String> = []
 
     init() {
         // If a refresh token already exists we're effectively connected.
@@ -160,47 +163,54 @@ final class MailViewModel {
         let grouped = MailGrouping.group(loadedMessages, customTags: AppSettings.shared.mailTags)
         mailLog.info("grouped \(self.loadedMessages.count) messages into \(grouped.count) clusters")
         clusters = grouped
-        applyMailImportance(to: grouped)
-        // UX: preselect the first mail so the user can act on it immediately
-        // (e.g. hit AI / delete, one at a time) without a manual first click.
-        selectFirst()
+        applySummaries(to: grouped)
+        // No auto-selection: with the 背景/目的/是否需处理 summary in view, triage
+        // is a read-first flow where the user jumps around and hand-picks which
+        // mail to delete or send to the LLM. Start with nothing selected.
+        selectedIDs.removeAll()
     }
 
-    /// Attach cached summaries + which clusters are important, from the mail
-    /// watcher's memory. **Read-only** — opening `/mail` never writes state, so
-    /// there is no "seen"/read side effect. Falls back to the heuristic
-    /// `!isRoutine` when the watcher hasn't classified a cluster yet.
-    private func applyMailImportance(to grouped: [MailCluster]) {
-        let state = mailMemory.load()
+    /// Fill each cluster's cached summary from the mail memory, then kick off
+    /// on-demand generation for any cluster that doesn't have one yet — so every
+    /// mail ends up with a 背景/目的/是否需处理 summary, not just the ones the
+    /// background watcher happened to reach.
+    private func applySummaries(to grouped: [MailCluster]) {
+        memoryState = mailMemory.load()
         var summaries: [UUID: String] = [:]
-        var important: Set<UUID> = []
         for cluster in grouped {
             let sig = MailSignature.cluster(cluster)
-            if let cached = state.summaries[sig] { summaries[cluster.id] = cached }
-            let classified = state.summaries[sig] != nil
-            let isImportant = classified
-                ? state.important.contains(sig)
-                : !MailImportance.isRoutine(cluster)
-            if isImportant { important.insert(cluster.id) }
+            if let cached = memoryState.summaries[sig] { summaries[cluster.id] = cached }
         }
         summaryByCluster = summaries
-        importantClusterIDs = important
+        generateMissingSummaries(for: grouped)
     }
 
-    /// The first cluster in display order (first primary → first subgroup →
-    /// first cluster), or nil when the list is empty.
-    private var firstCluster: MailCluster? {
-        groupedClusters.first?.subgroups.first?.clusters.first
-    }
-
-    /// Reset the selection to the whole first cluster. Used on a fresh load and
-    /// after a batch removal so a full cluster is always ready to act on. The AI
-    /// reviews a cluster as one thread, so once reviewed the whole cluster should
-    /// clear in a single delete — not one message at a time.
-    private func selectFirst() {
-        selectedIDs.removeAll()
-        guard let cluster = firstCluster else { return }
-        for message in cluster.messages { selectedIDs.insert(message.id) }
+    /// For every cluster still lacking a summary, generate one via the LLM
+    /// (best-effort, one call each, deduped by signature). Results fill in
+    /// asynchronously and are cached back to disk for the next open. No-op when
+    /// no model is configured.
+    private func generateMissingSummaries(for grouped: [MailCluster]) {
+        guard AppSettings.shared.resolveModel(named: nil) != nil else { return }
+        for cluster in grouped {
+            guard summaryByCluster[cluster.id] == nil else { continue }
+            let sig = MailSignature.cluster(cluster)
+            guard !inflightSigs.contains(sig) else { continue }
+            inflightSigs.insert(sig)
+            Task { [weak self] in
+                let summary = await MailWatcher.summarize(cluster)
+                guard let self else { return }
+                self.inflightSigs.remove(sig)
+                guard let summary else { return }
+                self.memoryState.summaries[sig] = summary
+                try? self.mailMemory.save(self.memoryState)
+                // Apply to whichever current cluster carries this signature: its
+                // runtime id may have changed if the list was regrouped while the
+                // request was in flight.
+                for current in self.clusters where MailSignature.cluster(current) == sig {
+                    self.summaryByCluster[current.id] = summary
+                }
+            }
+        }
     }
 
     // MARK: - Selection
@@ -211,7 +221,7 @@ final class MailViewModel {
     var groupedClusters: [(primary: String, subgroups: [(secondary: String?, clusters: [MailCluster])])] {
         var primaryOrder: [String] = []
         var primaryMap: [String: [MailCluster]] = [:]
-        for cluster in visibleClusters {
+        for cluster in filteredClusters {
             if primaryMap[cluster.primary] == nil { primaryOrder.append(cluster.primary) }
             primaryMap[cluster.primary, default: []].append(cluster)
         }
@@ -252,22 +262,10 @@ final class MailViewModel {
 
     func isSelected(_ id: String) -> Bool { selectedIDs.contains(id) }
 
-    /// `filteredClusters` with routine (non-important) clusters dropped when
-    /// `hideRoutine`, so the list shows only 重点 by default.
-    private var visibleClusters: [MailCluster] {
-        guard hideRoutine else { return filteredClusters }
-        return filteredClusters.filter { importantClusterIDs.contains($0.id) }
-    }
-
-    /// How many (search-matching) clusters are routine (non-important) — drives
-    /// the collapse banner and its show/hide toggle.
-    var routineCount: Int {
-        filteredClusters.filter { !importantClusterIDs.contains($0.id) }.count
-    }
-
-    /// Whether a cluster is a highlighted 重点 (drives the row badge + ordering).
-    func isImportant(_ cluster: MailCluster) -> Bool {
-        importantClusterIDs.contains(cluster.id)
+    /// Whether a cluster's summary is currently being generated, for the row's
+    /// "分析中…" hint.
+    func isSummarizing(_ cluster: MailCluster) -> Bool {
+        inflightSigs.contains(MailSignature.cluster(cluster))
     }
 
     /// Whether *any* of the cluster's messages are selected. Drives the cluster
@@ -480,9 +478,6 @@ final class MailViewModel {
         }
         loadedMessages.removeAll { ids.contains($0.id) }
         selectedIDs.subtract(ids)
-        // After a batch removal, preselect the new first mail so triage keeps
-        // flowing without a manual re-click.
-        selectFirst()
     }
 
     /// Build a Gmail provider backed by the shared Google account's token.

@@ -5,8 +5,7 @@ import Foundation
 struct MailMemoryStoreTests {
     @Test func roundTrips() throws {
         let state = MailMemoryStore.State(
-            summaries: ["sigA": "一句话摘要", "sigB": "another"],
-            important: ["sigA"]
+            summaries: ["sigA": "一句话摘要", "sigB": "another"]
         )
         let decoded = try MailMemoryStore.decode(MailMemoryStore.encode(state))
         #expect(decoded == state)
@@ -26,7 +25,7 @@ struct MailMemoryStoreTests {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("houmao-mail-test-\(UUID().uuidString)", isDirectory: true)
         let store = MailMemoryStore(directory: dir)
-        let state = MailMemoryStore.State(summaries: ["s": "m"], important: ["s"])
+        let state = MailMemoryStore.State(summaries: ["s": "m"])
         try store.save(state)
         #expect(store.load() == state)
         try? FileManager.default.removeItem(at: dir)

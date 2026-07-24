@@ -2,19 +2,18 @@ import Foundation
 
 /// Proactive mail watcher (docs/proactive-agency.md §8): on the agent's poll
 /// cycle, cluster recent unread mail, and for each new **non-routine** cluster
-/// classify importance ("重点/一般") + a one-line summary via one LLM call
-/// (routine noise is filtered heuristically, no LLM). Results are cached so
-/// `/mail` is instant, and the cluster is surfaced as an inbox event (important
-/// ones highlighted).
+/// pre-warm a three-sentence summary (背景 / 目的 / 是否需进一步处理) via one
+/// LLM call (routine noise is filtered heuristically, no LLM), plus surface the
+/// cluster as an inbox event. Results are cached so `/mail` opens instant.
 ///
-/// Unlike `GitHubWatcher` (pure sensing), this writes the summary/importance
-/// cache as a side effect. It never mutates mail (no delete / archive / mark
-/// read); it only reads, judges, and suggests.
+/// Unlike `GitHubWatcher` (pure sensing), this writes the summary cache as a
+/// side effect. It never mutates mail (no delete / archive / mark read); it only
+/// reads, summarizes, and surfaces.
 struct MailWatcher: Watcher {
     let id = "mail"
 
-    /// Cap LLM classifications per poll to bound cost.
-    private let classifyBudget = 5
+    /// Cap LLM summaries per poll to bound cost.
+    private let summaryBudget = 5
 
     func poll() async throws -> [AgentEvent] {
         guard !AppSettings.shared.googleClientID.isEmpty, await GoogleAccount.isConnected else {
@@ -29,23 +28,20 @@ struct MailWatcher: Watcher {
         let store = MailMemoryStore()
         var state = store.load()
         var events: [AgentEvent] = []
-        var classified = 0
+        var generated = 0
         let now = Date()
 
         for cluster in clusters {
             // Routine noise (promotions / social / subscription) isn't pushed to
-            // the proactive inbox; it stays visible in `/mail` (collapsed).
+            // the proactive inbox; `/mail` still summarizes it on open.
             guard !MailImportance.isRoutine(cluster) else { continue }
 
             let sig = MailSignature.cluster(cluster)
-            var important = state.important.contains(sig)
-            // Classify once per unique cluster (LLM budget-bounded).
-            if state.summaries[sig] == nil, classified < classifyBudget,
-               let result = await Self.classify(cluster) {
-                state.summaries[sig] = result.summary
-                if result.important { state.important.insert(sig) }
-                important = result.important
-                classified += 1
+            // Pre-warm the summary once per unique cluster (LLM budget-bounded).
+            if state.summaries[sig] == nil, generated < summaryBudget,
+               let summary = await Self.summarize(cluster) {
+                state.summaries[sig] = summary
+                generated += 1
             }
 
             events.append(AgentEvent(
@@ -55,8 +51,7 @@ struct MailWatcher: Watcher {
                 subtitle: "\(cluster.primary) · \(cluster.count) 封",
                 url: "",
                 detectedAt: now,
-                suggestedCommand: "/mail",
-                important: important
+                suggestedCommand: "/mail"
             ))
         }
 
@@ -64,19 +59,21 @@ struct MailWatcher: Watcher {
         return events
     }
 
-    /// One LLM call over metadata only (subjects + snippets): returns whether the
-    /// cluster is a "重点" plus a one-line summary. `nil` when no model is
-    /// configured or the call fails (caller degrades to heuristic importance).
-    private static func classify(_ cluster: MailCluster) async -> (summary: String, important: Bool)? {
+    /// Generate a three-sentence summary (背景 / 目的 / 是否需进一步处理) for a
+    /// cluster via one LLM call over metadata only (subjects + snippets). `nil`
+    /// when no model is configured or the call fails. Shared by the watcher
+    /// (pre-warm) and `MailViewModel` (on-demand fill when opening `/mail`).
+    static func summarize(_ cluster: MailCluster) async -> String? {
         guard let model = AppSettings.shared.resolveModel(named: nil) else { return nil }
         let lines = cluster.messages.prefix(5)
             .map { "· \($0.subject) — \($0.snippet)" }
             .joined(separator: "\n")
         let prompt = """
-        下面是一组邮件。判断它对我是否是「重点」（需要我尽快阅读/回复/处理；促销、社交、纯自动通知不算重点），并用一句话（20 字内、简体中文）概括。
-        严格按两行回复，不要多余内容：
-        重点: 是 或 否
-        摘要: <一句话>
+        下面是一组邮件。请用三句话（每句简体中文、尽量简短）分别总结：背景（这组邮件涉及什么）、目的（对方/系统想让我知道或做什么）、是否需要进一步处理（要不要我回复/操作，及大致该做什么）。
+        严格按三行回复，不要多余内容：
+        背景: <一句话>
+        目的: <一句话>
+        处理: <一句话>
 
         \(lines)
         """
@@ -86,25 +83,39 @@ struct MailWatcher: Watcher {
             apiKey: model.provider.apiKey
         )
         guard let reply = try? await client.ask(question: prompt, attachments: []) else { return nil }
-        return parse(reply)
+        let summary = parse(reply)
+        return summary.isEmpty ? nil : summary
     }
 
-    /// Parse the two-line `重点:` / `摘要:` reply; tolerant of missing lines.
-    static func parse(_ reply: String) -> (summary: String, important: Bool) {
-        var important = false
-        var summary = ""
+    /// Parse the three-line `背景:` / `目的:` / `处理:` reply into a summary with
+    /// each labelled line joined by a newline. Tolerant of missing lines; falls
+    /// back to the whole reply when none of the labelled lines are present.
+    static func parse(_ reply: String) -> String {
+        func value(after line: Substring) -> String {
+            guard let colon = line.firstIndex(where: { $0 == ":" || $0 == "：" }) else { return "" }
+            return String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
+        }
+
+        var background = ""
+        var purpose = ""
+        var action = ""
         for raw in reply.split(whereSeparator: \.isNewline) {
-            let line = raw.trimmingCharacters(in: .whitespaces)
-            if line.hasPrefix("重点") {
-                // "否" / "不是" → not important; only a bare "是" counts.
-                important = line.contains("是") && !line.contains("否") && !line.contains("不")
-            } else if line.hasPrefix("摘要") {
-                if let colon = line.firstIndex(where: { $0 == ":" || $0 == "：" }) {
-                    summary = String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
-                }
+            let line = raw.trimmingCharacters(in: .whitespaces)[...]
+            if line.hasPrefix("背景") {
+                background = value(after: line)
+            } else if line.hasPrefix("目的") {
+                purpose = value(after: line)
+            } else if line.hasPrefix("处理") {
+                action = value(after: line)
             }
         }
-        if summary.isEmpty { summary = reply.trimmingCharacters(in: .whitespacesAndNewlines) }
-        return (summary, important)
+
+        var parts: [String] = []
+        if !background.isEmpty { parts.append("背景：\(background)") }
+        if !purpose.isEmpty { parts.append("目的：\(purpose)") }
+        if !action.isEmpty { parts.append("处理：\(action)") }
+        return parts.isEmpty
+            ? reply.trimmingCharacters(in: .whitespacesAndNewlines)
+            : parts.joined(separator: "\n")
     }
 }
