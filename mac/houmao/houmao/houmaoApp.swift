@@ -483,7 +483,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
                 "勾选大类/小类/单封 → 左上按钮批量：删除(移废纸篓可撤销)/AI 分析整簇/标记已读",
                 "pencil 编辑分类标签；arrow.clockwise 刷新",
                 "双击某行看邮件内容；右键复制主题/发件人",
-                "默认拉最近30天收件箱未读、最多200封，按分类+聚类自动分组",
+                "默认拉取收件箱所有未读、最多500封，按分类+聚类自动分组",
             ]
         ) { mailView })
         return window
