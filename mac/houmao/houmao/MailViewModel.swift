@@ -56,11 +56,11 @@ final class MailViewModel {
     /// (not-yet-loaded) review state from a genuinely empty result.
     private(set) var hasLoaded = false
 
-    /// Gmail `q` filter for the coarse server-side pre-filter. Unread inbox only
-    /// — read mail is intentionally skipped (triage focuses on the new stuff).
-    var query: String = "is:unread in:inbox newer_than:30d"
+    /// Gmail `q` filter for the coarse server-side pre-filter. Just unread —
+    /// no inbox/date narrowing, so it matches Gmail's own unread count.
+    var query: String = "is:unread"
     /// Cap on the number of messages pulled per run (keeps O(n²) clustering fast).
-    var maxResults: Int = 200
+    var maxResults: Int = 500
 
     /// Local, case-insensitive filter over already-loaded mail (subject / sender).
     /// Empty → show everything. Set by the mail page search box; unlike `query`
