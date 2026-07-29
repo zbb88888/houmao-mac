@@ -421,6 +421,19 @@ final class MainViewModel {
         return nil
     }
 
+    /// Refresh the chat for a fresh single-item analysis: cancel any in-flight
+    /// analysis and open a new conversation so both the visible history and the
+    /// LLM context are cleared — only the current item's analysis remains.
+    /// Shared by the mail / PR·issue / markdown-fix single-item flows so they
+    /// all behave the same way.
+    private func beginAnalysisSession() {
+        currentTask?.cancel()
+        mailDeepen.removeAll()
+        topAnchorMessageID = nil
+        oneShotTurns.removeAll()
+        chatStore.newConversation()
+    }
+
     /// Parse `/issue <url>` or `/pr <url>` and analyze it against the local
     /// repository (auto-located under the configured repos root) via the
     /// external `ghia` tool, rendered as a chat turn. `/pr` reviews the diff.
@@ -459,7 +472,7 @@ final class MainViewModel {
         // Each analysis starts a fresh conversation: different PRs/issues use a
         // brand-new session so context stays small (local LLM window is limited)
         // and follow-up chat only carries this analysis.
-        chatStore.newConversation()
+        beginAnalysisSession()
         panel = .chat
         NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
 
@@ -612,7 +625,7 @@ final class MainViewModel {
             return
         }
         guard !mails.isEmpty else { return }
-        chatStore.ensureCurrent()
+        beginAnalysisSession()
         // A cluster is one thread: collapse identical titles (ignoring Re:/Fwd:
         // prefixes) to the single cluster title instead of repeating it per mail.
         let titles = Self.uniqueCleanSubjects(mails)
@@ -658,20 +671,22 @@ final class MainViewModel {
                 model: resolved.model,
                 contextTokens: resolved.provider.contextTokens
             ))
-            // Independent task (not `currentTask`): analyzing several mails
-            // back-to-back must not cancel each other's in-flight analysis.
-            Task { await streamGhia(analyzer, url: github.url, repoPath: repoPath, mode: github.mode, into: assistantID) }
+            // Each mail analysis refreshes the chat (see beginAnalysisSession),
+            // so a newer analysis supersedes this one via currentTask.
+            currentTask = Task { await streamGhia(analyzer, url: github.url, repoPath: repoPath, mode: github.mode, into: assistantID) }
             return
         }
 
         // Otherwise → LLM summary / time-line analysis of the thread.
         let prompt = Self.mailThreadPrompt(mails)
         let client = AiTxtClient(baseURL: resolved.provider.apiHost, model: resolved.model, apiKey: resolved.provider.apiKey)
-        Task {
+        currentTask = Task {
             do {
                 _ = try await client.askStream(question: prompt, attachments: [], history: []) { [weak self] token in
                     Task { @MainActor in self?.chatStore.appendToken(assistantID, token) }
                 }
+            } catch is CancellationError {
+                // Superseded by a newer analysis; leave the abandoned bubble as-is.
             } catch {
                 chatStore.appendToken(assistantID, "\n\n分析失败：\(error.localizedDescription)")
             }
@@ -691,7 +706,7 @@ final class MainViewModel {
             showError("No provider configured. Open Settings (⌘,) to add one.")
             return
         }
-        chatStore.ensureCurrent()
+        beginAnalysisSession()
         let userID = chatStore.appendUser("修复 Markdown 格式")
         let assistantID = chatStore.startAssistant(streaming: true)
         lastModelName = resolved.provider.name
@@ -704,7 +719,6 @@ final class MainViewModel {
             model: resolved.model,
             apiKey: resolved.provider.apiKey
         )
-        currentTask?.cancel()
         currentTask = Task {
             do {
                 let reply = try await client.askStream(question: prompt, attachments: [], history: []) { [weak self] token in
