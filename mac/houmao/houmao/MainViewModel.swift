@@ -61,6 +61,14 @@ final class MainViewModel {
     /// deeper using the prior analysis as context (keyed by assistant msg id).
     private var mailDeepen: [UUID: String] = [:]
 
+    /// Per assistant-bubble key web link, shown as a clickable chip in the
+    /// reply bubble (opens in the default browser). Format-matched from the
+    /// source (mail body's last link / the analyzed PR·issue URL), no LLM.
+    private var replyLinks: [UUID: URL] = [:]
+
+    /// The key web link to show in an assistant bubble, if any.
+    func replyLink(for id: UUID) -> URL? { replyLinks[id] }
+
     /// When set, the chat view parks this bubble at the TOP of the viewport on
     /// the next message-count change / window show, instead of scrolling to the
     /// bottom. Mail analysis sets it to the new "分析邮件：…" header so previous
@@ -429,6 +437,7 @@ final class MainViewModel {
     private func beginAnalysisSession() {
         currentTask?.cancel()
         mailDeepen.removeAll()
+        replyLinks.removeAll()
         topAnchorMessageID = nil
         oneShotTurns.removeAll()
         chatStore.newConversation()
@@ -478,6 +487,7 @@ final class MainViewModel {
 
         chatStore.appendUser(text)
         let assistantID = chatStore.startAssistant(streaming: true)
+        if let u = URL(string: url) { replyLinks[assistantID] = u }
         lastModelName = resolved.provider.name
         isLoading = true
         inputText = ""
@@ -541,6 +551,7 @@ final class MainViewModel {
         isLoading = false
         inputText = ""
         mailDeepen.removeAll()
+        replyLinks.removeAll()
         topAnchorMessageID = nil
         chatStore.reset()
     }
@@ -563,6 +574,7 @@ final class MainViewModel {
         lastModelName = resolved.provider.name
         // Chainable: the elaboration can itself be deepened again.
         mailDeepen[assistantID] = source
+        if let link = replyLinks[id] { replyLinks[assistantID] = link }
         topAnchorMessageID = userID
         NotificationCenter.default.post(name: .houmaoEnterChatWindow, object: nil)
 
@@ -647,6 +659,7 @@ final class MainViewModel {
         // Register the mail context so this bubble can later be “深入”-ed
         // (a follow-up turn that builds on the analysis instead of re-running it).
         mailDeepen[assistantID] = Self.mailThreadPrompt(mails)
+        if let link = Self.lastMailLink(in: mails) { replyLinks[assistantID] = link }
         // Park this analysis's header bubble at the top of the chat viewport
         // (pushing prior history above the fold, leaving space for the reply)
         // and bring the chat window to the front.
@@ -831,6 +844,20 @@ final class MainViewModel {
         \(markdown)
         </文档>
         """
+    }
+
+    /// The last http(s) link in the mail bodies (oldest→newest) — the bubble's
+    /// clickable "关键链接". Format-matched, no LLM; trailing punctuation trimmed.
+    static func lastMailLink(in mails: [MailMessageDetail]) -> URL? {
+        let text = mails.map(\.body).joined(separator: "\n")
+        let pattern = #"https?://[^\s<>"')\]]+"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        guard let match = regex.matches(in: text, range: range).last,
+              let r = Range(match.range, in: text) else { return nil }
+        var s = String(text[r])
+        while let ch = s.last, ".,;:!?、，。".contains(ch) { s.removeLast() }
+        return URL(string: s)
     }
 
     /// Distinct message subjects with common reply/forward prefixes stripped, in

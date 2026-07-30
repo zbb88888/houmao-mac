@@ -332,9 +332,15 @@ struct ChatView: View {
                         .textSelection(.enabled)
                         .foregroundColor(theme.onAccent)
                 } else {
-                    // Assistant replies get full block-level Markdown rendering.
-                    MarkdownView(text: message.text, baseFontSize: 14)
-                        .foregroundColor(theme.textPrimary)
+                    // Assistant replies get full block-level Markdown rendering,
+                    // with an optional clickable key-link chip beneath.
+                    VStack(alignment: .leading, spacing: 8) {
+                        MarkdownView(text: message.text, baseFontSize: 14)
+                            .foregroundColor(theme.textPrimary)
+                        if let link = viewModel.replyLink(for: message.id) {
+                            linkChip(link)
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 12)
@@ -356,6 +362,27 @@ struct ChatView: View {
                 Spacer(minLength: 40)
             }
         }
+    }
+
+    /// Reusable "open this web link" chip for reply bubbles: opens the URL in
+    /// the OS default browser. Shared by every bubble that carries a key link
+    /// (mail analysis / PR·issue).
+    private func linkChip(_ url: URL) -> some View {
+        Button {
+            NSWorkspace.shared.open(url)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "link")
+                Text(url.host ?? url.absoluteString).lineLimit(1)
+            }
+            .font(.system(size: 12, weight: .medium))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(theme.accent.opacity(0.12), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(theme.accent)
+        .help(url.absoluteString)
     }
 
     private func chatAvatar(isUser: Bool) -> some View {
