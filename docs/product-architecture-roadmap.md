@@ -2,6 +2,8 @@
 
 > 本文件是项目的「活文档」：梳理用户使用习惯、整体架构设计与功能开发方案，并以开发事项清单的形式跟踪进度。**后续每完成一刀就回来更新对应状态与说明。**
 >
+> 最近更新：2026-08-03（**双应用快速切换（2-slot 栈 + 10s 停留门槛，§3.15 / ADR-15）**：新增 `RecentAppStack`（最多记住最近两个 app）+ `PairSwitchManager`（监听 app 激活，**连续前台 ≥10s 才入栈**，过滤抖动/瞥一眼）；新增全局**双击 Ctrl**热键（不覆盖 ⌘-Tab）在两 app 间来回跳；激活目标 app 时由系统自动跨 Space。开关 `pairToggleEnabled`（默认开）已接入设置页（含辅助功能权限提示）；目标 app 已退出时自动从栈剔除并回退。新增单测 `RecentAppStackTests`（7 例）+ `PairSwitchDwellStateTests`（3 例）全绿。）
+> 最近更新：2026-08-03（**第一设计参考：小型专业化智能体协同（赫尔佐格原则，§1.0 / ADR-14）**：确立猴毛的**第一架构原则**——不做单一大型系统，而做众多小型、专业化、边界清晰、可插拔的智能体，经明确接口协同运作，可随时增删/替换。新增 §1.0「设计总纲」（引赫尔佐格原文 + 映射猴毛现有实践：`Watcher` 协议插拔、Pipeline `$action`、各面板/工具命令、Core/Shell 分层、不引重型编排）+ ADR-14（统领 ADR-1/4/13）。**落地约束**：新增能力优先做成可插拔小智能体而非扩张大模块。纯文档，无代码改动。）
 > 最近更新：2026-07-24（**邮件全量三句话摘要 + 移除「重点」（§3.14）**：用户实测「重点」判断不可靠、也非所需——**v3 彻底移除 importance/重点**（`AgentEvent.important`、收件箱重点高亮、`MailMemoryStore.important`、`MailViewModel` 的 importantClusterIDs/isImportant/hideRoutine/routineCount/visibleClusters、`MailView` routineBanner/重点胶囊、`MailWatcher.classify`）。改为**每封邮件都出三句话摘要**（背景/目的/是否需进一步处理）：`MailWatcher` 后台预热非噪音簇（`summarize`，budget=5），`MailViewModel` 打开 `/mail` 时对**所有缺摘要的簇（含噪音）**异步逐簇按需生成、完成一个填一个（「分析中…」提示）并回写缓存。UI **摘要为主体、原标题降为下方小字脚注**（三行「背景/目的/处理」标签式）。`isRoutine` 仅留给 watcher 去噪（不刷屏「动态」）。单测更新（parse 返回 String、State 去 important）；build + 13 邮件单测绿。）
 > 最近更新：2026-07-24（**邮件三句话摘要 + 移除自动预选（§3.14）**：`/mail` 每簇摘要从「一句话」升级为**三句话**——背景（涉及什么）/ 目的（对方想让我知道或做什么）/ 是否需要进一步处理（要不要我回复·操作），`MailWatcher` LLM 提示词改四行输出（重点 + 背景/目的/处理）、`parse` 解析拼成多行摘要，`MailView` 行内 `lineLimit(6)` 显示三句。**移除「自动预选第一簇」**（`applyGrouping`/`removeFromView` 不再 `selectFirst`，删孤儿 `selectFirst`/`firstCluster`）——有了三句话摘要后改为「先读后手动跳选」，用户自由挑想让 LLM 深入研究的邮件。`MailWatcherParseTests` 更新为三句话格式（5 例绿）。build 绿。）
 > 最近更新：2026-07-17（**工作量总结面板 `/worklog`（§3.12）**：两阶段 GitHub 工作量摘要——阶段一按 `from` 逐个总结我的 PR+issue（每条 30–50 字，`gh` 取数 + `AiTxtClient` 摘要，增量缓存到 `~/Documents/houmao/worklog/<repo>/<月>/`）；阶段二选周期（周/月/季/半年/大半年/年 滚动窗口）→基于可编辑的工作背景按 **OKR 方法论**归纳成 Markdown 报告。**不走 ghia**（深度 review 非短摘要、要改 client-tools）、**不复用 PR/Issue 现成列表**（那是 open/近期，worklog 要 created>=from 全状态·按月·PR+issue 合并）——只共用 gh 封装 `GitHubCLI`。近三月展开/更早折叠。新增 `Core/WorkLog/*` + `WorkLogViewModel`/`WorkLogView`，rail 加"工作量"入口 + `/worklog`。6 单测绿。）
@@ -30,11 +32,33 @@
 3. [功能模块与开发方案](#3-功能模块与开发方案)
 4. [开发路线图与事项跟踪](#4-开发路线图与事项跟踪)
 5. [关键决策记录（ADR）](#5-关键决策记录adr)
-6. [待澄清事项与外部前置](#6-待澄清事项与外部前置)
+6. [关键决策（已拍板 Q1–Q5）](#6-关键决策已拍板-q1q5)
 
 ---
 
 ## 1. 产品定位与用户使用习惯分析
+
+### 1.0 第一设计参考：小型专业化智能体协同（赫尔佐格原则）
+
+> **赫尔佐格（外籍院士）**：「我一直主张发展小型智能体。未来的发展方向绝非单一大型系统，而是众多小型的专业化智能体协同运作。人类之间通过沟通、协作甚至适度竞争，共同创造成果，这是我们早已习惯的模式；智能体也可以复刻这套运行逻辑。这种架构的优势十分突出，适配性极强——我们可以随时移除、新增智能体，落地实操效果远胜于单一大系统。」
+
+这是猴毛的**第一设计参考**：任何架构与功能取舍，优先照此原则衡量。
+
+- **不做单一大脑，做一群小专家**：每个能力单元都是**小型、专业化、边界清晰**的智能体（一件事做好），彼此**协同**而非揉进一个无所不包的大系统。
+- **可插拔、可增删**：新增能力 = 加一个小智能体，而不是往既有大模块堆功能；任意智能体可随时移除、替换、新增，互不牵连。
+- **协同优于集中**：智能体之间通过明确的接口/事件沟通协作（如同人类的沟通与分工），组合出整体能力；避免中心化编排带来的耦合与脆弱。
+
+**猴毛现有架构已在践行此原则**（本原则是对既有实践的追认与统领）：
+
+| 现有实践 | 如何体现「小型专业化智能体协同」 |
+| --- | --- |
+| `Watcher` 协议（ADR-13 / §3.13） | 每个 watcher（GitHub / Mail / 未来 Todo·Goal）是一个专职感知的小智能体，**只新增实现、`AgentDaemon` 不改**，可随时增删启停 |
+| Pipeline `$action`（ADR-1 / §3.2） | 每个 `$action`（`$translate`/`$summarize`/`$save`…）是一个单一职责的小处理器，经 `ActionRegistry` 插拔、用竖线管道**协同**成流程 |
+| 面板/工具命令（`/mail`·`/pr`·`/issue`·`/do`·`/goal`·`/worklog`） | 每个面板是一个自包含的专业化功能单元，经统一 rail/命令面板导航协同，互不耦合 |
+| Core / Shell 分层（ADR-4） | 纯 Foundation 的能力内核与平台外壳解耦，能力单元可独立单测、跨平台复用 |
+| 不引重型编排（ADR-1 / ADR-13） | 拒绝 LangChain / 中心化 Agent 大脑，用轻量协同 + 确定性护栏替代单一大系统 |
+
+**对后续开发的约束**：新增任何能力时，先问「能否做成一个可插拔的小型专业化智能体（watcher / action / 面板 / provider），而非扩张某个大模块？」——优先前者。详见 [ADR-14](#adr-14小型专业化智能体协同为第一架构原则)。
 
 ### 1.1 一句话定位
 
@@ -43,7 +67,7 @@
 ### 1.2 平台使用习惯差异（决定形态）
 
 | 维度 | macOS | iOS |
-|---|---|---|
+| --- | --- | --- |
 | 第一习惯 | **键盘优先**——尽量纯键盘完成所有操作 | **触屏 + 系统分享**为主 |
 | 第二习惯 | 鼠标其次 | 长按 / 多选手势 |
 | 主入口 | 双击 Option 唤起极简输入框（overlay） | Share Extension（分享菜单）+ 剪贴板 |
@@ -59,7 +83,7 @@
 ### 1.4 现有交互速查（macOS，已实现）
 
 | 操作 | 行为 |
-|---|---|
+| --- | --- |
 | 双击 Option | 显示 / 收起主输入框 |
 | `⌘L` | 清空当前对话 |
 | `⌘B` / 输入 `b` | 历史记录面板 |
@@ -112,7 +136,7 @@ flowchart TB
 **`mac/houmao/houmao/Core/`（纯 Foundation，iOS 可直接复用）**
 
 | 文件 | 职责 |
-|---|---|
+| --- | --- |
 | [AiTxtClient.swift](../mac/houmao/houmao/Core/AiTxtClient.swift) | OpenAI 兼容 LLM 客户端（流式/非流式） |
 | [AppSettings.swift](../mac/houmao/houmao/Core/AppSettings.swift) | Provider 列表、模型解析；apiKey 走 Keychain |
 | [KeychainStore.swift](../mac/houmao/houmao/Core/KeychainStore.swift) | 跨平台密钥存储（Security 框架） |
@@ -126,7 +150,7 @@ flowchart TB
 **`mac/houmao/houmao/`（macOS Shell）**
 
 | 文件 | 职责 | iOS 对应 |
-|---|---|---|
+| --- | --- | --- |
 | [houmaoApp.swift](../mac/houmao/houmao/houmaoApp.swift) | FloatingPanel 覆盖层、生命周期 | 重写（无 NSPanel） |
 | [GlobalHotKeyManager.swift](../mac/houmao/houmao/GlobalHotKeyManager.swift) | 双击 Option 全局热键 | 无（iOS 不支持） |
 | [SelectToCopyManager.swift](../mac/houmao/houmao/SelectToCopyManager.swift) | 全局划词抓取 | Share Extension 替代 |
@@ -140,7 +164,7 @@ flowchart TB
 ### 2.3 关键抽象协议（已有 + 规划）
 
 | 协议 | 状态 | 说明 |
-|---|---|---|
+| --- | --- | --- |
 | `PipelineAction` | ✅ 已有 | 一个 `$action` 步骤；`ActionRegistry` 注册 |
 | `NoteWriting` | ✅ 已有 | 笔记落盘；`FileNoteWriter` 实现 |
 | `ContentSink` | ⬜ 规划 | 泛化 `NoteWriting`：本地笔记 / 云存储 / 收藏统一为 sink |
@@ -182,7 +206,7 @@ flowchart LR
 **内置动作**：
 
 | 动作 | 行为 |
-|---|---|
+| --- | --- |
 | `$translate` | 中英互译 |
 | `$summarize` | 原语言摘要 |
 | `$save` | 追加到 `~/Documents/houmao/notes/yyyy-MM-dd.md` |
@@ -379,6 +403,20 @@ flowchart TB
 
 ---
 
+### 3.15 双应用快速切换：2-slot 栈 + 10s 停留门槛（✅ 2026-08-03）
+
+**需求**：两个常用 app 分处不同 Space，来回切换要按很多次 Ctrl+←/→（切 Space）。目标是「最多两个 app 快速来回」，一键到位。
+
+**决策**：不覆盖原生 ⌘-Tab，不做跨 Space 移窗；新增独立热键 **双击 Ctrl**。维护一个**双槽 MRU 栈**（最近两个 app），按键后直接激活另一个 app；激活时由 macOS 自动切到该 app 所在 Space。
+
+**10s 门槛**：仅当 app 连续前台停留 ≥10s 才入栈（过滤快速瞥一眼/抖动切换）。门槛只影响「新 app 入栈」，不影响已入栈双 app 之间来回跳。
+
+**代码**：`Core/Focus/RecentAppStack.swift`（纯结构：commit + toggleTarget + remove）+ `Core/Focus/PairSwitchDwellState.swift`（可测 dwell 状态机）+ `PairSwitchManager.swift`（监听 `NSWorkspace.didActivateApplicationNotification`，dwell timer，候选倒计时状态，**目标 app 已退出时从栈剔除并回退**，`NSRunningApplication.activate()`）+ `GlobalHotKeyManager.swift`（双击 Ctrl 检测 + Ctrl+Arrow 误触抑制窗口）+ `houmaoApp.swift`（接线 + 生命周期 start/stop）+ `AppSettings.pairToggleEnabled`（默认开）+ `SettingsView` 开关（含状态文案与**辅助功能权限提示**）。测试 `RecentAppStackTests`（7 例）+ `PairSwitchDwellStateTests`（3 例）通过。
+
+**边界**：macOS 无公开 API 把其他 app 窗口跨 Space 重排；本功能不移动窗口，只做 app 焦点切换。双击 Ctrl 与 Ctrl+Arrow 抑制依赖全局键盘监听（辅助功能权限），未授权时设置页会提示。
+
+---
+
 ## 4. 开发路线图与事项跟踪
 
 > 状态：✅ 完成 ｜ 🚧 进行中 ｜ ⬜ 待办。每刀都要求 `make build` + `make test` 零回归。
@@ -386,7 +424,7 @@ flowchart TB
 ### Phase 0 — 抽取 Core 地基 ✅
 
 | # | 事项 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | 0.1 | `Attachment` 去 NSImage 化（Data 桥接 + `Attachment+AppKit`） | ✅ |
 | 0.2 | apiKey 迁 Keychain（含旧明文自动迁移、删除防孤儿） | ✅ |
 | 0.3 | Core 目录归拢（7 个纯 Foundation 文件入 `Core/`） | ✅ |
@@ -394,7 +432,7 @@ flowchart TB
 ### Phase 1 — 管道 DSL ✅
 
 | # | 事项 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | 1.1 | 解析器 + 模型 + Runner + Registry | ✅ |
 | 1.2 | 内置动作 `$translate` / `$summarize` / `$save` | ✅ |
 | 1.3 | `NoteWriting` + `FileNoteWriter`（Markdown 追加） | ✅ |
@@ -403,7 +441,7 @@ flowchart TB
 ### Phase 2 — 聊天形态 🚧
 
 | # | 事项 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | 2.1 | Core `Message` + `ChatStore`/`Conversation`/`ConversationStore` + 单测 | ✅ |
 | 2.2 | macOS `/chat` 模式切换（退出复用面板显隐：双击 Option / `⌘W`；再输 `/chat` 切回；单测 5 用例） | ✅ |
 | 2.3 | 聊天气泡 UI 精修（标准聊天窗口：头像气泡 / 多行输入 / 发送键 / typing / 空状态，见 [chat-ui-design.md](chat-ui-design.md)） | ✅ |
@@ -412,7 +450,7 @@ flowchart TB
 ### Phase 3 — 内容引用与右键操作 ⬜
 
 | # | 事项 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | 3.1 | `ContentRef` 引用模型（本地/云文件名 + 缩略） | ⬜ |
 | 3.2 | `ContentSink` 协议（泛化 `NoteWriting`；本地 `.md` 实现） | ⬜ |
 | 3.3 | 消息多选 + 右键菜单（收藏触发落盘/分享/提醒占位） | ⬜ |
@@ -422,7 +460,7 @@ flowchart TB
 > 按数据产生源分两条：用户输入数据（如 todo）默认全量自动同步；聊天气泡走「右键收藏」（后续）。Drive 用 `drive.file` 最小 scope，与 Gmail 共用同一次 OAuth 同意（`Scope.appDefault = [gmailModify, driveFile]`，单一共享 refresh token）。
 
 | # | 事项 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | 4.1 | Google Drive 接入：`Core/Cloud/GoogleDriveClient`（v3 REST，find-or-create 文件夹 + `upsertTextFile` 覆盖式）+ `GoogleOAuth` 共享连接 helper（抽出 Mail 复用）+ `Scope.driveFile`/`appDefault` | ✅ |
 | 4.2 | todo 全量自动同步：`DriveSyncService`（`@MainActor @Observable`，连接/防抖镜像/状态；`houmao/do` 文件夹缓存）+ `DoViewModel` 每次本地保存后单向镜像 `work.md`/`life.md` 到 Drive；设置页「Google Drive 同步」连接入口+状态 | ✅ |
 | 4.3 | 聊天气泡右键（单选/多选）保存到 Drive（`ContentSink` 收藏工作流） | ⬜ |
@@ -433,7 +471,7 @@ flowchart TB
 ### Phase 5 — iOS Shell ⬜
 
 | # | 事项 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | 5.1 | iOS App target（复用 Core） | ⬜ |
 | 5.2 | 聊天主界面（ChatView） | ⬜ |
 | 5.3 | Share Extension 输入源 | ⬜ |
@@ -444,7 +482,7 @@ flowchart TB
 > 依赖 Google OAuth 基建（与 Phase 4 Drive 共享 `GoogleAuthProvider`）。分类/聚合均无 AI，LLM 为可选增强。见 3.7 / ADR-8 / ADR-9。
 
 | # | 事项 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | 6.0 | `GoogleAuthProvider`（OAuth 2.0 Desktop app + PKCE + loopback；scope `gmail.modify`；refresh token 存 Keychain）+ `LoopbackAuthReceiver`（127.0.0.1 回环捕获回调） | ✅ |
 | 6.1 | `MailProvider` 协议 + `MailMessage`/`MailCategory` 模型 + `GmailProvider`（`messages.list` 粗筛 / `get` 元数据含 labelIds / `batchModify` 移废纸篓 / `batchDelete`） | ✅ |
 | 6.2 | `Core/Clustering/TextClustering`（char 3-gram TF-IDF + 余弦 + 阈值 Union-Find，与业务解耦）+ 单测 9 例 | ✅ |
@@ -460,7 +498,7 @@ flowchart TB
 > 见 §3.8 与格式设计 [todo.md](todo.md)。无外部依赖，纯本地。
 
 | # | 事项 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | 7.1 | `docs/todo.md` 纯文本 todo 格式设计（`# 领域`/`## 主题`/`- [ ]`·`- [x]`；解析/序列化约定与规范化副作用） | ✅ |
 | 7.2 | `Core/Do` 模型 + `DoStore`（纯 Foundation，`static parse/serialize`，`~/Documents/houmao/do/{work,life}.md` `.atomic` 重写）+ 单测 6 例 | ✅ |
 | 7.3 | `DoViewModel`（两固定领域 + 主题/条目 CRUD，每次变更即持久化，selection 运行时态） | ✅ |
@@ -472,7 +510,7 @@ flowchart TB
 > 见 §3.9。数据源 = `gh` CLI 子进程，复用用户 `gh auth login` 会话（不碰 token）；无单测（纯外部依赖）。
 
 | # | 事项 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | 8.1 | `Core/GitHub/GitHubCLI.swift` 共享 helper（`locateBinary()` + 泛型 `runJSON<T>`，PATH/brewPaths/`.iso8601`） | ✅ |
 | 8.2 | PR 面板：`PullRequest.swift` + `PullRequestProvider`（`gh search prs --author=@me`）+ `PRViewModel`（open/closed 并发）+ `PRView`（open 展开 / 近三月 closed 折叠，按 repo 分组，双击打开） | ✅ |
 | 8.3 | Issue 面板：`Issue.swift` + `IssueProvider`（authored/assigned，`gh search issues` 不含 PR）+ `IssueViewModel`（assigned 去重）+ `IssueView`（指派给我/我创建的两 section，按 repo 分组） | ✅ |
@@ -483,7 +521,7 @@ flowchart TB
 > 见 §3.11 / ADR-10。todo 升级版：目标=md 文档（正文 + ```mermaid），人不碰内容，chat 改文档、写回落盘。
 
 | # | 事项 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | 9.1 | Core：`GoalDoc`（`parseTitle`/`parseMermaid` 变长围栏）+ `GoalStore` + `GoalStoreTests`（**2026-07-16 升级为工作/生活 分区 + 主题子目录 + `_topics.txt` manifest，对齐 Todo 两级结构**） | ✅ P1 |
 | 9.2 | `MermaidView`（`WKWebView` + 离线打包 `Resources/mermaid.min.js`，内联 HTML 渲染，只读） | ✅ P1（待真机验证渲染） |
 | 9.3 | `GoalsViewModel` + `GoalsView`（**对齐 Todo：工作/生活 分段 + 可编辑主题胶囊 + 管理 popover**；列表 title 双击 → 详情只读图 + AI 按钮） | ✅ P1 |
@@ -621,12 +659,32 @@ flowchart TB
 
 ---
 
+### ADR-14：小型专业化智能体协同为第一架构原则
+
+- **决策**：以「**小型专业化智能体协同**」（赫尔佐格原则，见 §1.0）作为猴毛的**第一设计参考 / 第一架构原则**——所有架构与功能取舍优先照此衡量：不做单一大型系统，而做众多小型、专业化、边界清晰、可插拔的智能体，通过明确接口协同运作。
+- **理由**：①**适配性/可演化**：能力以「加一个小智能体」而非「扩张大模块」的方式增长，任意单元可随时移除/替换/新增，互不牵连，落地实操远胜单一大系统；②**契合既有哲学**：与 ADR-1（不引重型编排）、ADR-4（Core/Shell 分层）、ADR-13（感知-决策-建议闭环、`Watcher` 插拔）一脉相承，本 ADR 是对这些既有实践的**统领与追认**；③**可解释/可测**：小而专的单元职责单一、易独立单测、边界清晰。
+- **落地约束**：新增任何能力先自问「能否做成一个可插拔的小型专业化智能体（`Watcher` / Pipeline `$action` / 面板 / `Provider`），而非往某个大模块堆功能？」——优先前者。协同经明确接口/事件（如 `ActionRegistry` 管道、`AgentDaemon` 聚合 watcher、rail/命令面板导航），避免中心化编排耦合。
+- **边界**：本原则**不等于**引入多智能体 LLM 编排 / tool-calling 大脑（那违背 ADR-1/ADR-13）——「智能体」在此指**职责单一的能力单元**（多为确定性代码，LLM 仅作其中的文本处理层），协同靠确定性接口而非概率性中心调度。
+
+---
+
+### ADR-15：双应用快速切换采用 2-slot MRU + 10s 停留门槛（不覆盖 ⌘-Tab）
+
+- **决策**：实现「最多两个 app 快速来回」时，采用**双槽 MRU 栈**（最近两个 app）+ **10s 前台停留门槛**（达标才入栈）；触发键为**双击 Ctrl**，不覆盖原生 ⌘-Tab。
+- **理由**：①双槽 MRU 是经典且可解释的交互范式（回到上一个 app），学习成本最低；②10s 门槛可过滤「瞥一眼/误切」抖动，避免污染两个主力 app；③`NSRunningApplication.activate()` 免特权，系统会自动跨 Space 到目标 app，落地简单稳定。
+- **否决项**：
+  - 覆盖 ⌘-Tab：系统保留快捷键，需底层 event tap 抑制，风险高且会干扰原生长按切换器，不符合最小惊扰。
+  - 跨 Space 移窗/重排 Space：macOS 无公开 API，需关 SIP 的黑科技路径，不纳入产品。
+- **影响**：新增 `RecentAppStack` / `PairSwitchManager` / 双击 Ctrl 检测；设置项 `pairToggleEnabled` 默认开启，可随时关闭。
+
+---
+
 ## 6. 关键决策（已拍板 Q1–Q5）
 
 > 以下问题已确认，落地细节并入对应章节与 ADR（ADR-5 / ADR-6 / ADR-8 / ADR-9）。
 
 | # | 事项 | 决策 | 影响阶段 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Q1 | Google Drive 集成形态 | 建立「本地目录 ↔ Drive 目录」映射，**只新增文件**（不改不删）；不创建原生 Google Docs | Phase 4 |
 | Q2 | 云端文档格式 | **Markdown（.md）**：近似纯文本、跨平台/对 LLM 最友好 | Phase 4 |
 | Q3 | `/chat` 退出方式 | 与极简输入框一致：双击 Option 收起、`⌘W` 关闭；再输 `/chat` 在两种模式间切换 | Phase 2.2 |

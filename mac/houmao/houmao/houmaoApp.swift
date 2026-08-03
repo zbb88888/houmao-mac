@@ -35,6 +35,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     static var shared: AppDelegate!
 
     private var hotKeyManager: GlobalHotKeyManager?
+    private let pairSwitchManager = PairSwitchManager.shared
     static var tracker: UsageTracker?
 
     private(set) var mainPanel: FloatingPanel!
@@ -152,6 +153,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         setupAgentWindowObservers()
 
         hotKeyManager = GlobalHotKeyManager.shared
+        hotKeyManager?.onDoubleControl = { [weak self] in
+            Task { @MainActor in
+                self?.handlePairToggleHotKey()
+            }
+        }
+        updatePairToggleState()
         tracker.start()
 
         let selectToCopy = SelectToCopyManager.shared
@@ -1139,6 +1146,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        pairSwitchManager.stop()
         hotKeyManager?.cleanup()
         if let monitor = shortcutMonitor {
             NSEvent.removeMonitor(monitor)
@@ -1152,5 +1160,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         if let observer = activateObserver {
             DistributedNotificationCenter.default().removeObserver(observer)
         }
+    }
+
+    @MainActor
+    func updatePairToggleState() {
+        if AppSettings.shared.pairToggleEnabled {
+            pairSwitchManager.start()
+        } else {
+            pairSwitchManager.stop()
+        }
+    }
+
+    @MainActor
+    private func handlePairToggleHotKey() {
+        guard AppSettings.shared.pairToggleEnabled else { return }
+        pairSwitchManager.toggle()
     }
 }

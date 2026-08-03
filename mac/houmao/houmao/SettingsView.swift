@@ -83,6 +83,7 @@ struct SettingsView: View {
     @State private var providerApiKey = ""
     @State private var providerModels = ""   // Comma-separated model IDs
     @State private var providerError = ""
+    @State private var pairToggleStatus = "等待收集（应用停留至少 10s）"
 
     /// 图标列固定宽度，保证竖向对齐
     private let iconWidth: CGFloat = 20
@@ -109,6 +110,25 @@ struct SettingsView: View {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .houmaoMiddleClickPasteAuthorizationDidChange)) { _ in
                     pasteOnMiddleClick = MiddleClickPasteManager.shared.isEnabled
+                }
+
+            Toggle(
+                "双击 Ctrl 在最近两个应用间切换",
+                isOn: Binding(
+                    get: { settings.pairToggleEnabled },
+                    set: { newValue in
+                        settings.pairToggleEnabled = newValue
+                        AppDelegate.shared?.updatePairToggleState()
+                        refreshPairToggleStatus()
+                    }
+                )
+            )
+            Text(settings.pairToggleEnabled ? pairToggleStatus : "已关闭")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .onAppear { refreshPairToggleStatus() }
+                .onReceive(NotificationCenter.default.publisher(for: .houmaoPairSwitchStackDidChange)) { _ in
+                    refreshPairToggleStatus()
                 }
 
             Divider()
@@ -467,5 +487,13 @@ struct SettingsView: View {
         case .failed(let message):
             return "上传失败：\(message)"
         }
+    }
+
+    private func refreshPairToggleStatus() {
+        if !AXIsProcessTrusted() {
+            pairToggleStatus = "需在「系统设置 › 隐私与安全性 › 辅助功能」授予权限后才能全局生效"
+            return
+        }
+        pairToggleStatus = PairSwitchManager.shared.stackDisplayText()
     }
 }

@@ -141,6 +141,11 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(agentMailWatcherEnabled, forKey: "agentMailWatcherEnabled") }
     }
 
+    /// Enable the double-Control app-pair toggle shortcut.
+    var pairToggleEnabled: Bool {
+        didSet { UserDefaults.standard.set(pairToggleEnabled, forKey: "pairToggleEnabled") }
+    }
+
     private init() {
         if let data = UserDefaults.standard.data(forKey: "providers"),
            let decoded = try? JSONDecoder().decode([Provider].self, from: data) {
@@ -161,6 +166,7 @@ final class AppSettings {
         self.agentQuietEndHour = (d.object(forKey: "agentQuietEndHour") as? Int) ?? AgentPolicy.default.quietEndHour
         self.agentGitHubWatcherEnabled = (d.object(forKey: "agentGitHubWatcherEnabled") as? Bool) ?? true
         self.agentMailWatcherEnabled = (d.object(forKey: "agentMailWatcherEnabled") as? Bool) ?? true
+        self.pairToggleEnabled = (d.object(forKey: "pairToggleEnabled") as? Bool) ?? true
         // Hydrate API keys from the Keychain (and migrate legacy plaintext keys).
         loadAPIKeys()
     }

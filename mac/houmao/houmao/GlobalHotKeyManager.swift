@@ -55,20 +55,32 @@ extension Notification.Name {
 final class GlobalHotKeyManager {
     static let shared = GlobalHotKeyManager()
 
+    var onDoubleControl: (() -> Void)?
+
     private var localMonitor: Any?
     private var globalMonitor: Any?
+    private var localKeyDownMonitor: Any?
+    private var globalKeyDownMonitor: Any?
     private var lastOptionPressTime: TimeInterval = 0
     private var optionKeyState: Bool = false
+    private var lastControlPressTime: TimeInterval = 0
+    private var controlKeyState: Bool = false
+    private var suppressControlDoubleTapUntil: TimeInterval = 0
 
     private let doubleClickInterval: TimeInterval = 0.4
     private let minPressInterval: TimeInterval = 0.05
     private let leftOptionKeyCode: UInt16 = 58
     private let rightOptionKeyCode: UInt16 = 61
+    private let leftControlKeyCode: UInt16 = 59
+    private let rightControlKeyCode: UInt16 = 62
+    private let controlArrowSuppressInterval: TimeInterval = 0.35
 
     private init() {
         // Monitor both local and global events
         setupLocalMonitor()
         setupGlobalMonitor()
+        setupLocalKeyDownMonitor()
+        setupGlobalKeyDownMonitor()
     }
 
     private func setupLocalMonitor() {
@@ -84,7 +96,22 @@ final class GlobalHotKeyManager {
         }
     }
 
+    private func setupLocalKeyDownMonitor() {
+        localKeyDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.handleKeyDown(event)
+            return event
+        }
+    }
+
+    private func setupGlobalKeyDownMonitor() {
+        globalKeyDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.handleKeyDown(event)
+        }
+    }
+
     private func handleFlagsChanged(_ event: NSEvent) {
+        handleControlDoubleTap(event)
+
         let isOptionKey = event.keyCode == leftOptionKeyCode || event.keyCode == rightOptionKeyCode
         let isOptionPressed = event.modifierFlags.contains(.option)
 
@@ -105,6 +132,42 @@ final class GlobalHotKeyManager {
         } else if !isOptionPressed && optionKeyState {
             optionKeyState = false
         }
+    }
+
+    private func handleControlDoubleTap(_ event: NSEvent) {
+        let isControlKey = event.keyCode == leftControlKeyCode || event.keyCode == rightControlKeyCode
+        let isControlPressed = event.modifierFlags.contains(.control)
+
+        guard isControlKey else { return }
+        guard event.modifierFlags.intersection([.command, .option, .shift, .function]).isEmpty else {
+            controlKeyState = isControlPressed
+            return
+        }
+
+        if isControlPressed && !controlKeyState {
+            let now = Date().timeIntervalSince1970
+            let timeSinceLastPress = now - lastControlPressTime
+            if now >= suppressControlDoubleTapUntil &&
+                timeSinceLastPress < doubleClickInterval &&
+                timeSinceLastPress > minPressInterval {
+                DispatchQueue.main.async { [weak self] in
+                    self?.onDoubleControl?()
+                }
+                lastControlPressTime = 0
+            } else {
+                lastControlPressTime = now
+            }
+            controlKeyState = true
+        } else if !isControlPressed && controlKeyState {
+            controlKeyState = false
+        }
+    }
+
+    private func handleKeyDown(_ event: NSEvent) {
+        // Ignore a control double tap shortly after Ctrl+Arrow desktop switching.
+        let isArrow = event.keyCode == 123 || event.keyCode == 124 || event.keyCode == 125 || event.keyCode == 126
+        guard isArrow, event.modifierFlags.contains(.control) else { return }
+        suppressControlDoubleTapUntil = Date().timeIntervalSince1970 + controlArrowSuppressInterval
     }
 
     private func toggleMainWindow() {
@@ -129,6 +192,14 @@ final class GlobalHotKeyManager {
         if let monitor = globalMonitor {
             NSEvent.removeMonitor(monitor)
             globalMonitor = nil
+        }
+        if let monitor = localKeyDownMonitor {
+            NSEvent.removeMonitor(monitor)
+            localKeyDownMonitor = nil
+        }
+        if let monitor = globalKeyDownMonitor {
+            NSEvent.removeMonitor(monitor)
+            globalKeyDownMonitor = nil
         }
     }
 }
