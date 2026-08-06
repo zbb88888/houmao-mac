@@ -43,6 +43,9 @@ extension Notification.Name {
     /// notification, is used so the app can open the standalone agent inbox
     /// window (主观能动性「动态」; mirrors the Issue window shell).
     static let houmaoEnterAgentWindow = Notification.Name("houmaoEnterAgentWindow")
+    /// Posted when the AI-agent button (or `/ai`) is used so the app can open the
+    /// standalone tool-using assistant window (mirrors the Issue window shell).
+    static let houmaoEnterAIWindow = Notification.Name("houmaoEnterAIWindow")
     /// Posted when the user opens a message so the app can show the standalone
     /// mail-detail window (a standard large window, not an in-place sheet).
     static let houmaoOpenMailDetail = Notification.Name("houmaoOpenMailDetail")

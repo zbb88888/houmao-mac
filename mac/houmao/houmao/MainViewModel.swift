@@ -335,6 +335,10 @@ final class MainViewModel {
             inputText = ""
             NotificationCenter.default.post(name: .houmaoEnterAgentWindow, object: nil)
             return true
+        case "/ai":
+            inputText = ""
+            NotificationCenter.default.post(name: .houmaoEnterAIWindow, object: nil)
+            return true
         default:
             break
         }
@@ -373,6 +377,7 @@ final class MainViewModel {
     - `/do` — 打开 Do 待办面板（工作/生活 两页，主题可增删）
     - `/worklog` — 打开工作量总结面板（按 from 逐个总结 PR/issue，再按季度/半年/全年做 OKR 归纳）
     - `/agent` — 打开动态收件箱（主观能动性：后台监听请求我 review 的 PR / 指派给我的 Issue）
+    - `/ai` — 打开 AI 助手（用自然语言描述意图，模型自己决定调用哪些工具后作答）
     - `/issue <url>` — 用本地代码分析 GitHub issue
     - `/pr <url>` — 用本地代码 review GitHub PR diff
     - `/h` — 显示本帮助；`/h <问题>` — 结合文档让 AI 解答如何操作
