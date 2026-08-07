@@ -97,7 +97,6 @@
 		B1C546ED6CA59D530D59DEDC /* AgentDiffTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBE115C97C9E43A695FA4C1C /* AgentDiffTests.swift */; };
 		B35B20ECCB923EE3F6B11046 /* ReadMailTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4CD154211B6D384EE5C0F51 /* ReadMailTool.swift */; };
 		B3CCFB6938BCA9D6564CB03A /* MailMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201BE16F68F7AD50DCB4A27E /* MailMemoryStore.swift */; };
-		BA61C8B81A88F968E03354C6 /* AgentChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E922BF33DFF4E805E5FAA5E /* AgentChatView.swift */; };
 		BBC8AD771EC5E1307BD9ADE8 /* DoStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7446DD4F007CB7535C445E4 /* DoStoreTests.swift */; };
 		BC83CC67DC568B513A366624 /* AgentModelClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017E0923209C0F2B6164B1DC /* AgentModelClient.swift */; };
 		C0C615726ED4D92E540AE0BA /* MailWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DF050ACF819865C44D80C9C /* MailWatcher.swift */; };
@@ -129,7 +128,6 @@
 		ED653C454439E8559D6F0F84 /* PairSwitchDwellStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FF0828996656406E6B7BEE /* PairSwitchDwellStateTests.swift */; };
 		ED9BE2404626A8A0871AAA03 /* RecentAppStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 938BCA87F7D3D44AAE33B932 /* RecentAppStack.swift */; };
 		EF957138A8BB21781964CC02 /* TextClusteringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0C55C88E57A6F6BC2D2641 /* TextClusteringTests.swift */; };
-		F32B7319A9F2E29133F66FED /* AgentChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8921BF94DFFB2547100F77C8 /* AgentChatViewModel.swift */; };
 		F4445288DDD0A3A2ACA2CDC6 /* MarkdownLint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 602B51DB006F185A0CC211BF /* MarkdownLint.swift */; };
 		F46213BE55659AC254D5DA13 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C554DC6180330C830A49B6 /* Message.swift */; };
 		F616C51A32777878FA414871 /* MailMemoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B79C15491DD7C78CFCFF18E8 /* MailMemoryStoreTests.swift */; };
@@ -229,12 +227,10 @@
 		8482DAE51378989DE1B24152 /* houmaoUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		862143F6F82F5ABC375AD59C /* IssueAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueAnalyzer.swift; sourceTree = "<group>"; };
 		866890AB80CBCD0C2B1C2E96 /* ConversationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStore.swift; sourceTree = "<group>"; };
-		8921BF94DFFB2547100F77C8 /* AgentChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentChatViewModel.swift; sourceTree = "<group>"; };
 		8AB2D08692D6137AFEE6BF4A /* houmao.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = houmao.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B81BFC7008DECB0341CF0F7 /* GoogleAuthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthTests.swift; sourceTree = "<group>"; };
 		8C0A6EB7794E99F880A51296 /* AgentDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentDiff.swift; sourceTree = "<group>"; };
 		8D3D9432E1A2E1B9E2709028 /* AgentStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentStoreTests.swift; sourceTree = "<group>"; };
-		8E922BF33DFF4E805E5FAA5E /* AgentChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentChatView.swift; sourceTree = "<group>"; };
 		8EA7A5A5E39D28783CD88CEA /* houmaoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = houmaoTests.swift; sourceTree = "<group>"; };
 		8FE2BE89827B69CB8810ED90 /* PKCE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PKCE.swift; sourceTree = "<group>"; };
 		9014401F2CE5CEA21AF65771 /* houmaoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = houmaoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -550,8 +546,6 @@
 		FB272FED30A621D6D038D168 /* houmao */ = {
 			isa = PBXGroup;
 			children = (
-				8E922BF33DFF4E805E5FAA5E /* AgentChatView.swift */,
-				8921BF94DFFB2547100F77C8 /* AgentChatViewModel.swift */,
 				4120FA404A75DCF480C1C7A6 /* AgentDaemon.swift */,
 				C7FD08086680DCF2297F4014 /* AgentInboxView.swift */,
 				BFEFDF5B73EEC3212AE8722A /* AgentViewModel.swift */,
@@ -710,8 +704,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BA61C8B81A88F968E03354C6 /* AgentChatView.swift in Sources */,
-				F32B7319A9F2E29133F66FED /* AgentChatViewModel.swift in Sources */,
 				99D9CA08802F1D876E0B36DF /* AgentDaemon.swift in Sources */,
 				A88C95BB8ABFCCA1C5C9D066 /* AgentDiff.swift in Sources */,
 				A50172FE688A93D296879FA6 /* AgentEvent.swift in Sources */,

@@ -345,7 +345,6 @@ struct MainView: View {
             helpRow(key: "/issue url", description: "Analyze a GitHub issue with local code")
             helpRow(key: "/pr url", description: "Review a GitHub PR diff with local code")
             helpRow(key: "/agent", description: "Proactive inbox: PRs to review / issues assigned to me")
-            helpRow(key: "/ai", description: "AI assistant: describe intent, it picks the tools")
             helpRow(key: "@name msg", description: "Use provider alias or model name")
 
             Divider().overlay(dividerColor).padding(.vertical, 4)

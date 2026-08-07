@@ -21,7 +21,6 @@ struct PanelDestination: Identifiable {
         .init(symbol: "square.and.pencil", title: "编辑器", keywords: ["md", "editor", "编辑器"], notification: .houmaoEnterEditorWindow),
         .init(symbol: "calendar.badge.clock", title: "工作量", keywords: ["worklog", "工作量", "总结"], notification: .houmaoEnterWorkLogWindow),
         .init(symbol: "bell.badge", title: "动态", keywords: ["agent", "动态", "提醒"], notification: .houmaoEnterAgentWindow),
-        .init(symbol: "sparkles", title: "助手", keywords: ["ai", "助手", "智能"], notification: .houmaoEnterAIWindow),
     ]
 
     func matches(_ term: String) -> Bool {

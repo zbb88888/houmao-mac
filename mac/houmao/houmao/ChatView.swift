@@ -54,6 +54,10 @@ struct ChatView: View {
             }
             chatMessageList
             Divider().overlay(theme.divider)
+            if let pending = viewModel.agentConfirmation {
+                agentConfirmBar(pending.call)
+                Divider().overlay(theme.divider)
+            }
             chatInputBar
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -100,6 +104,28 @@ struct ChatView: View {
             }
             .controlSize(.small)
             .help("把 AI 最新一版完整文档写回原文件")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(theme.surface)
+    }
+
+    // MARK: - Agent tool confirmation
+
+    /// Shown when a mutating tool is paused awaiting approval (ADR-8).
+    @ViewBuilder private func agentConfirmBar(_ call: ToolCall) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundColor(theme.warning)
+            Text("该操作会修改数据：\(call.name)")
+                .font(.system(size: 13))
+                .foregroundColor(theme.textPrimary)
+            Spacer()
+            Button("取消") { viewModel.rejectAgentTool() }
+                .controlSize(.small)
+            Button("批准执行") { viewModel.approveAgentTool() }
+                .controlSize(.small)
+                .buttonStyle(.borderedProminent)
+                .tint(theme.danger)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)

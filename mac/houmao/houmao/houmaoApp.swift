@@ -53,8 +53,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// Proactive-agent background loop and its inbox view model (主观能动性).
     private(set) var agentDaemon: AgentDaemon!
     private(set) var agentViewModel: AgentViewModel!
-    /// AI-agent conversation view model (`/ai`, tool-using assistant).
-    private(set) var aiChatViewModel: AgentChatViewModel!
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
     private var exitChatObserver: NSObjectProtocol?
@@ -65,7 +63,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var enterGoalsObserver: NSObjectProtocol?
     private var enterWorkLogObserver: NSObjectProtocol?
     private var enterAgentObserver: NSObjectProtocol?
-    private var enterAIObserver: NSObjectProtocol?
     private var enterEditorObserver: NSObjectProtocol?
     private var commitEditorObserver: NSObjectProtocol?
     private var openMailDetailObserver: NSObjectProtocol?
@@ -90,8 +87,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// Standalone proactive-agent inbox window (`/agent`), same shell as the
     /// Issue window.
     private var agentWindow: NSWindow?
-    /// Standalone AI-agent conversation window (`/ai`): tool-using assistant.
-    private var aiWindow: NSWindow?
     /// The one shared, general-purpose Markdown editor window (houmao's single
     /// editor). Reused across all callers; the current document/sink lives in
     /// `markdownEditorModel`.
@@ -143,8 +138,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         agentDaemon.onNewEvents = { [weak self] events in
             self?.notifyAgentEvents(events)
         }
-        aiChatViewModel = AgentChatViewModel()
-
 
         setupPanel()
         setupShortcutMonitor()
@@ -157,7 +150,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         setupGoalsWindowObservers()
         setupWorkLogWindowObservers()
         setupAgentWindowObservers()
-        setupAIWindowObservers()
 
         hotKeyManager = GlobalHotKeyManager.shared
         hotKeyManager?.onDoubleControl = { [weak self] in
@@ -426,10 +418,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             hideAgentWindow()
             return false
         }
-        if sender == aiWindow {
-            hideAIWindow()
-            return false
-        }
         if sender == markdownEditorWindow {
             MainActor.assumeIsolated { finishMarkdownEditor() }
             return false
@@ -527,7 +515,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// All independent panel windows (each toggled by its own button / command).
     /// Used to cascade a newly shown panel so several can stay visible at once.
     private var panelWindows: [NSWindow] {
-        [chatWindow, mailWindow, prWindow, issueWindow, doWindow, markdownEditorWindow, goalsWindow, workLogWindow, agentWindow, aiWindow].compactMap { $0 }
+        [chatWindow, mailWindow, prWindow, issueWindow, doWindow, markdownEditorWindow, goalsWindow, workLogWindow, agentWindow].compactMap { $0 }
     }
 
     /// Place a panel window the first time it's shown. Each panel is an
@@ -812,59 +800,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
 
     private func hideAgentWindow() {
         guard let window = agentWindow else { return }
-        hideWindowSafely(window)
-    }
-
-    // MARK: AI-agent window (`/ai`, tool-using assistant)
-
-    private func setupAIWindowObservers() {
-        enterAIObserver = NotificationCenter.default.addObserver(
-            forName: .houmaoEnterAIWindow, object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.showAIWindow()
-        }
-    }
-
-    private func makeAIWindow() -> NSWindow {
-        let rect = centeredGoldenRect(on: screenContainingMouse())
-        let window = NSWindow(
-            contentRect: rect,
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "ai"
-        window.titlebarAppearsTransparent = true
-        // Force light appearance so the title renders black over the light theme.
-        window.appearance = NSAppearance(named: .aqua)
-        window.collectionBehavior = [.fullScreenPrimary]
-        window.isReleasedWhenClosed = false
-        window.minSize = NSSize(width: 640, height: 460)
-        window.delegate = self
-
-        let chatView = AgentChatView().environment(aiChatViewModel)
-        window.contentViewController = NSHostingController(rootView: SidebarChrome(
-            pageName: "ai",
-            paletteSearch: { [weak self] query in self?.aiChatViewModel.searchFilter = query },
-            helpLines: [
-                "AI 助手：用自然语言描述意图，模型自己决定调用哪些工具后作答",
-                "只读工具（如列 PR）自动执行；会修改数据的工具需你点「批准执行」",
-                "回车发送；点左上角 ✎ 开始新对话",
-            ]
-        ) { chatView })
-        return window
-    }
-
-    private func showAIWindow() {
-        let window = aiWindow ?? makeAIWindow()
-        aiWindow = window
-        placePanelOnFirstShow(window)
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
-    }
-
-    private func hideAIWindow() {
-        guard let window = aiWindow else { return }
         hideWindowSafely(window)
     }
 

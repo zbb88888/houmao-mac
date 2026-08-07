@@ -107,6 +107,16 @@ final class ChatStore {
         return message.id
     }
 
+    /// Append a system message (tool-activity / status). Excluded from
+    /// `historyMessages`, so it shows in the UI but never replays to the model.
+    @discardableResult
+    func appendSystem(_ text: String) -> UUID {
+        ensureCurrent()
+        let message = Message(role: .system, text: text)
+        mutateCurrent { $0.messages.append(message) }
+        return message.id
+    }
+
     func appendToken(_ id: UUID, _ token: String) {
         mutateCurrent { convo in
             if let i = convo.messages.firstIndex(where: { $0.id == id }) {

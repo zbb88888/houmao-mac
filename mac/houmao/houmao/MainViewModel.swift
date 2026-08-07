@@ -81,6 +81,16 @@ final class MainViewModel {
     /// "保存到原文档" button writes the AI's fixed full text back via `onSave`.
     var documentBinding: ChatDocumentBinding?
 
+    // MARK: - Agent (normal free chat runs as a tool-using agent)
+
+    /// Background jobs for §7 document-mediated tools (analyze_pr/issue).
+    let agentJobStore = JobStore()
+    /// A mutating tool paused for confirmation; the chat shows a confirm bar.
+    var agentConfirmation: (call: ToolCall, transcript: [AgentMessage])?
+    private let agentRegistry: ToolRegistry
+    private var pendingAgentJobs: [String: [AgentMessage]] = [:]
+    private var agentJobObserver: NSObjectProtocol?
+
     /// The minimal input box is a one-shot Q/A surface. Once the user has had
     /// `autoChatThreshold` turns in it, the next submission auto-upgrades to the
     /// standalone chat window (carrying prior turns over as context).
@@ -102,7 +112,24 @@ final class MainViewModel {
     init(usageTracker: UsageTracker? = nil, chatStore: ChatStore? = nil) {
         self.usageTracker = usageTracker
         self.chatStore = chatStore ?? ChatStore()
+        let mail = GmailProvider(accessTokenProvider: { try await GoogleAccount.accessToken() })
+        self.agentRegistry = ToolRegistry([
+            ListPullRequestsTool(),
+            ListRecentMailTool(provider: mail),
+            ReadMailTool(provider: mail),
+            TriageInboxTool(provider: mail, customTags: AppSettings.shared.mailTags),
+            TrashMailTool(provider: mail),
+            ReadDocumentTool(),
+            AnalyzeGitHubTool(mode: "pr", jobStore: agentJobStore),
+            AnalyzeGitHubTool(mode: "issue", jobStore: agentJobStore),
+        ])
         registerBuiltinActions()
+        agentJobObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoAgentJobFinished, object: nil, queue: .main
+        ) { [weak self] note in
+            guard let id = note.userInfo?["jobID"] as? String else { return }
+            MainActor.assumeIsolated { self?.agentJobDidFinish(id) }
+        }
     }
 
     /// Register the built-in pipeline actions. `$save` writes Markdown notes to
@@ -334,10 +361,6 @@ final class MainViewModel {
         case "/agent":
             inputText = ""
             NotificationCenter.default.post(name: .houmaoEnterAgentWindow, object: nil)
-            return true
-        case "/ai":
-            inputText = ""
-            NotificationCenter.default.post(name: .houmaoEnterAIWindow, object: nil)
             return true
         default:
             break
@@ -993,6 +1016,13 @@ final class MainViewModel {
             return
         }
 
+        // Normal free chat runs as a tool-using agent; document-bound and
+        // help-context turns stay plain (they must not trigger tools).
+        if documentBinding == nil, context == nil {
+            executeAgentTurn(question: question, resolved: resolved)
+            return
+        }
+
         // The bubble shows the user's question; `context` (e.g. the help doc) is
         // prepended only to what's sent to the LLM, not displayed.
         let sentQuestion: String
@@ -1049,6 +1079,151 @@ final class MainViewModel {
             chatStore.finish(assistantID)
             isLoading = false
         }
+    }
+
+    // MARK: - Agent turn (tool-using chat)
+
+    private static let agentSystemPrompt = """
+    你是猴毛（houmao）的智能助手。可调用工具获取 GitHub、Gmail 等数据后再回答。\
+    想快速了解重要邮件用 triage_inbox；看具体某封先 list_recent_mail 再 read_mail；删邮件用 trash_mail（会先请用户确认）。\
+    深度分析 GitHub PR/issue 用 analyze_pr/analyze_issue（后台任务，完成后用 read_document 读结果文档再作答）。\
+    需要数据时调用相应工具，不要臆造。优先用简体中文回复。
+    """
+
+    private func executeAgentTurn(question: String, resolved: ResolvedModel) {
+        topAnchorMessageID = nil
+        let prior = toAgentMessages(chatStore.historyMessages)
+        chatStore.appendUser(question)
+        lastModelName = resolved.provider.name
+        inputText = ""
+        panel = .chat
+        usageTracker?.record(text: question)
+        runAgent(transcript: prior + [.user(question)], resolved: resolved)
+    }
+
+    private func toAgentMessages(_ messages: [Message]) -> [AgentMessage] {
+        messages.compactMap { m in
+            switch m.role {
+            case .user: return .user(m.text)
+            case .assistant: return .assistant(AssistantTurn(content: m.text))
+            case .system: return nil
+            }
+        }
+    }
+
+    private func runAgent(transcript: [AgentMessage], resolved: ResolvedModel) {
+        startAgentTask(resolved: resolved) { loop, onEvent in
+            try await loop.run(transcript: transcript, onEvent: onEvent)
+        }
+    }
+
+    private func startAgentTask(
+        resolved: ResolvedModel,
+        _ body: @escaping @Sendable (AgentLoop, @escaping @Sendable (AgentActivity) -> Void) async throws -> AgentOutcome
+    ) {
+        let client = AgentModelClient(
+            baseURL: resolved.provider.apiHost,
+            model: resolved.model,
+            apiKey: resolved.provider.apiKey,
+            systemPrompt: Self.agentSystemPrompt
+        )
+        let loop = AgentLoop(registry: agentRegistry, model: client.modelCall)
+        isLoading = true
+        currentTask?.cancel()
+        currentTask = Task { [weak self] in
+            let onEvent: @Sendable (AgentActivity) -> Void = { activity in
+                Task { @MainActor [weak self] in self?.renderAgentActivity(activity) }
+            }
+            do {
+                let outcome = try await body(loop, onEvent)
+                await MainActor.run { self?.finishAgent(outcome, resolved: resolved) }
+            } catch is CancellationError {
+                await MainActor.run { self?.isLoading = false }
+            } catch {
+                await MainActor.run { self?.appendAgentError(error) }
+            }
+        }
+    }
+
+    private func appendAgentError(_ error: Error) {
+        let id = chatStore.startAssistant(streaming: false)
+        chatStore.updateText(id, "出错：\(error.localizedDescription)")
+        chatStore.finish(id)
+        isLoading = false
+    }
+
+    private func renderAgentActivity(_ activity: AgentActivity) {
+        // Show which tool is being called (dim system bubble); the raw result
+        // feeds the model but isn't dumped to the user.
+        if case .willCall(let call) = activity {
+            chatStore.appendSystem("🔧 " + agentToolSummary(call))
+        }
+    }
+
+    private func agentToolSummary(_ call: ToolCall) -> String {
+        if let data = try? JSONEncoder().encode(call.arguments),
+           let s = String(data: data, encoding: .utf8), s != "{}" {
+            return "调用工具 `\(call.name)` \(s)"
+        }
+        return "调用工具 `\(call.name)`"
+    }
+
+    private func finishAgent(_ outcome: AgentOutcome, resolved: ResolvedModel) {
+        switch outcome {
+        case .finished(let answer):
+            let id = chatStore.startAssistant(streaming: false)
+            chatStore.updateText(id, answer.isEmpty ? "（模型没有返回内容）" : answer)
+            chatStore.finish(id)
+            isLoading = false
+        case .awaitingConfirmation(let call, let transcript):
+            agentConfirmation = (call, transcript)
+            isLoading = false
+        case .awaitingJob(let jobID, let transcript):
+            chatStore.appendSystem("⏳ 已提交后台分析任务，完成后自动继续…")
+            if let job = agentJobStore.job(jobID), job.status != .running {
+                resumeAgentJob(jobID, transcript: transcript, resolved: resolved)
+            } else {
+                pendingAgentJobs[jobID] = transcript
+            }
+            // isLoading stays true: the job is in flight.
+        case .maxStepsReached:
+            let id = chatStore.startAssistant(streaming: false)
+            chatStore.updateText(id, "达到最大步数仍未得到最终回答。")
+            chatStore.finish(id)
+            isLoading = false
+        }
+    }
+
+    func approveAgentTool() {
+        guard let pending = agentConfirmation,
+              let resolved = AppSettings.shared.resolveModel(named: nil) else { agentConfirmation = nil; return }
+        agentConfirmation = nil
+        startAgentTask(resolved: resolved) { loop, onEvent in
+            try await loop.resume(afterApproving: pending.call, transcript: pending.transcript, onEvent: onEvent)
+        }
+    }
+
+    func rejectAgentTool() {
+        guard let pending = agentConfirmation else { return }
+        agentConfirmation = nil
+        chatStore.appendSystem("已取消该操作。")
+        guard let resolved = AppSettings.shared.resolveModel(named: nil) else { isLoading = false; return }
+        let transcript = pending.transcript + [.toolResult(id: pending.call.id, "user declined to run this tool")]
+        runAgent(transcript: transcript, resolved: resolved)
+    }
+
+    private func agentJobDidFinish(_ id: String) {
+        guard let transcript = pendingAgentJobs.removeValue(forKey: id),
+              let resolved = AppSettings.shared.resolveModel(named: nil) else { return }
+        resumeAgentJob(id, transcript: transcript, resolved: resolved)
+    }
+
+    private func resumeAgentJob(_ id: String, transcript: [AgentMessage], resolved: ResolvedModel) {
+        guard let job = agentJobStore.job(id) else { isLoading = false; return }
+        let note = job.status == .succeeded
+            ? "后台任务「\(job.title)」已完成，结果文档：\(job.documentPath)。请用 read_document 读取该文档并给出分析。"
+            : "后台任务「\(job.title)」失败：\(job.error ?? "未知错误")。"
+        runAgent(transcript: transcript + [.user(note)], resolved: resolved)
     }
 
     /// One-shot query from the 临时对话框 (minimal input box). While the box
