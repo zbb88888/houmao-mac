@@ -110,8 +110,8 @@ final class AppSettings {
 
     // MARK: - Proactive agent (主观能动性)
 
-    /// Master switch for the background watcher loop (`AgentDaemon`). Off by
-    /// default — the user opts in.
+    /// Master switch for the background watcher loop (`AgentDaemon`). On by
+    /// default; the user can opt out from the cowork window's ⚙️.
     var agentEnabled: Bool {
         didSet { UserDefaults.standard.set(agentEnabled, forKey: "agentEnabled") }
     }
@@ -160,7 +160,7 @@ final class AppSettings {
         // Clean up legacy keys from previous versions
         UserDefaults.standard.removeObject(forKey: "workers")
         let d = UserDefaults.standard
-        self.agentEnabled = d.bool(forKey: "agentEnabled")
+        self.agentEnabled = (d.object(forKey: "agentEnabled") as? Bool) ?? true
         self.agentIntervalMinutes = (d.object(forKey: "agentIntervalMinutes") as? Int) ?? AgentPolicy.default.intervalMinutes
         self.agentQuietStartHour = (d.object(forKey: "agentQuietStartHour") as? Int) ?? AgentPolicy.default.quietStartHour
         self.agentQuietEndHour = (d.object(forKey: "agentQuietEndHour") as? Int) ?? AgentPolicy.default.quietEndHour

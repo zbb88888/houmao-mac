@@ -87,9 +87,13 @@ final class AgentDaemon {
 
         var polled: [AgentEvent] = []
         var pollError: String?
+        // Kinds whose source polled successfully this round — only these are
+        // reconciled, so a transient failure in one watcher can't wipe another's.
+        var refreshedKinds: Set<AgentEvent.Kind> = []
         for watcher in enabledWatchers() {
             do {
                 polled += try await watcher.poll()
+                refreshedKinds.formUnion(Self.kinds(of: watcher))
             } catch {
                 pollError = error.localizedDescription
                 agentLog.error("watcher \(watcher.id, privacy: .public) poll failed: \(error.localizedDescription, privacy: .public)")
@@ -98,14 +102,30 @@ final class AgentDaemon {
         lastError = pollError
         lastPolledAt = Date()
 
+        // Reconcile to the source's current truth: drop surfaced items that no
+        // longer exist upstream (already reviewed / closed). Dismissed items
+        // stay hidden because their ids remain in `seen` (never re-added below).
+        let liveIDs = Set(polled.map(\.id))
+        events.removeAll { refreshedKinds.contains($0.kind) && !liveIDs.contains($0.id) }
+
         let fresh = AgentDiff.newEvents(current: polled, seen: seen)
-        guard !fresh.isEmpty else { persist(); return }
         for event in fresh { seen.insert(event.id) }
-        events.insert(contentsOf: fresh, at: 0)
+        if !fresh.isEmpty { events.insert(contentsOf: fresh, at: 0) }
         persist()
 
+        guard !fresh.isEmpty else { return }
         let capped = Array(fresh.prefix(Self.policy().maxPerPoll))
         onNewEvents?(capped)
+    }
+
+    /// Which event kinds a watcher owns — used to scope reconciliation to the
+    /// sources that actually refreshed this round.
+    private static func kinds(of watcher: Watcher) -> Set<AgentEvent.Kind> {
+        switch watcher.id {
+        case "github": return [.reviewRequestedPR, .assignedIssue]
+        case "mail": return [.newMailCluster]
+        default: return []
+        }
     }
 
     /// Remove an event from the inbox. It stays in `seen`, so it isn't surfaced
