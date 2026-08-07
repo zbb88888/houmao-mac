@@ -1,11 +1,11 @@
 import SwiftUI
 import AppKit
 
-/// The proactive-agent inbox (主观能动性「动态」): items the background daemon
-/// surfaced without being asked — PRs requesting my review and issues assigned
-/// to me. Double-clicking a row triggers its suggested `/pr` / `/issue`
-/// analysis (in the chat window); the row's ✕ button just dismisses it. The
-/// agent only ever suggests — nothing here acts on my behalf.
+/// The proactive-agent「协同」inbox: items the background daemon surfaced
+/// without being asked — PRs requesting my review, issues assigned to me, and
+/// new mail clusters. Double-clicking a row triggers its suggested `/pr` /
+/// `/issue` analysis (in the chat window); the row's ✕ button just dismisses
+/// it. The agent only ever suggests — nothing here acts on my behalf.
 struct AgentInboxView: View {
     @Environment(AgentViewModel.self) private var viewModel
     @State private var showSettings = false
@@ -60,9 +60,9 @@ struct AgentInboxView: View {
             centered {
                 VStack(spacing: 12) {
                     Image(systemName: "bell.slash").font(.system(size: 22)).foregroundStyle(theme.textSecondary)
-                    Text("主观能动性未开启")
+                    Text("协同盯梢未开启")
                         .font(.system(size: 14, weight: .semibold))
-                    Text("点右上角 ⚙️ 打开「后台监听」，猴毛会主动提醒你需要处理的 PR / Issue。")
+                    Text("点右上角 ⚙️ 打开「后台监听」，猴毛会盯着 GitHub、邮件等固定信息源，自动摘要并把值得关注的推给你。")
                         .font(.callout).multilineTextAlignment(.center).foregroundStyle(theme.textSecondary)
                 }
                 .padding()
@@ -71,7 +71,7 @@ struct AgentInboxView: View {
             centered {
                 VStack(spacing: 12) {
                     Image(systemName: "checkmark.circle").font(.system(size: 22)).foregroundStyle(theme.success)
-                    Text("暂无新动态").font(.system(size: 14, weight: .semibold))
+                    Text("暂无待处理").font(.system(size: 14, weight: .semibold))
                     if let error = viewModel.lastError {
                         Text(error).font(.caption).multilineTextAlignment(.center).foregroundStyle(theme.warning)
                     }
@@ -302,8 +302,9 @@ private struct AgentHelpView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 group("是什么", [
-                    "后台常驻监听 GitHub，主动提醒你需要处理的 PR / Issue。",
-                    "只感知 + 建议——所有动作需你一键确认，不会自动写 / 删。",
+                    "盯着固定信息源（GitHub、邮件…），自动做摘要 / 总结，主动把值得你关注的推给你。",
+                    "只感知 + 建议——所有动作需你一键确认，绝不自动写 / 删。",
+                    "演进方向：逐步做成「协同办公」；现阶段仅盯梢 + 摘要、不自主代办。",
                 ])
                 group("开启", [
                     "点右上角 ⚙️ 打开「后台监听」（默认关闭）。",
@@ -318,7 +319,7 @@ private struct AgentHelpView: View {
                 ])
                 group("提醒", [
                     "有新项弹系统通知（多条汇总）；点通知直接打开本窗口。",
-                    "也可用 rail 的「动态」图标 / /agent / ⌘K 打开。",
+                    "也可用 rail 的「协同」图标 / /cowork / ⌘K 打开。",
                 ])
                 group("邮件", [
                     "开启后台会预热新邮件摘要，开 /mail 秒显、不等 LLM。",

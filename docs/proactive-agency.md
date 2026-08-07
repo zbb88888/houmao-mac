@@ -1,6 +1,6 @@
 # 主观能动性（Proactive Agency）— 设计文档
 
-> 状态：v2（2026-07-22）· MVP（§0–§7，GitHub watcher）+ 邮件 watcher（§8）
+> 状态：v2.1（2026-08-07）· 定位收敛为「cowork 协同盯梢」（命名/图标/文案，见 §0）；v2（2026-07-22）· MVP（§0–§7，GitHub watcher）+ 邮件 watcher（§8）
 > 代码落点：`Core/Agent/`（模型 + 协议 + 决策 + 护栏 + 存储 + watcher）、`Core/Mail/`（§8 新增签名 + 记忆 store）、`AgentDaemon.swift`、`AgentViewModel.swift`、`AgentInboxView.swift`（含 header 内的 `AgentSettingsView`/`AgentHelpView` popover）、`MailWatcher.swift`；接线见 `houmaoApp.swift` / `GlobalHotKeyManager.swift` / `PanelSidebar.swift` / `MainViewModel.swift`（agent 配置不经 `SettingsView`，只在 agent 窗 header 的 ⚙️ popover 维护）
 > 相关：[product-architecture-roadmap.md](product-architecture-roadmap.md) §3.13 / ADR-13
 
@@ -12,6 +12,15 @@
 
 - **只『感知 + 建议』，绝不自主执行写/删动作**——所有动作都是「等你一键确认」的建议（严守 ADR-8「删除等破坏性操作必须人工复核」）。
 - **极简优先**——复用现有 `GitHubCLI` / `IssueProvider` / `PullRequestProvider` 取数、复用 `notifyTaskDone` 通知链路、复用面板窗口壳（ADR-11/12）。不引入 tool-calling / MCP / 重型编排（ADR-1）。
+
+### 0.1 定位收敛（2026-08-07，cowork「协同盯梢」）
+
+一句话：**盯梢固定信息源 → 自动摘要/总结 → 主动把值得关注的推给你**。它是「固定信息源上新出现了什么值得我看」的**信息简报**，**不是**「我做过什么」的工作量摘要（那是 `/worklog`）。
+
+- **信息源可插拔**：现阶段 = GitHub（请求我 review 的 PR、指派给我的 Issue）+ 邮件（新邮件簇三句话摘要，§8）；`Watcher` 协议预留更多源（§2.1）。
+- **与 PR/Issue 面板的区别**：那两个面板是**我主动去查**的列表（我开的 PR、我相关的 Issue）；cowork 是**后台主动 push**，且独占「请求我 review 的 PR」与「邮件摘要预热」。
+- **命名/图标**：窗口 `cowork`、rail「协同」`person.2`、命令 `/cowork`（保留 `/agent` 别名）。旧称「动态」`bell.badge` 已弃。
+- **演进方向 ≠ 当前承诺**：远期做成「协同办公」（代你起草/预处理），但**现阶段只盯梢 + 摘要 + 一键触发分析，绝不自主写/删/代办**。内部标识（`AgentDaemon`/`AgentViewModel`/`AgentInboxView`/`.houmaoEnterAgentWindow`/`~/Documents/houmao/agent/`）沿用不改名——重命名无用户价值。
 
 ## 1. 控制论框架 → 猴毛落地映射
 
@@ -84,8 +93,8 @@ MVP 的决策是**确定性**的：`AgentDiff.newEvents(current:seen:)` 用「�
 
 ## 4. 呈现（收件箱面板 + 通知）
 
-- **系统本地通知**：复用 `AppDelegate.notifyTaskDone` 同款链路（`UNUserNotificationCenter`）。多条新项时推一条汇总（「猴毛发现 N 项新动态」）。通知 `userInfo` 打标 `houmao.kind = "agent"`，点击 → 打开收件箱面板（不影响既有「任务完成」通知）。
-- **收件箱面板**（窗口标题 `agent`，rail 图标 `bell.badge`「动态」）：照 ADR-11 壳，**功能自包含在这一个独立窗口**。header（图标按钮靠左）三按钮：**刷新**（`arrow.clockwise`，手动强制检查一次）/ **设置**（`gearshape` → popover：主开关 / GitHub watcher / 轮询间隔 / 静默时段，改动即 `AgentDaemon.applyPolicy()`）/ **使用说明**（`questionmark.circle` → popover：是什么 / 开启 / 交互 / 提醒 的使用手册）。主体分区（**默认折叠、点标题展开**，按 kind 分）——「请求于我」（PR review）/「分配到我」（assigned issue）/「新邮件」（§8）。行＝图标 + 标题 + 仓库 + 时间；**双击 = 触发建议命令**（`post` `/pr`/`/issue` 走聊天分析）；右键菜单＝分析 / 在浏览器打开 / 复制链接 / 移除；行内 `xmark` = 移除（仅从收件箱移除，仍留在 `seen` 不再重复提醒）。空态提示 + 最近轮询时间。
+- **系统本地通知**：复用 `AppDelegate.notifyTaskDone` 同款链路（`UNUserNotificationCenter`）。多条新项时推一条汇总（「N 项待处理」）。通知 `userInfo` 打标 `houmao.kind = "agent"`，点击 → 打开收件箱面板（不影响既有「任务完成」通知）。
+- **收件箱面板**（窗口标题 `cowork`，rail 图标 `person.2`「协同」）：照 ADR-11 壳，**功能自包含在这一个独立窗口**。header（图标按钮靠左）三按钮：**刷新**（`arrow.clockwise`，手动强制检查一次）/ **设置**（`gearshape` → popover：主开关 / GitHub watcher / 轮询间隔 / 静默时段，改动即 `AgentDaemon.applyPolicy()`）/ **使用说明**（`questionmark.circle` → popover：是什么 / 开启 / 交互 / 提醒 的使用手册）。主体分区（**默认折叠、点标题展开**，按 kind 分）——「请求于我」（PR review）/「分配到我」（assigned issue）/「新邮件」（§8）。行＝图标 + 标题 + 仓库 + 时间；**双击 = 触发建议命令**（`post` `/pr`/`/issue` 走聊天分析）；右键菜单＝分析 / 在浏览器打开 / 复制链接 / 移除；行内 `xmark` = 移除（仅从收件箱移除，仍留在 `seen` 不再重复提醒）。空态提示 + 最近轮询时间。
 - **设置单一来源**：agent 的配置只在本窗口的 ⚙️ popover 维护（`AgentSettingsView` 直接绑定 `AppSettings`），**不再放进全局 ⌘, 设置**，避免两处重复维护——契合「功能独立窗口自维护」。
 
 ## 5. 存储格式

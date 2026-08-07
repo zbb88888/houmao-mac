@@ -344,7 +344,7 @@ struct MainView: View {
             helpRow(key: "/do", description: "Open the Do to-do panel (工作/生活 tabs)")
             helpRow(key: "/issue url", description: "Analyze a GitHub issue with local code")
             helpRow(key: "/pr url", description: "Review a GitHub PR diff with local code")
-            helpRow(key: "/agent", description: "Proactive inbox: PRs to review / issues assigned to me")
+            helpRow(key: "/cowork", description: "Cowork: watch fixed sources (GitHub/mail) → summarize → surface what matters")
             helpRow(key: "@name msg", description: "Use provider alias or model name")
 
             Divider().overlay(dividerColor).padding(.vertical, 4)

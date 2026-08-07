@@ -359,7 +359,7 @@ final class MainViewModel {
             inputText = ""
             NotificationCenter.default.post(name: .houmaoEnterWorkLogWindow, object: nil)
             return true
-        case "/agent":
+        case "/agent", "/cowork":
             inputText = ""
             NotificationCenter.default.post(name: .houmaoEnterAgentWindow, object: nil)
             return true
@@ -400,7 +400,7 @@ final class MainViewModel {
     - `/mail` — 打开 Gmail 清理面板（聚类 + 批量移废纸篓）
     - `/do` — 打开 Do 待办面板（工作/生活 两页，主题可增删）
     - `/worklog` — 打开工作量总结面板（按 from 逐个总结 PR/issue，再按季度/半年/全年做 OKR 归纳）
-    - `/agent` — 打开动态收件箱（主观能动性：后台监听请求我 review 的 PR / 指派给我的 Issue）
+    - `/cowork`（`/agent`）— 打开协同盯梢（盯着 GitHub / 邮件等固定信息源，自动摘要总结、主动推送值得关注的，一键就地分析）
     - `/issue <url>` — 用本地代码分析 GitHub issue
     - `/pr <url>` — 用本地代码 review GitHub PR diff
     - `/h` — 显示本帮助；`/h <问题>` — 结合文档让 AI 解答如何操作

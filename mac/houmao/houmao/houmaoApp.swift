@@ -226,7 +226,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             }
             content.body = first.title
         } else {
-            content.title = "猴毛发现 \(events.count) 项新动态"
+            content.title = "\(events.count) 项待处理"
             content.body = events.prefix(3).map(\.title).joined(separator: "\n")
         }
         content.sound = .default
@@ -768,7 +768,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             backing: .buffered,
             defer: false
         )
-        window.title = "agent"
+        window.title = "cowork"
         window.titlebarAppearsTransparent = true
         // Force light appearance so the title renders black over the light theme.
         window.appearance = NSAppearance(named: .aqua)
@@ -779,11 +779,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
 
         let inboxView = AgentInboxView().environment(agentViewModel)
         window.contentViewController = NSHostingController(rootView: SidebarChrome(
-            pageName: "agent",
+            pageName: "cowork",
             paletteSearch: { [weak self] query in self?.agentViewModel.searchFilter = query },
             helpLines: [
-                "主观能动性：后台监听请求我 review 的 PR / 指派给我的 Issue，主动提醒",
-                "双击一行触发分析（/pr、/issue）；行内 ✕ 移除；右键可在浏览器打开",
+                "协同盯梢：盯着 GitHub、邮件等固定信息源，自动摘要 / 总结，主动推送值得关注的 PR / Issue / 新邮件",
+                "双击一行就地触发分析（/pr、/issue）；行内 ✕ 移除；右键可在浏览器打开",
                 "点 header ⚙️ 开启/调节轮询间隔与静默时段；点 ? 查看使用说明",
             ]
         ) { inboxView })
