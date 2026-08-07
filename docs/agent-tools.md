@@ -12,7 +12,7 @@
 
 落地策略 = **混合、可回退**：
 
-- 新增一个独立 **`/ai` 窗口**承载 tool-calling agent；
+- agent 能力**直接内置在聊天框**：普通自由聊天（无文档绑定 / 非 `/h` 帮助）即走工具循环（`MainViewModel.executeAgentTurn`），模型自行决定调用哪些工具；（早期曾有独立 `/ai` 窗，能力并入聊天框后已删除）
 - 现有确定性面板（`/mail` `/pr` `/do` …）**全部保留**不动；
 - 能力逐个包成工具，随时可停可退。
 
@@ -31,8 +31,8 @@
 | Core | [ToolRegistry.swift](../mac/houmao/houmao/Core/Tools/ToolRegistry.swift) | 工具注册表；`specs()` 产 OpenAI 风格 `tools` 数组 |
 | Core | [AgentLoop.swift](../mac/houmao/houmao/Core/Tools/AgentLoop.swift) | 工具使用循环 + 变更类确认中断（`AgentMessage`/`AgentActivity`/`AgentOutcome`） |
 | Core | [AgentModelClient.swift](../mac/houmao/houmao/Core/Tools/AgentModelClient.swift) | tool-calling 的 OpenAI wire 层（`requestBody`/`parseTurn`/`complete`/`modelCall`） |
-| Shell | [AgentChatViewModel.swift](../mac/houmao/houmao/AgentChatViewModel.swift) | 驱动 `AgentLoop`，管理对话/工具活动/确认状态 |
-| Shell | [AgentChatView.swift](../mac/houmao/houmao/AgentChatView.swift) | `/ai` 对话 UI + 变更类确认条 |
+| Shell | [MainViewModel.swift](../mac/houmao/houmao/MainViewModel.swift) | 聊天框普通自由聊天走 `executeAgentTurn` 驱动 `AgentLoop`，管理对话/工具活动/确认状态 |
+| Shell | [ChatView.swift](../mac/houmao/houmao/ChatView.swift) | 聊天 UI + 工具活动气泡 + 变更类确认条（`agentConfirmBar`） |
 
 > 目录取名 `Core/Tools/` 而非 `Core/Agent/`——后者已被「主观能动性」被动收件箱子系统（`AgentEvent`/`Watcher`/`AgentDaemon`）占用，两者概念不同（那个是被动感知/通知，这个是主动工具使用）。
 
@@ -78,7 +78,7 @@ flowchart TD
 1. **tool = 现有 view 的确定性取数 + 动作**——复用既有 `Provider`（`GmailProvider` / `PullRequestProvider` / `GitHubCLI` …），只是把「人点按钮」换成「模型决定调用」。
 2. **确定性逻辑该封装进工具**（去噪、聚类、取数、格式化）；**依赖用户意图、且外层 agent 自己能做的智力工作，不要塞进工具**（见 §5 的嵌套 LLM 取舍）。
 3. 依赖注入 `Provider`（协议）→ 工具**可 mock、可单测**。
-4. 新增工具流程：① `Core/Tools/XxxTool.swift` 实现协议；② 在 [AgentChatViewModel](../mac/houmao/houmao/AgentChatViewModel.swift) 的 `registry` 注册；③ 变更类设 `isMutating=true`；④ 加单测（注入假 Provider）；⑤ 新文件需 `xcodegen generate`。
+4. 新增工具流程：① `Core/Tools/XxxTool.swift` 实现协议；② 在 [MainViewModel](../mac/houmao/houmao/MainViewModel.swift) 的 `agentRegistry` 注册；③ 变更类设 `isMutating=true`；④ 加单测（注入假 Provider）；⑤ 新文件需 `xcodegen generate`。
 
 ---
 
@@ -101,7 +101,7 @@ flowchart TD
 - **「XX 那封讲了什么？」** → `list_recent_mail` 找到 id → `read_mail` 读全文 → agent 分析。
 - **「把这些促销邮件删了」** → agent 提出 `trash_mail(ids)` → **暂停等用户点「批准执行」** → 执行。
 
-`AgentChatViewModel` 的 `systemPrompt` 引导模型：想快速了解重点用 `triage_inbox`；看具体某封先 `list_recent_mail` 再 `read_mail`；删邮件用 `trash_mail`（会先请用户确认）；需要数据时调工具、不臆造。
+`MainViewModel` 的 `agentSystemPrompt` 引导模型：想快速了解重点用 `triage_inbox`；看具体某封先 `list_recent_mail` 再 `read_mail`；删邮件用 `trash_mail`（会先请用户确认）；需要数据时调工具、不臆造。
 
 ---
 
@@ -169,7 +169,7 @@ key 用现成的 `MailSignature.cluster(cluster)` = 簇内 Gmail **message-id �
 
 - 按 §7 的统一协议把 `/pr`、`/issue` 的 ghia 深度分析包成工具（让 agent 串「列 PR → 深度分析某个」）；
 - 补一条 ADR 正式记录本次方向反转（ADR-1/13/14）；
-- `/ai` 窗口 GUI 无法无头验证，真机联调需配好 provider（支持 function calling）+ 已连 Gmail / `gh auth`。
+- 聊天框 agent 的 GUI 无法无头验证，真机联调需配好 provider（支持 function calling）+ 已连 Gmail / `gh auth`。
 
 ---
 

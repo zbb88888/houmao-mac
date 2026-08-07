@@ -49,6 +49,7 @@
 		467DB8A781549DF107ED7F84 /* PullRequestProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9455B3DDA0038D2AEFD01BA /* PullRequestProvider.swift */; };
 		48548AA7258DA25481EC0C04 /* GoogleAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B81BFC7008DECB0341CF0F7 /* GoogleAuthTests.swift */; };
 		489DBD824B8D8BEA8C368FC3 /* MailProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D294FA5BEF072740B48A5A69 /* MailProvider.swift */; };
+		48E56963AF8749B865B02ADA /* OpenURLTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11864CBC5B19F382F3E9B9C8 /* OpenURLTool.swift */; };
 		4A4D01C514A8F3C4049B7401 /* AiTxtClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08126500EB5DAEF6E3EA0261 /* AiTxtClient.swift */; };
 		4DC903D4DC0CF422B37647D4 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99D44385EF33EF2316E4ADA /* KeychainStore.swift */; };
 		510D19CDB94F4643747B3C60 /* MailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF08D164A5D2EA8C9127D54 /* MailViewModel.swift */; };
@@ -82,6 +83,7 @@
 		883DAB948F62AD5BD468436D /* PRViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E24D96DD2B2427B4C062FF2B /* PRViewModel.swift */; };
 		8C4AE05803D40E41CAC8831D /* SelectToCopyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 410FF4A6A10475DBEC89ECF4 /* SelectToCopyManager.swift */; };
 		8E10C6E4356EA19E054822D8 /* CommandHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F4B902B3D042810487E0B2F /* CommandHistory.swift */; };
+		8E4A2BD71BB13EDA6C0DE26E /* OpenURLToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C35066477001783DCFD0052D /* OpenURLToolTests.swift */; };
 		8F1FEBBA064AF43072562A25 /* IssueAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 862143F6F82F5ABC375AD59C /* IssueAnalyzer.swift */; };
 		90F435AAD65A1A6EFE4AE797 /* WorkLogStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CCAD54AD48B9B7247363A9E /* WorkLogStoreTests.swift */; };
 		97332CDDAD0F7D17FBB46C84 /* AnalyzeToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1544EEBF30DC35653A2C409D /* AnalyzeToolTests.swift */; };
@@ -167,6 +169,7 @@
 		0DF08D164A5D2EA8C9127D54 /* MailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailViewModel.swift; sourceTree = "<group>"; };
 		0F4B902B3D042810487E0B2F /* CommandHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandHistory.swift; sourceTree = "<group>"; };
 		0FB5C9BF8C3F1350B35B135B /* MailImportance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailImportance.swift; sourceTree = "<group>"; };
+		11864CBC5B19F382F3E9B9C8 /* OpenURLTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenURLTool.swift; sourceTree = "<group>"; };
 		144DE9A5EF40D566216AD90B /* MailToolsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailToolsTests.swift; sourceTree = "<group>"; };
 		1463CB9916AB39A21F23ECAA /* PipelineParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineParserTests.swift; sourceTree = "<group>"; };
 		1544EEBF30DC35653A2C409D /* AnalyzeToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyzeToolTests.swift; sourceTree = "<group>"; };
@@ -260,6 +263,7 @@
 		B8673CCE45ECC5F8DD4FB2F8 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		BFEFDF5B73EEC3212AE8722A /* AgentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentViewModel.swift; sourceTree = "<group>"; };
 		C0BC36FC5E119006A965686E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C35066477001783DCFD0052D /* OpenURLToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenURLToolTests.swift; sourceTree = "<group>"; };
 		C3F7A34D74513C7866793C14 /* ListPullRequestsTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListPullRequestsTool.swift; sourceTree = "<group>"; };
 		C4CD154211B6D384EE5C0F51 /* ReadMailTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadMailTool.swift; sourceTree = "<group>"; };
 		C7FD08086680DCF2297F4014 /* AgentInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentInboxView.swift; sourceTree = "<group>"; };
@@ -461,6 +465,7 @@
 				144DE9A5EF40D566216AD90B /* MailToolsTests.swift */,
 				01BEA31CD84A4FEC595CF0E0 /* MarkdownLintTests.swift */,
 				B7AB34ACA01BB70F852F37F3 /* MarkdownParserTests.swift */,
+				C35066477001783DCFD0052D /* OpenURLToolTests.swift */,
 				19FF0828996656406E6B7BEE /* PairSwitchDwellStateTests.swift */,
 				1463CB9916AB39A21F23ECAA /* PipelineParserTests.swift */,
 				9297FA6018284024D4887230 /* ReadDocumentToolTests.swift */,
@@ -577,6 +582,7 @@
 				5BF08A509F2FFE9FEE779D39 /* MarkdownView.swift */,
 				6357EAD0D83E7206BE088B1E /* MermaidView.swift */,
 				3EAA739E5D9930D17E55376C /* MiddleClickPasteManager.swift */,
+				11864CBC5B19F382F3E9B9C8 /* OpenURLTool.swift */,
 				F1C18E20827A3219BB947BFA /* PairSwitchManager.swift */,
 				584BA80A94447E11468961FD /* PanelSidebar.swift */,
 				D1E1C6995CBCF2A576AFAF5A /* PRView.swift */,
@@ -775,6 +781,7 @@
 				F46213BE55659AC254D5DA13 /* Message.swift in Sources */,
 				3C062D49A79C44E3423CB3EC /* MiddleClickPasteManager.swift in Sources */,
 				E0508EFE430B2A031BE608FC /* NoteWriting.swift in Sources */,
+				48E56963AF8749B865B02ADA /* OpenURLTool.swift in Sources */,
 				2307134B590D569C23CDA014 /* PKCE.swift in Sources */,
 				E4F9996F92142CAD1E9E7639 /* PRView.swift in Sources */,
 				883DAB948F62AD5BD468436D /* PRViewModel.swift in Sources */,
@@ -839,6 +846,7 @@
 				D76FFC13BF2F5C0E75629F73 /* MailToolsTests.swift in Sources */,
 				216ED3F039A732943119F1B8 /* MarkdownLintTests.swift in Sources */,
 				E1541F22D20877460D696EB9 /* MarkdownParserTests.swift in Sources */,
+				8E4A2BD71BB13EDA6C0DE26E /* OpenURLToolTests.swift in Sources */,
 				ED653C454439E8559D6F0F84 /* PairSwitchDwellStateTests.swift in Sources */,
 				67770692576258B01B0A7366 /* PipelineParserTests.swift in Sources */,
 				E302FA7EBCAAD99B793940C9 /* ReadDocumentToolTests.swift in Sources */,
