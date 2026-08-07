@@ -31,6 +31,11 @@ final class AgentChatViewModel {
     private var task: Task<Void, Never>?
     /// The transcript of the last `run`, replayed by `retry()`.
     private var lastTranscript: [AgentMessage]?
+    /// Background jobs (§7) and their status — single source of “是否结束”.
+    let jobStore = JobStore()
+    /// `awaitingJob` transcripts keyed by jobID, resumed on the completion event.
+    private var pendingJobs: [String: [AgentMessage]] = [:]
+    private var jobObserver: NSObjectProtocol?
 
     init() {
         // Mail tools reuse the shared Gmail provider (same read path as /mail).
@@ -41,13 +46,22 @@ final class AgentChatViewModel {
             ReadMailTool(provider: mail),
             TriageInboxTool(provider: mail, customTags: AppSettings.shared.mailTags),
             TrashMailTool(provider: mail),
+            ReadDocumentTool(),
+            AnalyzeGitHubTool(mode: "pr", jobStore: jobStore),
+            AnalyzeGitHubTool(mode: "issue", jobStore: jobStore),
         ])
+        jobObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoAgentJobFinished, object: nil, queue: .main
+        ) { [weak self] note in
+            guard let id = note.userInfo?["jobID"] as? String else { return }
+            MainActor.assumeIsolated { self?.jobDidFinish(id) }
+        }
     }
 
     private static let systemPrompt = """
-    你是猴毛（houmao）的智能助手。你可以调用工具来获取 GitHub PR、Gmail 邮件等数据后再回答。\
-    想快速了解重要邮件用 triage_inbox；要看具体某封先 list_recent_mail 再 read_mail；\
-    删邮件用 trash_mail（会先请用户确认）。\
+    你是猴毛（houmao）的智能助手。你可以调用工具来获取 GitHub、Gmail 等数据后再回答。\
+    想快速了解重要邮件用 triage_inbox；看具体某封先 list_recent_mail 再 read_mail；删邮件用 trash_mail（会先请用户确认）。\
+    深度分析 GitHub PR/issue 用 analyze_pr/analyze_issue（后台任务，完成后会提示你，再用 read_document 读结果文档再作答）。\
     需要数据时调用相应工具，不要臆造；工具返回后基于结果作答。优先用简体中文回复。
     """
 
@@ -178,11 +192,37 @@ final class AgentChatViewModel {
             pendingConfirmation = (call, transcript)
             items.append(Item(kind: .toolCall, text: "⚠️ 需要确认后才会执行：\(summary(call))"))
             lastRunFailed = false
+        case .awaitingJob(let jobID, let transcript):
+            lastRunFailed = false
+            // Keep isRunning = true: the background job is still in flight. Resume
+            // when its completion event arrives (or immediately if already done).
+            if let job = jobStore.job(jobID), job.status != .running {
+                resumeJob(jobID, transcript: transcript)
+            } else {
+                pendingJobs[jobID] = transcript
+            }
+            return
         case .maxStepsReached:
             items.append(Item(kind: .error, text: "达到最大步数仍未得到最终回答。"))
             lastRunFailed = true
         }
         isRunning = false
+    }
+
+    /// A background job finished: resume the paused conversation that dispatched it.
+    private func jobDidFinish(_ id: String) {
+        guard let transcript = pendingJobs.removeValue(forKey: id) else { return }
+        resumeJob(id, transcript: transcript)
+    }
+
+    /// Inject the job's result-document reference (or failure) and continue the
+    /// loop, so the model reads the document and does its secondary analysis.
+    private func resumeJob(_ id: String, transcript: [AgentMessage]) {
+        guard let job = jobStore.job(id) else { isRunning = false; return }
+        let note = job.status == .succeeded
+            ? "后台任务「\(job.title)」已完成，结果文档：\(job.documentPath)。请用 read_document 读取该文档并给出分析。"
+            : "后台任务「\(job.title)」失败：\(job.error ?? "未知错误")。"
+        run(transcript: transcript + [.user(note)])
     }
 
     private func summary(_ call: ToolCall) -> String {

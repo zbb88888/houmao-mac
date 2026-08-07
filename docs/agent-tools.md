@@ -167,6 +167,70 @@ key 用现成的 `MailSignature.cluster(cluster)` = 簇内 Gmail **message-id �
 
 **未做 / 待办**：
 
-- 把 `/pr`、`/issue` 的 ghia 深度分析包成工具（让 agent 串「列 PR → 深度分析某个」）；
+- 按 §7 的统一协议把 `/pr`、`/issue` 的 ghia 深度分析包成工具（让 agent 串「列 PR → 深度分析某个」）；
 - 补一条 ADR 正式记录本次方向反转（ADR-1/13/14）；
 - `/ai` 窗口 GUI 无法无头验证，真机联调需配好 provider（支持 function calling）+ 已连 Gmail / `gh auth`。
+
+---
+
+## 7. 基于文件交互的工具协议（后续开发规范）
+
+> **本节是后续所有 agent 工具的交互标准。**
+>
+> 演进记录：2026-08-06 曾拍板「全部工具都走结果文档（B）」；2026-08-07 讨论后**收敛为下面这条更精确的原则**——文件中介只用于「跨进程/长任务/大产物」的 LLM 子代理，同进程确定性工具直接内联。理由见 §7.1。
+
+### 7.1 何时走文档、何时内联（核心判据）
+
+决定要不要经由结果文档的，**不是「产出型 vs 查询型」，而是这次调用是否跨了一个「大产物的异步/进程边界」**。三个真正的触发条件：
+
+1. **长时 / 异步**（不该阻塞或逐字流过父 loop）；
+2. **产物大**（不适合直接塞进工具返回通道）；
+3. **值得留存**（可复用、可回看）。
+
+三条同时满足才走文档；否则内联。常见形态＝**该工具委托给一个独立进程的 LLM 子代理**（LLM↔LLM 跨进程），此时**共享文件系统就是天然的 IPC 媒介**。同进程内部无论是否调用模型，都在内存里传字符串即可，套文件纯属多余开销。
+
+| 情形 | 传递方式 | 例 |
+| --- | --- | --- |
+| 同进程、确定性、结果小 | **内存内联**（`invoke` 返回文本） | `list_pull_requests` / `list_recent_mail` / `read_mail` / `trash_mail` |
+| 同进程调模型但产物小 | **内存内联** | `triage_inbox`（内部 `MailWatcher.summarize` 是同进程 HTTP 调用，digest 小） |
+| **跨进程 LLM 子代理、产物大、值得留存** | **结果文档 + 异步 Job** | `analyze_pr` / `analyze_issue`（spawn `ghia` 进程，多阶段 LLM，1200s，大报告） |
+
+### 7.2 三个真实收益（诚实记录，别夸大）
+
+对 ghia 这类场景，文件中介的收益是：
+
+1. **IPC**：跨进程传大产物，落文件比把长时 stdout 全缓冲回来干净。
+2. **异步解耦**：长任务发出去 → 落盘 → 完成再 resume，不阻塞、不逐字流过父 loop。
+3. **持久化 / 可复用**：报告留档，符合猴毛「文档落地是目的」。
+
+**不是**「省上下文」——`read_document` 读回来时整份报告照样进上下文。别用这个理由。
+
+### 7.3 结果文档存储约定
+
+- 路径：`~/Documents/houmao/agent/results/<kind>/<id>.md`（`AgentResults.documentURL`）。
+  - `kind`：pr / issue / …
+  - `id`：由输入**确定性**派生（pr/issue=`<owner>-<repo>-<number>`）→ 同输入同文件，天然幂等 / 可覆盖。
+- 内容：Markdown。与既有 `~/Documents/houmao/<view>/` 同源。
+
+### 7.4 异步 Job 机制（完成信号 + 自动续跑）
+
+跨进程产出工具实现 `AgentTool.dispatch(arguments) -> AgentJob?`（同进程内联工具返回 `nil`，走 `invoke`）：
+
+- `dispatch`：从参数派生 `AgentJob{id,kind,title,documentPath,status}`，起一个**后台 `Task`**（`JobStore.start` → 跑活 → `AgentResults.write` 写文档 → `JobStore.finish`），立即返回 job。
+- `AgentLoop` **复用 pause/resume 机制**：命中 dispatch 工具即返回 **`.awaitingJob(jobID, transcript)`**（与 `.awaitingConfirmation` 同构），暂停但保持运行态。
+- `JobStore`（`@MainActor @Observable`）是**「是否结束」单一来源**；`finish` 发 `.houmaoAgentJobFinished`（userInfo `jobID`）。
+- agent VM 持久订阅该事件：到达时注入 `.user(「结果文档已就绪：<path>，请 read_document 读取并分析」)` 并 **resume** loop → 模型调 `read_document` → 二次分析 → 终答。（VM 收到 `.awaitingJob` 时若 job 已终态则立即 resume，防快任务竞态。）
+
+### 7.5 `read_document` 原语（文档→模型的桥）
+
+必须有一个把文档内容送进模型上下文的内联原语，否则文档内容永远进不了模型。`read_document(path)` 内联返回文档全文（沙箱限 `~/Documents/houmao`）。写/改由 `write_document` 等原语承担。这些 I/O 原语本身不走「产出文档」规则。
+
+### 7.6 护栏：大文本入文件、不入内存缓存
+
+大段 LLM 产物（如 ghia 报告）应落**文件**，不要堆进内存/缓存。现有 `MailMemoryStore` 缓存的是三句话摘要（每条 ~150B，小，尚可）；**不得**拿它或类似内存缓存去存大段正文——那是文件的活。
+
+### 7.7 现状（已实现，即符合本原则）
+
+- **走文档**：`analyze_pr` / `analyze_issue`（ghia 子进程 → `~/Documents/houmao/agent/results/pr|issue/<slug>.md`）。
+- **内联**：`list_pull_requests` / `list_recent_mail` / `read_mail` / `triage_inbox` / `trash_mail`（`trash_mail` 变更类，走 `.awaitingConfirmation` 确认，与 Job 协议互斥、天然不走文档）。
+- 机制：`AgentJob` / `AgentResults` / `JobStore` / `AgentTool.dispatch` / `AgentLoop.awaitingJob` / `ReadDocumentTool` 均已落地并单测。

@@ -46,6 +46,9 @@ extension Notification.Name {
     /// Posted when the AI-agent button (or `/ai`) is used so the app can open the
     /// standalone tool-using assistant window (mirrors the Issue window shell).
     static let houmaoEnterAIWindow = Notification.Name("houmaoEnterAIWindow")
+    /// Posted by `JobStore` when a background agent job (§7 document-mediated
+    /// tool) finishes, so the agent window can resume and read the result doc.
+    static let houmaoAgentJobFinished = Notification.Name("houmaoAgentJobFinished")
     /// Posted when the user opens a message so the app can show the standalone
     /// mail-detail window (a standard large window, not an in-place sheet).
     static let houmaoOpenMailDetail = Notification.Name("houmaoOpenMailDetail")

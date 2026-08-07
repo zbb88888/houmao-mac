@@ -17,10 +17,18 @@ protocol AgentTool: Sendable {
     /// Execute with the decoded arguments; return a text result fed back to the
     /// model as the tool's output.
     func invoke(arguments: JSONValue) async throws -> String
+    /// Async job tools (§7) return a dispatched job here; inline tools return nil.
+    /// Declared as a requirement (not extension-only) so a concrete tool's
+    /// override is reached through the `any AgentTool` existential.
+    func dispatch(arguments: JSONValue) -> AgentJob?
 }
 
 extension AgentTool {
     var isMutating: Bool { false }
+    /// Async job tools (§7) return a dispatched job here; the loop then pauses
+    /// with `.awaitingJob` until the job's completion event resumes it. Inline
+    /// tools return nil (default) and run via `invoke`.
+    func dispatch(arguments: JSONValue) -> AgentJob? { nil }
 }
 
 /// A tool call the model requested in an assistant turn.

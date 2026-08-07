@@ -31,6 +31,17 @@ private struct DeleteTool: AgentTool {
     func invoke(arguments: JSONValue) async throws -> String { "deleted" }
 }
 
+/// An async job tool (§7): dispatch returns a job, so the loop pauses.
+private struct FakeJobTool: AgentTool {
+    let name = "analyze_thing"
+    let description = "Async job producing a document."
+    var parametersSchema: JSONValue { .object(["type": .string("object")]) }
+    func invoke(arguments: JSONValue) async throws -> String { "should not be called for a job tool" }
+    func dispatch(arguments: JSONValue) -> AgentJob? {
+        AgentJob(id: "job1", kind: "test", title: "T", documentPath: "/tmp/x.md")
+    }
+}
+
 /// Vends a scripted sequence of assistant turns and records what it saw.
 private actor ScriptedModel {
     private var turns: [AssistantTurn]
@@ -128,4 +139,32 @@ private actor ScriptedModel {
     )
     let outcome = try await loop.run(transcript: [.user("x")])
     #expect(outcome == .maxStepsReached)
+}
+
+@Test func loopPausesOnAsyncJobTool() async throws {
+    let script = ScriptedModel([
+        AssistantTurn(toolCalls: [ToolCall(id: "1", name: "analyze_thing", arguments: .object([:]))]),
+    ])
+    let loop = AgentLoop(registry: ToolRegistry([FakeJobTool()]), model: { _, _ in await script.next() })
+    let outcome = try await loop.run(transcript: [.user("go")])
+    guard case .awaitingJob(let jobID, _) = outcome else {
+        Issue.record("expected awaitingJob, got \(outcome)")
+        return
+    }
+    #expect(jobID == "job1")
+}
+
+@Test func resumeAfterJobContinuesToFinalAnswer() async throws {
+    let script = ScriptedModel([
+        AssistantTurn(toolCalls: [ToolCall(id: "1", name: "analyze_thing", arguments: .object([:]))]),
+        AssistantTurn(content: "done reading the report"),
+    ])
+    let loop = AgentLoop(registry: ToolRegistry([FakeJobTool()]), model: { _, _ in await script.next() })
+    let first = try await loop.run(transcript: [.user("go")])
+    guard case .awaitingJob(let jobID, let transcript) = first else {
+        Issue.record("expected awaitingJob, got \(first)")
+        return
+    }
+    let final = try await loop.resumeAfterJob(jobID: jobID, documentPath: "/tmp/x.md", transcript: transcript)
+    #expect(final == .finished("done reading the report"))
 }

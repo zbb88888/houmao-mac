@@ -44,6 +44,9 @@ enum AgentOutcome: Sendable, Equatable {
     /// A mutating tool needs user confirmation before it runs. The transcript is
     /// returned so the caller can `resume` after the user approves.
     case awaitingConfirmation(call: ToolCall, transcript: [AgentMessage])
+    /// An async job (§7) was dispatched; the loop paused. The caller resumes via
+    /// `resumeAfterJob` when the job's completion event arrives.
+    case awaitingJob(jobID: String, transcript: [AgentMessage])
     /// The step budget ran out before a final answer.
     case maxStepsReached
 }
@@ -94,6 +97,15 @@ struct AgentLoop: Sendable {
                     return .awaitingConfirmation(call: call, transcript: transcript)
                 }
 
+                // Async job tool (§7): dispatch, ack the tool call, and pause
+                // until the job's completion event resumes the loop.
+                if let job = tool.dispatch(arguments: call.arguments) {
+                    let ack = "已提交后台任务「\(job.title)」（\(job.kind)，job \(job.id)）。完成后读取结果文档：\(job.documentPath)"
+                    onEvent?(.didCall(call, result: ack))
+                    transcript.append(.toolResult(id: call.id, ack))
+                    return .awaitingJob(jobID: job.id, transcript: transcript)
+                }
+
                 let result: String
                 do {
                     result = try await tool.invoke(arguments: call.arguments)
@@ -129,6 +141,19 @@ struct AgentLoop: Sendable {
         onEvent?(.didCall(call, result: result))
         var t = transcript
         t.append(.toolResult(id: call.id, result))
+        return try await run(transcript: t, onEvent: onEvent)
+    }
+
+    /// Resume after an async job (§7) completed: tell the model the result
+    /// document is ready and continue so it can `read_document` and analyze it.
+    func resumeAfterJob(
+        jobID: String,
+        documentPath: String,
+        transcript: [AgentMessage],
+        onEvent: (@Sendable (AgentActivity) -> Void)? = nil
+    ) async throws -> AgentOutcome {
+        var t = transcript
+        t.append(.user("[系统] 后台任务 \(jobID) 已完成，结果文档：\(documentPath)。请用 read_document 读取该文档并据此作答。"))
         return try await run(transcript: t, onEvent: onEvent)
     }
 }
