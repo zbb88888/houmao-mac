@@ -53,6 +53,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// Proactive-agent background loop and its inbox view model (主观能动性).
     private(set) var agentDaemon: AgentDaemon!
     private(set) var agentViewModel: AgentViewModel!
+    /// Thin client to the standalone Rust engine (`/engine`); UI only renders.
+    private(set) var engineChatViewModel: EngineChatViewModel!
     private var shortcutMonitor: Any?
     private var enterChatObserver: NSObjectProtocol?
     private var exitChatObserver: NSObjectProtocol?
@@ -63,6 +65,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     private var enterGoalsObserver: NSObjectProtocol?
     private var enterWorkLogObserver: NSObjectProtocol?
     private var enterAgentObserver: NSObjectProtocol?
+    private var enterEngineObserver: NSObjectProtocol?
     private var enterEditorObserver: NSObjectProtocol?
     private var commitEditorObserver: NSObjectProtocol?
     private var openMailDetailObserver: NSObjectProtocol?
@@ -87,6 +90,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// Standalone proactive-agent inbox window (`/agent`), same shell as the
     /// Issue window.
     private var agentWindow: NSWindow?
+    /// Standalone engine-chat window (`/engine`), thin client to the Rust engine.
+    private var engineWindow: NSWindow?
     /// The one shared, general-purpose Markdown editor window (houmao's single
     /// editor). Reused across all callers; the current document/sink lives in
     /// `markdownEditorModel`.
@@ -138,6 +143,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         agentDaemon.onNewEvents = { [weak self] events in
             self?.notifyAgentEvents(events)
         }
+        engineChatViewModel = EngineChatViewModel()
 
         setupPanel()
         setupShortcutMonitor()
@@ -150,6 +156,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         setupGoalsWindowObservers()
         setupWorkLogWindowObservers()
         setupAgentWindowObservers()
+        setupEngineWindowObservers()
 
         hotKeyManager = GlobalHotKeyManager.shared
         hotKeyManager?.onDoubleControl = { [weak self] in
@@ -418,6 +425,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             hideAgentWindow()
             return false
         }
+        if sender == engineWindow {
+            hideEngineWindow()
+            return false
+        }
         if sender == markdownEditorWindow {
             MainActor.assumeIsolated { finishMarkdownEditor() }
             return false
@@ -515,7 +526,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     /// All independent panel windows (each toggled by its own button / command).
     /// Used to cascade a newly shown panel so several can stay visible at once.
     private var panelWindows: [NSWindow] {
-        [chatWindow, mailWindow, prWindow, issueWindow, doWindow, markdownEditorWindow, goalsWindow, workLogWindow, agentWindow].compactMap { $0 }
+        [chatWindow, mailWindow, prWindow, issueWindow, doWindow, markdownEditorWindow, goalsWindow, workLogWindow, agentWindow, engineWindow].compactMap { $0 }
     }
 
     /// Place a panel window the first time it's shown. Each panel is an
@@ -897,6 +908,53 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
 
     private func hideGoalsWindow() {
         guard let window = goalsWindow else { return }
+        hideWindowSafely(window)
+    }
+
+    // MARK: Engine chat window (thin client to the Rust engine)
+
+    private func setupEngineWindowObservers() {
+        enterEngineObserver = NotificationCenter.default.addObserver(
+            forName: .houmaoEnterEngineWindow, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.showEngineWindow()
+        }
+    }
+
+    private func makeEngineWindow() -> NSWindow {
+        let rect = centeredGoldenRect(on: screenContainingMouse())
+        let window = NSWindow(
+            contentRect: rect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "engine"
+        window.titlebarAppearsTransparent = true
+        window.appearance = NSAppearance(named: .aqua)
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 480, height: 420)
+        window.delegate = self
+
+        let engineView = EngineChatView(model: engineChatViewModel)
+        window.contentViewController = NSHostingController(rootView: SidebarChrome(
+            pageName: "engine",
+            helpLines: ["与独立 Rust 引擎对话（UI 只渲染）", "引擎负责 provider 调用与流式"]
+        ) { engineView })
+        return window
+    }
+
+    private func showEngineWindow() {
+        let window = engineWindow ?? makeEngineWindow()
+        engineWindow = window
+        placePanelOnFirstShow(window)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func hideEngineWindow() {
+        guard let window = engineWindow else { return }
         hideWindowSafely(window)
     }
 

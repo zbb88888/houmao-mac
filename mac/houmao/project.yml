@@ -12,6 +12,18 @@ targets:
         DEVELOPMENT_TEAM: ""
         GENERATE_INFOPLIST_FILE: "YES"
     dependencies: []
+    postCompileScripts:
+      - name: Bundle houmao-engine (Rust)
+        # 构建 Rust 引擎并拷进 app 的 Resources（在签名前），让 make build/install 自带引擎。
+        script: |
+          set -e
+          export PATH="$HOME/.cargo/bin:$PATH"
+          ENGINE_DIR="$SRCROOT/../../engine"
+          cargo build --release --manifest-path "$ENGINE_DIR/Cargo.toml"
+          RES="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
+          mkdir -p "$RES"
+          cp -f "$ENGINE_DIR/target/release/houmao-engine" "$RES/houmao-engine"
+        basedOnDependencyAnalysis: false
 
   houmaoTests:
     type: bundle.unit-test

@@ -43,6 +43,9 @@ extension Notification.Name {
     /// notification, is used so the app can open the standalone agent inbox
     /// window (主观能动性「动态」; mirrors the Issue window shell).
     static let houmaoEnterAgentWindow = Notification.Name("houmaoEnterAgentWindow")
+    /// Posted when the engine button (or `/engine`) is used so the app can open
+    /// the standalone engine-chat window (thin client to the Rust engine).
+    static let houmaoEnterEngineWindow = Notification.Name("houmaoEnterEngineWindow")
     /// Posted by `JobStore` when a background agent job (§7 document-mediated
     /// tool) finishes, so the agent window can resume and read the result doc.
     static let houmaoAgentJobFinished = Notification.Name("houmaoAgentJobFinished")
